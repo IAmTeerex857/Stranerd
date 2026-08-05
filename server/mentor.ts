@@ -11,6 +11,13 @@ export type MentorRequest = {
     graphVersion?: string
     task?: string
     engineResult?: string
+    mode?: 'dissection'
+    action?: string
+    structureIds?: string[]
+    structures?: string[]
+    hiddenStructures?: string[]
+    visibleNeighbors?: string[]
+    guidedStep?: string
     facts?: string[]
   }
   fallback?: string
@@ -18,7 +25,7 @@ export type MentorRequest = {
 
 const mentorInstructions = `You are Stranerd Mentor, a patient university-level anatomy and engineering educator.
 Use the selected structure and model context to identify the topic, then use established scientific knowledge to explain it accurately. The context is a focus signal, not a restriction on your knowledge. Never say that the supplied context is insufficient or discuss the phrase "supplied context". If a structure label contains a minor source typo, infer the standard anatomical term and use the corrected name.
-For a selected structure, explain what it is, its primary function, and one useful anatomical or physiological relationship. Be concise but substantive. Do not diagnose, prescribe, or give patient-specific medical advice.
+For a selected structure, explain what it is, its primary function, and one useful anatomical or physiological relationship. For dissection actions, briefly explain what the action reveals and one spatial or functional relationship relevant to the current guided step. Be concise but substantive. Do not diagnose, prescribe, or give patient-specific medical advice.
 Return plain text only. Do not use Markdown headings, asterisks, bold markers, or tables. Use short paragraphs. When listing several distinct points, put each on its own line beginning with "- ".`
 
 function cleanReply(message: string) {

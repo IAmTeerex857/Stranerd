@@ -1,11 +1,14 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useGLTF } from '@react-three/drei'
-import { Box3, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Vector2, Vector3, type Material } from 'three'
+import { Box3, DoubleSide, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, Plane, Vector2, Vector3, type Material } from 'three'
 import { useThree } from '@react-three/fiber'
 import { anatomyNodeId, createMeshSelection, normalizeStructureName } from '../data/anatomyGraph'
+import { segmentedMaterialProfile } from '../data/anatomyMaterials'
+import { anatomyMovementId, type DissectionSnapshot } from '../data/dissection'
 import type { AnatomySystemId, Hotspot, Settings } from '../types'
 
 function structureName(object: Object3D, root: Object3D) {
+  if (typeof object.userData.label === 'string' && object.userData.label.trim()) return normalizeStructureName(object.userData.label)
   let current: Object3D | null = object
   while (current && current !== root) {
     const name = current.name.trim()
@@ -15,52 +18,32 @@ function structureName(object: Object3D, root: Object3D) {
   return 'Anatomical structure'
 }
 
+function structureId(object: Object3D, systemId: AnatomySystemId, name: string) {
+  return typeof object.userData.ontologyid === 'string' && object.userData.ontologyid.trim()
+    ? object.userData.ontologyid.trim()
+    : anatomyNodeId(systemId, name)
+}
+
 type Props = {
   url: string
   systemId: AnatomySystemId
   selectedIds: string[]
   settings: Settings
   onSelect: (hotspot: Hotspot, multi: boolean) => void
+  dissection?: DissectionSnapshot
+  onStructures?: (structures: Hotspot[]) => void
+  onMoveStart?: () => void
+  onMove?: (nodeId: string, offset: [number, number, number]) => void
+  onMoveEnd?: (nodeId: string) => void
 }
 
-function anatomyColor(name: string, systemId: AnatomySystemId) {
-  const value = name.toLowerCase()
-  if (systemId === 'skin') return /hair|eyebrow|eyelash/.test(value) ? '#5b4035' : '#d9a58f'
-  if (systemId === 'nervous') {
-    if (/eye|eyeball|cornea|iris|lens|retina/.test(value)) return /iris/.test(value) ? '#6fa4b9' : /lens|cornea/.test(value) ? '#b9dce5' : '#e8ddd3'
-    if (/optic|nerve|tract|fibre|funicul|plexus/.test(value)) return '#edc75f'
-    if (/cerebell/.test(value)) return '#c98272'
-    if (/brainstem|midbrain|pons|medulla/.test(value)) return '#c88f6c'
-    if (/frontal/.test(value)) return '#d47c72'
-    if (/parietal/.test(value)) return '#c98b67'
-    if (/temporal/.test(value)) return '#a9798e'
-    if (/occipital/.test(value)) return '#8d78a8'
-    return '#d19a83'
-  }
-  if (systemId === 'organs') {
-    if (/lung|pleura/.test(value)) return '#d9919a'
-    if (/bronch|trachea|larynx/.test(value)) return '#c6d4d7'
-    if (/kidney|renal/.test(value)) return '#a95458'
-    if (/ureter|urethra|bladder/.test(value)) return '#d8b56f'
-    if (/liver|hepatic/.test(value)) return '#8f4c43'
-    if (/gallbladder|bile/.test(value)) return '#77a65a'
-    if (/pancreas/.test(value)) return '#d7a56b'
-    if (/stomach/.test(value)) return '#ca7f79'
-    if (/colon|intestin|duodenum|jejunum|ileum|cecum|appendix/.test(value)) return '#c98e75'
-    if (/oesophagus|esophagus|pharynx|mouth/.test(value)) return '#b86d6c'
-    return '#bd776d'
-  }
-  if (/vein|vena cava|coronary sinus/.test(value)) return '#4f83d1'
-  if (/artery|aorta|pulmonary trunk/.test(value)) return '#d75a61'
-  if (/valve|leaflet/.test(value)) return '#e8d8b8'
-  if (/atrium/.test(value)) return '#b94f68'
-  if (/ventricle|papillary|heart/.test(value)) return '#c85f58'
-  return '#d07a72'
-}
-
-export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, onSelect }: Props) {
+export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, onSelect, dissection, onStructures, onMoveStart, onMove, onMoveEnd }: Props) {
   const { scene } = useGLTF(url)
-  const { camera, gl, raycaster } = useThree()
+  const { camera, controls, gl, invalidate, raycaster } = useThree()
+  const interaction = useRef({ onSelect, onMoveStart, onMove, onMoveEnd, selectedIds, offsets: dissection?.offsets ?? {}, enabled: Boolean(dissection) })
+  useEffect(() => {
+    interaction.current = { onSelect, onMoveStart, onMove, onMoveEnd, selectedIds, offsets: dissection?.offsets ?? {}, enabled: Boolean(dissection) }
+  }, [dissection, onMove, onMoveEnd, onMoveStart, onSelect, selectedIds])
   const prepared = useMemo(() => {
     const root = scene.clone(true)
     const box = new Box3().setFromObject(root)
@@ -69,18 +52,23 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
     const scale = 3.15 / Math.max(size.x, size.y, size.z, 0.001)
     root.position.copy(center).multiplyScalar(-scale)
     root.scale.setScalar(scale)
-    const meshes: { mesh: Mesh; rawName: string; nodeId: string; base: Material | Material[]; selected: Material | Material[] }[] = []
+    const meshes: { mesh: Mesh; rawName: string; nodeId: string; movementId: string; renderOrder: number; originalPosition: Vector3; base: Material | Material[]; selected: Material | Material[]; transparent: Material | Material[]; selectedTransparent: Material | Material[] }[] = []
 
     root.traverse((object) => {
       if (!(object instanceof Mesh)) return
       const rawName = structureName(object, root)
+      const profile = segmentedMaterialProfile(rawName, systemId)
       const source = Array.isArray(object.material) ? object.material : [object.material]
       const base = source.map((material) => {
         const next = material.clone()
         if (next instanceof MeshStandardMaterial && !next.vertexColors) {
-          next.color.set(anatomyColor(rawName, systemId))
-          next.roughness = 0.62
-          next.metalness = 0
+          next.color.set(profile.color)
+          next.roughness = profile.roughness
+          next.metalness = profile.metalness
+          next.opacity = profile.opacity
+          next.transparent = profile.opacity < 1
+          next.depthWrite = profile.depthWrite
+          if (profile.doubleSided) next.side = DoubleSide
         }
         return next
       })
@@ -90,11 +78,44 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
           next.color.set('#e26bd6')
           next.emissive.set('#5b174f')
           next.emissiveIntensity = 0.8
+          next.opacity = 1
+          next.transparent = false
+          next.depthWrite = true
+        }
+        return next
+      })
+      const transparent = base.map((material) => {
+        const next = material.clone()
+        if (next instanceof MeshStandardMaterial) {
+          next.opacity = Math.min(next.opacity, 0.16)
+          next.transparent = true
+          next.depthWrite = false
+        }
+        return next
+      })
+      const selectedTransparent = selected.map((material) => {
+        const next = material.clone()
+        if (next instanceof MeshStandardMaterial) {
+          next.opacity = 0.48
+          next.transparent = true
+          next.depthWrite = false
         }
         return next
       })
       object.material = Array.isArray(object.material) ? base : base[0]
-      meshes.push({ mesh: object, rawName, nodeId: anatomyNodeId(systemId, rawName), base: object.material, selected: Array.isArray(object.material) ? selected : selected[0] })
+      const nodeId = structureId(object, systemId, rawName)
+      meshes.push({
+        mesh: object,
+        rawName,
+        nodeId,
+        movementId: anatomyMovementId(nodeId, object.uuid),
+        renderOrder: profile.renderOrder,
+        originalPosition: object.position.clone(),
+        base: object.material,
+        selected: Array.isArray(object.material) ? selected : selected[0],
+        transparent: Array.isArray(object.material) ? transparent : transparent[0],
+        selectedTransparent: Array.isArray(object.material) ? selectedTransparent : selectedTransparent[0],
+      })
     })
     root.updateMatrixWorld(true)
     const proxies = meshes.map((entry) => {
@@ -102,16 +123,34 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
       proxy.matrixAutoUpdate = false
       proxy.matrix.copy(entry.mesh.matrixWorld)
       proxy.name = `hit:${entry.rawName}`
-      return { proxy, rawName: entry.rawName }
+      return { proxy, rawName: entry.rawName, nodeId: entry.nodeId, movementId: entry.movementId }
     })
-    return { root, meshes, proxies }
+    const structures = meshes.map((entry) => ({
+      ...createMeshSelection(systemId, entry.rawName),
+      id: entry.nodeId,
+      nodeId: entry.nodeId,
+    }))
+    return { root, meshes, proxies, structures }
   }, [scene, systemId])
 
   useEffect(() => {
+    onStructures?.(prepared.structures)
+  }, [onStructures, prepared.structures])
+
+  useEffect(() => {
     const selected = new Set(selectedIds)
+    const hidden = new Set(dissection?.hiddenIds ?? [])
+    const transparent = new Set(dissection?.transparentIds ?? [])
+    const isolate = settings.isolate || Boolean(dissection?.isolate)
     prepared.meshes.forEach((entry) => {
-      entry.mesh.material = selected.has(entry.nodeId) ? entry.selected : entry.base
-      entry.mesh.visible = !settings.isolate || selected.size === 0 || selected.has(entry.nodeId)
+      const isSelected = selected.has(entry.nodeId)
+      const isTransparent = transparent.has(entry.nodeId)
+      entry.mesh.material = isSelected
+        ? isTransparent ? entry.selectedTransparent : entry.selected
+        : isTransparent ? entry.transparent : entry.base
+      const offset = dissection?.offsets[entry.movementId] ?? [0, 0, 0]
+      entry.mesh.position.copy(entry.originalPosition).add(new Vector3(...offset))
+      entry.mesh.visible = !hidden.has(entry.nodeId) && (!isolate || selected.size === 0 || isSelected)
       const materials = Array.isArray(entry.mesh.material) ? entry.mesh.material : [entry.mesh.material]
       materials.forEach((material) => {
         if (material instanceof MeshStandardMaterial) {
@@ -119,13 +158,21 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
           material.needsUpdate = true
         }
       })
-      entry.mesh.renderOrder = 0
+      entry.mesh.renderOrder = isSelected ? 20 : isTransparent ? 10 : entry.renderOrder
     })
-  }, [prepared, selectedIds, settings.isolate, settings.wireframe])
+    prepared.root.updateMatrixWorld(true)
+    prepared.proxies.forEach((entry) => {
+      const mesh = prepared.meshes.find((candidate) => candidate.movementId === entry.movementId)?.mesh
+      if (!mesh) return
+      entry.proxy.matrix.copy(mesh.matrixWorld)
+      entry.proxy.visible = mesh.visible
+    })
+    invalidate()
+  }, [dissection, invalidate, prepared, selectedIds, settings.isolate, settings.wireframe])
 
   useEffect(() => () => {
     prepared.meshes.forEach((entry) => {
-      const materials = [entry.base, entry.selected].flatMap((material) => Array.isArray(material) ? material : [material])
+      const materials = [entry.base, entry.selected, entry.transparent, entry.selectedTransparent].flatMap((material) => Array.isArray(material) ? material : [material])
       materials.forEach((material) => material.dispose())
     })
     prepared.proxies.forEach(({ proxy }) => (proxy.material as Material).dispose())
@@ -133,27 +180,84 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
 
   useEffect(() => {
     let start = new Vector2()
-    const pointerDown = (event: PointerEvent) => { start = new Vector2(event.clientX, event.clientY) }
-    const pointerUp = (event: PointerEvent) => {
-      if (start.distanceTo(new Vector2(event.clientX, event.clientY)) > 5) return
+    let drag: { nodeId: string; movementId: string; mesh: Mesh; plane: Plane; startPoint: Vector3; startOffset: Vector3; moved: boolean } | undefined
+    const pointerPosition = (event: PointerEvent) => {
       const bounds = gl.domElement.getBoundingClientRect()
-      const pointer = new Vector2(
-        ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-        -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
-      )
-      raycaster.setFromCamera(pointer, camera)
-      const hit = raycaster.intersectObjects(prepared.proxies.map((entry) => entry.proxy), false)[0]
-      const selected = hit && prepared.proxies.find((entry) => entry.proxy === hit.object)
-      if (selected) onSelect(createMeshSelection(systemId, selected.rawName), event.shiftKey)
+      return new Vector2(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1)
+    }
+    const pointerDown = (event: PointerEvent) => {
+      start = new Vector2(event.clientX, event.clientY)
+      if (!interaction.current.enabled) return
+      raycaster.setFromCamera(pointerPosition(event), camera)
+      const hit = raycaster.intersectObjects(prepared.proxies.filter((entry) => entry.proxy.visible).map((entry) => entry.proxy), false)[0]
+      const candidate = hit && prepared.proxies.find((entry) => entry.proxy === hit.object)
+      const meshEntry = candidate && prepared.meshes.find((entry) => entry.movementId === candidate.movementId)
+      if (!candidate || !meshEntry) return
+      drag = {
+        nodeId: candidate.nodeId,
+        movementId: candidate.movementId,
+        mesh: meshEntry.mesh,
+        plane: new Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new Vector3()), hit.point),
+        startPoint: hit.point.clone(),
+        startOffset: new Vector3(...(interaction.current.offsets[candidate.movementId] ?? [0, 0, 0])),
+        moved: false,
+      }
+    }
+    const pointerMove = (event: PointerEvent) => {
+      if (!drag || start.distanceTo(new Vector2(event.clientX, event.clientY)) <= 5) return
+      if (!drag.moved) {
+        drag.moved = true
+        interaction.current.onMoveStart?.()
+        if (controls && 'enabled' in controls) controls.enabled = false
+      }
+      raycaster.setFromCamera(pointerPosition(event), camera)
+      const target = raycaster.ray.intersectPlane(drag.plane, new Vector3())
+      const parent = drag.mesh.parent
+      if (!target || !parent) return
+      const localStart = parent.worldToLocal(drag.startPoint.clone())
+      const localTarget = parent.worldToLocal(target.clone())
+      const offset = drag.startOffset.clone().add(localTarget.sub(localStart))
+      interaction.current.onMove?.(drag.movementId, [offset.x, offset.y, offset.z])
+      event.preventDefault()
+    }
+    const pointerUp = (event: PointerEvent) => {
+      if (drag?.moved) {
+        interaction.current.onMoveEnd?.(drag.nodeId)
+        if (controls && 'enabled' in controls) controls.enabled = true
+        drag = undefined
+        return
+      }
+      drag = undefined
+      if (start.distanceTo(new Vector2(event.clientX, event.clientY)) > 5) return
+      raycaster.setFromCamera(pointerPosition(event), camera)
+      const candidates: typeof prepared.proxies = []
+      for (const hit of raycaster.intersectObjects(prepared.proxies.filter((entry) => entry.proxy.visible).map((entry) => entry.proxy), false)) {
+        const candidate = prepared.proxies.find((entry) => entry.proxy === hit.object)
+        if (candidate && !candidates.some((entry) => entry.nodeId === candidate.nodeId)) candidates.push(candidate)
+      }
+      let selected = candidates[0]
+      if (event.shiftKey) {
+        selected = candidates.find((entry) => !interaction.current.selectedIds.includes(entry.nodeId)) ?? selected
+      } else if (interaction.current.selectedIds.length === 1) {
+        const currentIndex = candidates.findIndex((entry) => entry.nodeId === interaction.current.selectedIds[0])
+        if (currentIndex >= 0) selected = candidates[(currentIndex + 1) % candidates.length]
+      }
+      if (selected) {
+        const selection = createMeshSelection(systemId, selected.rawName)
+        interaction.current.onSelect({ ...selection, id: selected.nodeId, nodeId: selected.nodeId }, event.shiftKey)
+      }
     }
     const canvas = gl.domElement
     canvas.addEventListener('pointerdown', pointerDown)
+    canvas.addEventListener('pointermove', pointerMove)
     canvas.addEventListener('pointerup', pointerUp)
     return () => {
       canvas.removeEventListener('pointerdown', pointerDown)
+      canvas.removeEventListener('pointermove', pointerMove)
       canvas.removeEventListener('pointerup', pointerUp)
+      if (controls && 'enabled' in controls) controls.enabled = true
     }
-  }, [camera, gl, onSelect, prepared, raycaster, systemId])
+  }, [camera, controls, gl, prepared, raycaster, systemId])
 
   return <group>
     <primitive object={prepared.root} />

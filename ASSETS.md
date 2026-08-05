@@ -65,3 +65,59 @@ Eight anatomy subjects include optimized textured primary specimens derived from
 These realistic models remain fused meshes, so they use authored coordinate markers. Interactive specimens retain exact named-mesh selection.
 
 Exact ownership, generation terms, model releases, and commercial license rights must still be confirmed and documented before commercial launch.
+
+## HuBMAP heart pipeline pilot
+
+The first ontology-linked production pipeline candidate is generated from HuBMAP HRA's female heart v1.3 under CC BY 4.0:
+
+| Output | Size | Selectable meshes | Geometry |
+| --- | ---: | ---: | ---: |
+| `heart/heart-desktop.glb` | 574,752 bytes | 14 | 43,560 vertices / 85,914 triangles |
+| `heart/heart-mobile.glb` | 402,044 bytes | 14 | 28,707 vertices / 56,293 triangles |
+| `heart/heart-structures.json` | Metadata | 14 mesh mappings | 18 stable structures |
+
+The generated assets use four structure-aware PBR materials and retain embedded UBERON/FMA identifiers. They remain isolated evaluation assets and do not replace the current production heart because the source does not include great vessels or coronary anatomy.
+
+Generate from the pinned local source and crosswalk:
+
+```bash
+npm run assets:heart
+```
+
+Download the official source again, reject it if its SHA-256 has changed, then generate:
+
+```bash
+npm run assets:heart:download
+```
+
+Validate existing desktop/mobile assets without rewriting them:
+
+```bash
+npm run validate:assets
+```
+
+The importer is `scripts/import-hubmap-heart.mjs`. The source-evaluation workspace at `/?test=heart-candidate` compares both generated variants with the current realistic and segmented specimens.
+
+## Segmented Eye visual pilot
+
+The existing `eye-segmented.glb` remains the Interactive Eye specimen and is unchanged geometrically: 34 selectable meshes, 69,145 vertices, and 113,173 triangles. Its rendering applies structure-specific materials at runtime:
+
+- Transparent, depth-safe cornea, lens, vitreous body, chambers, and ocular segments
+- Opaque sclera, iris, retina, optic nerve, zonular fibres, and lacrimal tissues
+- Distinct roughness, opacity, and render ordering for optical and soft-tissue structures
+- Opaque highlighted materials for reliable selected-state visibility
+- Repeated-click depth cycling through overlapping ocular layers
+
+The deterministic material map is `src/data/anatomyMaterials.ts`; regression coverage is in `src/data/anatomyMaterials.test.ts`.
+
+## Digestive Dissect Mode foundation
+
+The 45-mesh `digestive-system-segmented.glb` is the first Dissect Mode pilot. Entering Dissect Mode switches to that segmented variant and enables structure search, multi-selection, hide/show, isolation, transparency, manual dragging, reset, and bounded undo history. Hidden and isolated meshes are excluded from raycasting.
+
+The deterministic state reducer, structure grouping, stable-ID guided pancreas pathway, and post-dissection question live in `src/data/dissection.ts`. Every action emits structured dissection context for concise Azure mentor explanations, with deterministic rules controlling step completion. Ontology-backed hierarchy metadata and persisted completion remain future work.
+
+## Cross-model Activities and Dissect Mode
+
+All segmented anatomy specimens and the progressively loaded Human Anatomy atlas now consume the same reversible dissection state. The Activities catalog in `src/data/activities.ts` provides one educational lab for each anatomy model and automatically selects its segmented specimen. Human Anatomy aggregates structures from each loaded system layer while retaining independent layer visibility. Individual named structures can be dragged manually, with movement included in Undo and Reset.
+
+Each model receives 20 multiple-choice questions with exactly four unique A-D options. After completing question 20, students can restart or request a new AI-generated set. The server validates question count, unique option count, answer indices, and explanations before accepting AI output; local seeded generation is the offline fallback.

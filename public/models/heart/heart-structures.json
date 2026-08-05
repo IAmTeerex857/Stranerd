@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "subject": "heart",
+  "source": {
+    "name": "HuBMAP Human Reference Atlas",
+    "object": "3D Reference Organ for Heart, Female v1.3",
+    "hubmapId": "HBM449.SHRV.225",
+    "version": "v1.3",
+    "created": "2024-06-15",
+    "license": "CC BY 4.0",
+    "assetUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/heart-female/v1.3/assets/3d-vh-f-heart.glb",
+    "crosswalkUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/heart-female/v1.3/assets/crosswalk.csv",
+    "metadataUrl": "https://raw.githubusercontent.com/hubmapconsortium/hra-kg/v2.5/digital-objects/ref-organ/heart-female/v1.3/raw/metadata.yaml",
+    "sha256": "98f66e46b149bfc3836592d9404c50290e21d302ec55c98813435e2d9847b1d9"
+  },
+  "transforms": {
+    "normalized": false,
+    "sourceTransformsPreserved": true
+  },
+  "structures": [
+    {
+      "id": "UBERON:0000948",
+      "name": "Heart",
+      "meshName": null,
+      "parent": null,
+      "children": [
+        "UBERON:0004151",
+        "UBERON:0002494",
+        "UBERON:0003978"
+      ],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0004151",
+      "name": "Cardiac chamber",
+      "meshName": null,
+      "parent": "UBERON:0000948",
+      "children": [
+        "UBERON:0002094",
+        "UBERON:0002079",
+        "UBERON:0002084",
+        "UBERON:0002078",
+        "UBERON:0002080"
+      ],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002094",
+      "name": "Interventricular septum",
+      "meshName": "VH_F_interventricular_septum",
+      "parent": "UBERON:0004151",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002079",
+      "name": "Left cardiac atrium",
+      "meshName": "VH_F_left_cardiac_atrium",
+      "parent": "UBERON:0004151",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002084",
+      "name": "Left ventricle",
+      "meshName": "VH_F_left_ventricle",
+      "parent": "UBERON:0004151",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002078",
+      "name": "Right cardiac atrium",
+      "meshName": "VH_F_right_cardiac_atrium",
+      "parent": "UBERON:0004151",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002080",
+      "name": "Right ventricle",
+      "meshName": "VH_F_right_ventricle",
+      "parent": "UBERON:0004151",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002494",
+      "name": "Papillary muscle of heart",
+      "meshName": null,
+      "parent": "UBERON:0000948",
+      "children": [
+        "FMA:7264",
+        "FMA:7265",
+        "FMA:7262",
+        "FMA:7261",
+        "FMA:7267"
+      ],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "FMA:7264",
+      "name": "Anterior papillary muscle of left ventricle",
+      "meshName": "VH_F_papillary_muscle_of_heart_ant",
+      "parent": "UBERON:0002494",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "FMA:7265",
+      "name": "Anterolateral head of lateral papillary muscle of left ventricle",
+      "meshName": "VH_F_papillary_muscle_of_heart_antlat",
+      "parent": "UBERON:0002494",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "FMA:7262",
+      "name": "Septal papillary muscle of right ventricle",
+      "meshName": "VH_F_papillary_muscle_of_heart_med",
+      "parent": "UBERON:0002494",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "FMA:7261",
+      "name": "Posterior papillary muscle of right ventricle",
+      "meshName": "VH_F_papillary_muscle_of_heart_pos",
+      "parent": "UBERON:0002494",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "FMA:7267",
+      "name": "Posteromedial head of posterior papillary muscle of left ventricle",
+      "meshName": "VH_F_papillary_muscle_of_heart_posmed",
+      "parent": "UBERON:0002494",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0003978",
+      "name": "Valve",
+      "meshName": null,
+      "parent": "UBERON:0000948",
+      "children": [
+        "UBERON:0002137",
+        "UBERON:0002146",
+        "UBERON:0002135",
+        "UBERON:0002134"
+      ],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002137",
+      "name": "Aortic valve",
+      "meshName": "VH_F_aortic_valve",
+      "parent": "UBERON:0003978",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002146",
+      "name": "Pulmonary valve",
+      "meshName": "VH_F_pulmonary_valve",
+      "parent": "UBERON:0003978",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002135",
+      "name": "Mitral valve",
+      "meshName": "VH_F_mitral_valve",
+      "parent": "UBERON:0003978",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    },
+    {
+      "id": "UBERON:0002134",
+      "name": "Tricuspid valve",
+      "meshName": "VH_F_tricuspid_valve",
+      "parent": "UBERON:0003978",
+      "children": [],
+      "aliases": [],
+      "system": "cardiovascular"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { HeartCandidateTestView } from './components/HeartCandidateTestView'
 import './styles.css'
 
 class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> {
@@ -33,4 +34,8 @@ class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> 
   }
 }
 
-createRoot(document.getElementById('root')!).render(<AppBoundary><App /></AppBoundary>)
+const testView = new URLSearchParams(window.location.search).get('test')
+
+createRoot(document.getElementById('root')!).render(
+  <AppBoundary>{testView === 'heart-candidate' ? <HeartCandidateTestView /> : <App />}</AppBoundary>,
+)

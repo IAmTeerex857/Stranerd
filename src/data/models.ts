@@ -66,6 +66,12 @@ const specimenVariants = (id: string, segmentedSystem: NonNullable<ModelEntry['v
   ...variants(...files).map((variant, index) => ({ ...variant, id: `other-${index + 1}`, label: `Other specimen ${index + 1}` })),
 ]
 
+const eyeVariants: ModelEntry['variants'] = [
+  { id: 'primary', label: 'Primary specimen', file: 'eye-realistic.glb', note: 'Realistic textured study specimen.', hotspots: primaryHotspots.eye },
+  { id: 'interactive', label: 'Interactive specimen', file: 'eye-segmented.glb', note: 'Interactive ocular layers with transparent optical media and exact structure selection.', segmentedSystem: 'nervous' },
+  ...variants('eye.glb', 'eye-v2.glb').map((variant, index) => ({ ...variant, id: `other-${index + 1}`, label: `Other specimen ${index + 1}` })),
+]
+
 export const models: ModelEntry[] = [
   {
     id: 'heart', name: 'Heart', scientificName: 'Cor', system: 'Cardiovascular', file: 'heart-realistic.glb', variants: specimenVariants('heart', 'cardiovascular', 'Named chambers, valves, vessels, and coronary structures.', true, 'heart.glb', 'heart-v2.glb', 'heart-v3.glb'), anatomy: true,
@@ -104,7 +110,7 @@ export const models: ModelEntry[] = [
     hotspots: [spot('renal-cortex', 'Renal cortex', 'Outer region containing glomeruli and convoluted tubules.', [-0.62, 0.3, 0.35]), spot('renal-medulla', 'Renal medulla', 'Inner region organized into renal pyramids.', [0.05, -0.18, 0.42]), spot('renal-pelvis', 'Renal pelvis', 'Funnel collecting urine before the ureter.', [0.62, 0.02, 0.15])],
   },
   {
-    id: 'eye', name: 'Eye', scientificName: 'Oculus', system: 'Sensory', file: 'eye-realistic.glb', variants: specimenVariants('eye', 'nervous', 'Named ocular structures, chambers, accessory anatomy, and optic nerves.', true, 'eye.glb', 'eye-v2.glb'), anatomy: true,
+    id: 'eye', name: 'Eye', scientificName: 'Oculus', system: 'Sensory', file: 'eye-realistic.glb', variants: eyeVariants, anatomy: true,
     description: 'An optical and neural organ that focuses light onto the retina for visual transduction.',
     facts: ['The cornea provides most of the eye’s refractive power.', 'Photoreceptors convert light into graded electrical signals.', 'The optic disc lacks photoreceptors.'],
     metadata: { region: 'Orbit', scale: '~24 mm diameter', focus: 'Optical pathway' },

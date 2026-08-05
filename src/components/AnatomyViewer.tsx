@@ -1,12 +1,13 @@
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode, type RefObject } from 'react'
+import { Component, Suspense, useEffect, useMemo, useReducer, useRef, useState, type ErrorInfo, type ReactNode, type RefObject } from 'react'
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
 import { Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three'
-import { Box, Eye, EyeOff, Focus, Layers3, LoaderCircle, RotateCcw, ScanLine, Star, Tags } from 'lucide-react'
+import { Box, Eye, EyeOff, Focus, Layers3, LoaderCircle, RotateCcw, ScanLine, Scissors, Search, Star, Tags, Undo2, X } from 'lucide-react'
 import type { Hotspot, ModelEntry, Settings } from '../types'
 import { anatomyLayers } from '../data/anatomyGraph'
 import { ProgressiveBodyModel } from './ProgressiveBodyModel'
 import { SegmentedSpecimenModel } from './SegmentedSpecimenModel'
+import { createDissectionState, digestiveStructureGroup, dissectionReducer, type DissectionActionContext, type DissectionActionType, type DissectionSnapshot } from '../data/dissection'
 
 type ViewerProps = {
   model: ModelEntry
@@ -15,10 +16,15 @@ type ViewerProps = {
   settings: Settings
   selectedVariantId: string
   favorite: boolean
-  onSelect: (hotspot: Hotspot, multi: boolean) => void
+  onSelect: (hotspot: Hotspot, multi: boolean, explain?: boolean) => void
   onSettings: (settings: Settings) => void
   onVariant: (variantId: string) => void
   onFavorite: () => void
+  onDissectionAction?: (context: DissectionActionContext) => void
+  initialDissect?: boolean
+  activityLayout?: boolean
+  guidedStep?: number | null
+  onGuidedStep?: (step: number) => void
 }
 
 class ModelBoundary extends Component<{ children: ReactNode; name: string }, { failed: boolean }> {
@@ -93,7 +99,7 @@ function ModelGeometry({ url, settings, hotspots, onSelect, interactive = true }
   return <primitive object={prepared} onClick={selectSurface} onPointerOver={interactive ? () => { document.body.style.cursor = 'pointer' } : undefined} onPointerOut={interactive ? () => { document.body.style.cursor = '' } : undefined} />
 }
 
-function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers }: ViewerProps & { controlsRef: RefObject<{ reset: () => void } | null>; loadedLayers: string[]; visibleLayers: string[] }) {
+function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers, dissection, onStructures, onMoveStart, onMove, onMoveEnd }: ViewerProps & { controlsRef: RefObject<{ reset: () => void } | null>; loadedLayers: string[]; visibleLayers: string[]; dissection?: DissectionSnapshot; onStructures: (structures: Hotspot[]) => void; onMoveStart: () => void; onMove: (nodeId: string, offset: [number, number, number]) => void; onMoveEnd: (nodeId: string) => void }) {
   const variant = model.variants.find((entry) => entry.id === selectedVariantId) ?? model.variants[0]
   const hotspots = variant.hotspots ?? model.hotspots
   return (
@@ -106,9 +112,9 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
       <group>
         <Suspense fallback={<LoadingModel />}>
           <ModelBoundary key={variant.file} name={`${model.name} · ${variant.label}`}>{model.viewer === 'segmented-body'
-            ? <ProgressiveBodyModel layers={anatomyLayers.filter((layer) => loadedLayers.includes(layer.id))} visibleLayerIds={visibleLayers} selectedIds={selectedIds} settings={settings} onSelect={onSelect} />
+            ? <ProgressiveBodyModel layers={anatomyLayers.filter((layer) => loadedLayers.includes(layer.id))} visibleLayerIds={visibleLayers} selectedIds={selectedIds} settings={settings} onSelect={onSelect} dissection={dissection} onStructures={onStructures} onMoveStart={onMoveStart} onMove={onMove} onMoveEnd={onMoveEnd} />
             : variant.segmentedSystem
-              ? <SegmentedSpecimenModel url={`/models/${variant.file}`} systemId={variant.segmentedSystem} selectedIds={selectedIds} settings={settings} onSelect={onSelect} />
+              ? <SegmentedSpecimenModel url={`/models/${variant.file}`} systemId={variant.segmentedSystem} selectedIds={selectedIds} settings={settings} onSelect={onSelect} dissection={dissection} onStructures={onStructures} onMoveStart={onMoveStart} onMove={onMove} onMoveEnd={onMoveEnd} />
               : <ModelGeometry url={`/models/${variant.file}`} settings={settings} hotspots={hotspots} onSelect={onSelect} />}</ModelBoundary>
         </Suspense>
         {model.viewer !== 'segmented-body' && !variant.segmentedSystem && settings.layers && !settings.isolate && <>
@@ -145,18 +151,91 @@ export function AnatomyViewer(props: ViewerProps) {
   const defaults = anatomyLayers.filter((layer) => layer.defaultVisible).map((layer) => layer.id)
   const [visibleLayers, setVisibleLayers] = useState<string[]>(defaults)
   const [loadedLayers, setLoadedLayers] = useState<string[]>(defaults)
+  const [dissectMode, setDissectMode] = useState(Boolean(props.initialDissect))
+  const [dissection, dispatchDissection] = useReducer(dissectionReducer, undefined, createDissectionState)
+  const [structures, setStructures] = useState<Hotspot[]>([])
+  const [structureQuery, setStructureQuery] = useState('')
   const toggle = (key: keyof Settings) => props.onSettings({ ...props.settings, [key]: !props.settings[key] })
   const variant = props.model.variants.find((entry) => entry.id === props.selectedVariantId) ?? props.model.variants[0]
+  const canDissect = props.model.anatomy && (props.model.viewer === 'segmented-body' || props.model.variants.some((entry) => entry.segmentedSystem))
+  const selectedStructureIds = props.selectedIds.filter((id) => structures.some((structure) => structure.id === id))
+  const structureGroups = useMemo(() => {
+    const query = structureQuery.trim().toLowerCase()
+    const groups = new Map<string, Hotspot[]>()
+    structures
+      .filter((structure) => !query || structure.label.toLowerCase().includes(query))
+      .sort((left, right) => left.label.localeCompare(right.label))
+      .forEach((structure) => {
+        const group = props.model.id === 'digestive-system' ? digestiveStructureGroup(structure.label) : props.model.name
+        groups.set(group, [...(groups.get(group) ?? []), structure])
+      })
+    return [...groups]
+  }, [props.model.id, props.model.name, structureQuery, structures])
 
   function toggleLayer(layerId: string) {
     setLoadedLayers((current) => current.includes(layerId) ? current : [...current, layerId])
     setVisibleLayers((current) => current.includes(layerId) ? current.filter((id) => id !== layerId) : [...current, layerId])
   }
 
+  function toggleDissectMode() {
+    if (dissectMode) {
+      setDissectMode(false)
+      dispatchDissection({ type: 'clear' })
+      return
+    }
+    const segmented = props.model.variants.find((entry) => entry.segmentedSystem)
+    if (segmented) props.onVariant(segmented.id)
+    else if (props.model.viewer !== 'segmented-body') return
+    dispatchDissection({ type: 'clear' })
+    setDissectMode(true)
+  }
+
+  function changeVariant(variantId: string) {
+    const next = props.model.variants.find((entry) => entry.id === variantId)
+    if (!next?.segmentedSystem) {
+      setDissectMode(false)
+      dispatchDissection({ type: 'clear' })
+    }
+    props.onVariant(variantId)
+  }
+
+  function recordAction(action: DissectionActionType, ids: string[]) {
+    const labels = ids.map((id) => structures.find((structure) => structure.id === id)?.label).filter((label): label is string => Boolean(label))
+    const hiddenIds = action === 'hide'
+      ? [...new Set([...dissection.hiddenIds, ...ids])]
+      : action === 'show' ? dissection.hiddenIds.filter((id) => !ids.includes(id)) : dissection.hiddenIds
+    props.onDissectionAction?.({
+      mode: 'dissection',
+      action,
+      system: props.model.name,
+      structureIds: ids,
+      structures: labels,
+      hiddenStructures: hiddenIds.map((id) => structures.find((structure) => structure.id === id)?.label).filter((label): label is string => Boolean(label)),
+      visibleNeighbors: structures.filter((structure) => !hiddenIds.includes(structure.id) && !ids.includes(structure.id)).slice(0, 4).map((structure) => structure.label),
+      guidedStep: undefined,
+    })
+  }
+
+  function selectStructure(hotspot: Hotspot, multi: boolean) {
+    props.onSelect(hotspot, multi, !dissectMode)
+    if (dissectMode) recordAction('select', [hotspot.id])
+  }
+
+  function resetDissection() {
+    dispatchDissection({ type: 'reset' })
+    if (props.settings.isolate) props.onSettings({ ...props.settings, isolate: false })
+    recordAction('reset', [])
+    if (props.guidedStep !== null && props.guidedStep !== undefined) props.onGuidedStep?.(0)
+  }
+
+  function moveStructure(nodeId: string, offset: [number, number, number]) {
+    dispatchDissection({ type: 'set-offset', id: nodeId, offset })
+  }
+
   return (
-    <section className={`viewer ${props.model.viewer === 'segmented-body' ? 'segmented' : 'standard'} panel anim`} aria-label={`${props.model.name} 3D viewer`}>
+    <section className={`viewer ${props.model.viewer === 'segmented-body' ? 'segmented' : 'standard'} ${props.activityLayout ? 'activity-layout' : ''} panel anim`} aria-label={`${props.model.name} 3D viewer`}>
       <div className="viewer-head">
-        <div><span className="eyebrow">{props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p>{props.model.viewer !== 'segmented-body' && <div className="variant-control"><label htmlFor={`variant-${props.model.id}`}>Specimen</label><select id={`variant-${props.model.id}`} value={variant.id} onChange={(event) => props.onVariant(event.target.value)}>{props.model.variants.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>{variant.note && <small>{variant.note}</small>}</div>}</div>
+        <div><span className="eyebrow">{dissectMode ? 'Virtual dissection' : props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p>{props.model.viewer !== 'segmented-body' && <div className="variant-control"><label htmlFor={`variant-${props.model.id}`}>Specimen</label><select id={`variant-${props.model.id}`} value={variant.id} onChange={(event) => changeVariant(event.target.value)}>{props.model.variants.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>{variant.note && <small>{variant.note}</small>}</div>}</div>
         <div className="viewer-tools" aria-label="Viewer controls">
           <button className={props.favorite ? 'active' : ''} onClick={props.onFavorite} title={props.favorite ? 'Remove favorite' : 'Add favorite'} aria-pressed={props.favorite}><Star size={17} fill={props.favorite ? 'currentColor' : 'none'} /><span>Favorite</span></button>
           <button className={props.settings.autoRotate ? 'active' : ''} onClick={() => toggle('autoRotate')} title="Toggle auto rotate"><ScanLine size={17} /><span>Rotate</span></button>
@@ -165,18 +244,31 @@ export function AnatomyViewer(props: ViewerProps) {
           <button className={props.settings.wireframe ? 'active' : ''} onClick={() => toggle('wireframe')} title="Toggle wireframe"><Focus size={17} /><span>Wire</span></button>
           <button className={props.settings.layers ? 'active' : ''} onClick={() => toggle('layers')} title="Toggle reference layers"><Layers3 size={17} /><span>Layers</span></button>
           <button className={props.settings.isolate ? 'active' : ''} onClick={() => toggle('isolate')} title="Reduce reference overlays"><Box size={17} /><span>Focus</span></button>
+          {canDissect && <button className={dissectMode ? 'active' : ''} onClick={toggleDissectMode} title="Toggle Dissect Mode" aria-pressed={dissectMode}><Scissors size={17} /><span>Dissect</span></button>}
         </div>
       </div>
-      <div className="canvas-wrap">
-        <Canvas frameloop={props.settings.autoRotate ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, 4.4], fov: 42 }} gl={{ antialias: true, alpha: true }}>
-          <Scene {...props} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} />
+      <div className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
+        <Canvas frameloop={props.settings.autoRotate ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, props.activityLayout ? 6 : 4.4], fov: 42 }} gl={{ antialias: true, alpha: true }}>
+          <Scene {...props} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={setStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} />
         </Canvas>
         {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
+        {dissectMode && (variant.segmentedSystem || props.model.viewer === 'segmented-body') && <aside className="dissect-dock">
+          <header><div><span>Dissect Mode</span><b>{structures.length} structures</b></div><button onClick={toggleDissectMode} title="Exit Dissect Mode"><X size={14} /></button></header>
+          <div className="dissect-search"><Search size={13} /><input value={structureQuery} onChange={(event) => setStructureQuery(event.target.value)} placeholder="Search structures" aria-label="Search digestive structures" /></div>
+          <div className="dissect-actions">
+            <button disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'hide', ids: selectedStructureIds }); recordAction('hide', selectedStructureIds) }}><EyeOff size={13} />Hide</button>
+            <button disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'show', ids: selectedStructureIds }); recordAction('show', selectedStructureIds) }}><Eye size={13} />Show</button>
+            <button className={selectedStructureIds.some((id) => dissection.transparentIds.includes(id)) ? 'active' : ''} disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'toggle-transparent', ids: selectedStructureIds }); recordAction('transparent', selectedStructureIds) }}>Fade</button>
+            <button className={dissection.isolate ? 'active' : ''} disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'toggle-isolate' }); recordAction('isolate', selectedStructureIds) }}>Isolate</button>
+          </div>
+          <div className="dissect-structures">{structureGroups.map(([group, entries]) => <section key={group}><h3>{group}<span>{entries.length}</span></h3>{entries.map((structure) => <button key={structure.id} className={`${props.selectedIds.includes(structure.id) ? 'selected' : ''} ${dissection.hiddenIds.includes(structure.id) ? 'hidden' : ''}`} onClick={(event) => selectStructure(structure, event.shiftKey)}><i />{structure.label}{dissection.hiddenIds.includes(structure.id) && <EyeOff size={11} />}</button>)}</section>)}</div>
+          <footer><button disabled={dissection.history.length === 0} onClick={() => dispatchDissection({ type: 'undo' })}><Undo2 size={13} />Undo</button><button disabled={dissection.hiddenIds.length === 0} onClick={() => { const ids = dissection.hiddenIds; dispatchDissection({ type: 'show-all' }); recordAction('show', ids) }}>Show all</button><button onClick={resetDissection}>Reset</button></footer>
+        </aside>}
         <div className="axis"><span>Y</span><i /><b>X</b></div>
-        <p className="viewer-help">Click the model to inspect · shift-click to multi-select · drag to orbit</p>
+        <p className="viewer-help">{dissectMode ? 'Drag a structure to pull it out · drag empty space to orbit' : 'Click the model to inspect · shift-click to multi-select · drag to orbit'}</p>
       </div>
       <div className="specimen-bar">
-        <span><b>{props.model.metadata.region}</b>Region</span><span><b>{props.model.viewer === 'segmented-body' ? 'Layered systems' : props.model.metadata.scale}</b>Reference</span><span><b>{props.model.viewer === 'segmented-body' ? 'Click to explore' : 'Surface selection'}</b>Study mode</span>
+        <span><b>{props.model.metadata.region}</b>Region</span><span><b>{props.model.viewer === 'segmented-body' ? 'Layered systems' : props.model.metadata.scale}</b>Reference</span><span><b>{dissectMode ? 'Dissect Mode' : props.model.viewer === 'segmented-body' ? 'Click to explore' : 'Surface selection'}</b>Study mode</span>
       </div>
     </section>
   )

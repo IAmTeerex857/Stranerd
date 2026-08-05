@@ -7,6 +7,13 @@ type MentorContext = {
   graphVersion?: string
   task?: string
   engineResult?: string
+  mode?: 'dissection'
+  action?: string
+  structureIds?: string[]
+  structures?: string[]
+  hiddenStructures?: string[]
+  visibleNeighbors?: string[]
+  guidedStep?: string
   facts: string[]
 }
 

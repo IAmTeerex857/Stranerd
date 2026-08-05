@@ -1,8 +1,10 @@
 # Stranerd Anatomy Lab
 
-A clean-room anatomy and engineering learning demo. Real-time 3D exploration is paired with deterministic lesson evaluation; the AI mentor explains engine results but never determines correctness.
+A clean-room anatomy and engineering learning demo. Real-time 3D exploration is paired with deterministic activity evaluation; the AI mentor explains engine results but never determines correctness.
 
-The library contains 12 subjects. Eight anatomy subjects default to realistic textured primary specimens, followed by exact-mesh interactive specimens and preserved visual alternatives. Human Anatomy provides a progressively loaded six-system atlas. Digestive System includes intestinal anatomy rather than exposing a duplicate standalone Intestine subject. Each model has 20 contextual multiple-choice and true-or-false questions. Variant choices, favorites, bookmarks, notes, settings, and quiz completion are stored locally.
+The library contains 12 subjects. Anatomy subjects provide realistic primary specimens alongside exact-mesh interactive variants and preserved visual alternatives. Human Anatomy provides a progressively loaded six-system atlas. Digestive System includes intestinal anatomy rather than exposing a duplicate standalone Intestine subject.
+
+The Activities workspace combines quick quizzes and model-scoped dissection labs. Every quiz has four A-D options. After question 20, students may restart the same set or request a new 20-question set from the configured Azure/OpenAI integration; invalid or unavailable AI output falls back safely to local generation. Every anatomy model, including the layered Human Anatomy atlas, supports Dissect Mode with search, hide/show, transparency, isolation, manual structure dragging, reset, and undo. Guided activities combine targeted structure identification, model manipulation, A-D knowledge checks, and educational feedback. Digestive System additionally includes the pancreatic-pathway completion quiz.
 
 The Engineering view is an accurate board/component-identification preview for the Arduino and Electronics Project specimens. It does not claim to simulate circuits or perform nodal analysis.
 

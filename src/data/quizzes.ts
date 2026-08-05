@@ -19,42 +19,52 @@ export const quizzesByModel: Record<string, Quiz> = {
 export const quizzes = Object.values(quizzesByModel)
 export const quizForModel = (modelId: string) => quizzesByModel[modelId]
 
-export function quizzesForModel(modelId: string): Quiz[] {
+function seededOrder<T>(values: T[], seed: number) {
+  const result = [...values]
+  let value = seed || 1
+  for (let index = result.length - 1; index > 0; index--) {
+    value = (value * 1664525 + 1013904223) >>> 0
+    const next = value % (index + 1)
+    ;[result[index], result[next]] = [result[next], result[index]]
+  }
+  return result
+}
+
+const globalDistractors = [...new Set(models.flatMap((model) => [model.name, ...model.hotspots.map((hotspot) => hotspot.label)]))]
+
+function fourOptions(answer: string, preferred: string[], seed: number) {
+  const distractors = seededOrder([...new Set([...preferred, ...globalDistractors])].filter((option) => option !== answer), seed).slice(0, 3)
+  const options = seededOrder([answer, ...distractors], seed ^ 0x9e3779b9)
+  return { options, correctIndex: options.indexOf(answer) }
+}
+
+export function quizzesForModel(modelId: string, seed = 0): Quiz[] {
   const quiz = quizForModel(modelId)
   if (!quiz) return []
   const model = models.find((entry) => entry.id === modelId)
-  if (!model) return [{ ...quiz, kind: 'multiple-choice' }]
+  const authoredAnswer = quiz.options[quiz.correctIndex]
+  const authored = fourOptions(authoredAnswer, quiz.options, seed + 1)
+  if (!model) return [{ ...quiz, ...authored, kind: 'multiple-choice' }]
   const structures = model.hotspots.length > 0 ? model.hotspots : [{ id: model.id, label: model.name, detail: model.description, position: [0, 0, 0] as [number, number, number] }]
   const generated = Array.from({ length: 19 }, (_, index): Quiz => {
-    const structure = structures[index % structures.length]
-    const other = structures[(index + 1) % structures.length]
-    if (index % 2 === 0) {
-      const labels = [...new Set([structure.label, ...structures.filter((entry) => entry.id !== structure.id).map((entry) => entry.label)])].slice(0, 4)
-      const shift = index % labels.length
-      const options = [...labels.slice(shift), ...labels.slice(0, shift)]
-      return {
-        id: `${modelId}-structure-${index + 1}`,
-        modelId,
-        kind: 'multiple-choice',
-        question: `Which structure best matches this description: ${structure.detail}`,
-        options,
-        correctIndex: options.indexOf(structure.label),
-        explanation: `${structure.label}: ${structure.detail}`,
-      }
-    }
-    const truthful = index % 4 === 1 || structures.length === 1
-    const detail = truthful ? structure.detail : other.detail
+    const structure = seededOrder(structures, seed + index * 97)[index % structures.length]
+    const choices = fourOptions(structure.label, structures.map((entry) => entry.label), seed + index * 131)
+    const prompts = [
+      `Which structure best matches this description: ${structure.detail}`,
+      `Identify the structure associated with this feature: ${structure.detail}`,
+      `Which option represents the following anatomical role: ${structure.detail}`,
+      `Select the structure described here: ${structure.detail}`,
+    ]
     return {
-      id: `${modelId}-relationship-${index + 1}`,
+      id: `${modelId}-structure-${index + 1}`,
       modelId,
-      kind: 'true-false',
-      question: `${structure.label}: ${detail}`,
-      options: ['True', 'False'],
-      correctIndex: truthful ? 0 : 1,
-      explanation: truthful ? `${structure.label}: ${structure.detail}` : `False. ${structure.label}: ${structure.detail}`,
+      kind: 'multiple-choice',
+      question: prompts[(seed + index) % prompts.length],
+      ...choices,
+      explanation: `${structure.label}: ${structure.detail}`,
     }
   })
-  return [{ ...quiz, kind: 'multiple-choice' }, ...generated]
+  return [{ ...quiz, ...authored, kind: 'multiple-choice' }, ...generated]
 }
 
 export const allQuizzes = Object.keys(quizzesByModel).flatMap(quizzesForModel)

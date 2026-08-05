@@ -4,6 +4,7 @@ import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getMentorReply, type MentorRequest } from './mentor.js'
+import { generateQuizSet, type QuizGenerationRequest } from './quiz.js'
 
 const app = express()
 const port = Number(process.env.PORT) || 8787
@@ -14,6 +15,9 @@ app.use(express.json({ limit: '32kb' }))
 
 app.post('/api/mentor', async (request, response) => {
   response.json(await getMentorReply(request.body as MentorRequest))
+})
+app.post('/api/quiz', async (request, response) => {
+  response.json(await generateQuizSet(request.body as QuizGenerationRequest))
 })
 
 app.use(express.static(path.join(root, 'dist')))
