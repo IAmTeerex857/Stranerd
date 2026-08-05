@@ -43,10 +43,6 @@ export const lessonsByModel: Record<string, Lesson[]> = {
     { title: 'Primary refraction', prompt: 'Select the transparent surface providing most refractive power.', targetIds: ['cornea'], fallback: 'The air-cornea interface accounts for most optical refraction in the eye.' },
     { title: 'Neural output', prompt: 'Identify the structure carrying retinal ganglion-cell axons to the brain.', targetIds: ['optic-nerve'], fallback: 'The optic nerve is the neural output pathway from the retina.' },
   ]),
-  intestine: makeLessons('intestine', [
-    { title: 'Nutrient absorption', prompt: 'Select the marked small-bowel segment specialized for nutrient absorption.', targetIds: ['jejunum'], fallback: 'The jejunum has extensive folds and villi that support nutrient absorption.' },
-    { title: 'Water recovery', prompt: 'Identify the bowel region that reclaims water and frames the small intestine.', targetIds: ['colon'], fallback: 'The colon absorbs water and electrolytes while compacting luminal contents.' },
-  ]),
   liver: makeLessons('liver', [
     { title: 'Major lobe', prompt: 'Select the largest anatomical lobe of the liver.', targetIds: ['right-lobe'], fallback: 'The right lobe is the largest anatomical division of the liver.' },
     { title: 'Portal gateway', prompt: 'Identify the gateway for the portal vein, hepatic artery, and bile ducts.', targetIds: ['porta-hepatis'], fallback: 'The porta hepatis transmits the portal triad and associated lymphatic and neural structures.' },
@@ -60,8 +56,8 @@ export const lessonsByModel: Record<string, Lesson[]> = {
     { title: 'Supporting layers', prompt: 'Select the dermis and hypodermis together.', targetIds: ['dermis', 'hypodermis'], fallback: 'The dermis provides vascular connective-tissue support while the hypodermis anchors skin to deeper structures.' },
   ]),
   anatomy: makeLessons('anatomy', [
-    { title: 'Thoracic region', prompt: 'Select the region housing the heart, lungs, and mediastinum.', targetIds: ['thorax'], fallback: 'The thorax is bounded by the chest wall and diaphragm and contains the pleural cavities and mediastinum.' },
-    { title: 'Regional orientation', prompt: 'Select both marked body regions in this overview.', targetIds: ['thorax', 'abdomen'], fallback: 'Regional anatomy uses the thorax and abdomen to organize spatial relationships among organ systems.' },
+    { title: 'Renal orientation', prompt: 'In the organs layer, select the left kidney.', targetIds: ['anatomy:organs:kidney-left'], fallback: 'The kidneys are paired retroperitoneal organs that filter plasma and regulate fluid balance.' },
+    { title: 'Abdominal relationships', prompt: 'Select both the liver and left kidney.', targetIds: ['anatomy:organs:liver', 'anatomy:organs:kidney-left'], fallback: 'The liver occupies the right upper abdomen while the left kidney lies retroperitoneally on the opposite side.' },
   ]),
   'digestive-system': makeLessons('digestive-system', [
     { title: 'Bolus transport', prompt: 'Select the conduit carrying a swallowed bolus toward the stomach.', targetIds: ['esophagus'], fallback: 'Coordinated peristalsis moves a bolus through the esophagus.' },

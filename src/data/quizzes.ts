@@ -1,4 +1,5 @@
 import type { Evaluation, Quiz } from '../types'
+import { models } from './models'
 
 export const quizzesByModel: Record<string, Quiz> = {
   heart: { id: 'heart-quiz', modelId: 'heart', question: 'When are the coronary arteries perfused most effectively?', options: ['During ventricular systole', 'During ventricular diastole', 'Only during atrial systole'], correctIndex: 1, explanation: 'During diastole, ventricular relaxation reduces compression of coronary vessels and aortic pressure drives myocardial perfusion.' },
@@ -6,7 +7,6 @@ export const quizzesByModel: Record<string, Quiz> = {
   lungs: { id: 'lungs-quiz', modelId: 'lungs', question: 'Which cells produce pulmonary surfactant?', options: ['Type I pneumocytes', 'Type II pneumocytes', 'Alveolar macrophages'], correctIndex: 1, explanation: 'Type II pneumocytes secrete surfactant, lowering alveolar surface tension and helping prevent collapse.' },
   kidney: { id: 'kidney-quiz', modelId: 'kidney', question: 'Where does plasma ultrafiltration begin?', options: ['Renal pelvis', 'Collecting duct', 'Glomerulus', 'Ureter'], correctIndex: 2, explanation: 'Glomerular capillaries filter plasma into Bowman’s space at the start of nephron processing.' },
   eye: { id: 'eye-quiz', modelId: 'eye', question: 'Which structure provides most of the eye’s refractive power?', options: ['Lens', 'Cornea', 'Retina', 'Optic nerve'], correctIndex: 1, explanation: 'The air-cornea interface produces most refraction; the lens fine-tunes focus by accommodation.' },
-  intestine: { id: 'intestine-quiz', modelId: 'intestine', question: 'Where does most nutrient absorption occur?', options: ['Small intestine', 'Colon', 'Stomach'], correctIndex: 0, explanation: 'The small intestine provides extensive folds, villi, and microvilli for nutrient absorption.' },
   liver: { id: 'liver-quiz', modelId: 'liver', question: 'Which vessel supplies the liver with nutrient-rich blood from the gut?', options: ['Hepatic vein', 'Portal vein', 'Inferior vena cava'], correctIndex: 1, explanation: 'The portal vein carries absorbed nutrients from the gastrointestinal tract to hepatic sinusoids.' },
   'nervous-system': { id: 'nervous-system-quiz', modelId: 'nervous-system', question: 'In which direction do afferent pathways carry information?', options: ['From the CNS to effectors', 'Toward the CNS from sensory receptors', 'Only between muscles'], correctIndex: 1, explanation: 'Afferent pathways carry sensory information toward the central nervous system.' },
   skin: { id: 'skin-quiz', modelId: 'skin', question: 'Which skin layer is avascular?', options: ['Epidermis', 'Dermis', 'Hypodermis'], correctIndex: 0, explanation: 'The epidermis contains no blood vessels and receives nutrients by diffusion from the dermis.' },
@@ -18,6 +18,46 @@ export const quizzesByModel: Record<string, Quiz> = {
 
 export const quizzes = Object.values(quizzesByModel)
 export const quizForModel = (modelId: string) => quizzesByModel[modelId]
+
+export function quizzesForModel(modelId: string): Quiz[] {
+  const quiz = quizForModel(modelId)
+  if (!quiz) return []
+  const model = models.find((entry) => entry.id === modelId)
+  if (!model) return [{ ...quiz, kind: 'multiple-choice' }]
+  const structures = model.hotspots.length > 0 ? model.hotspots : [{ id: model.id, label: model.name, detail: model.description, position: [0, 0, 0] as [number, number, number] }]
+  const generated = Array.from({ length: 19 }, (_, index): Quiz => {
+    const structure = structures[index % structures.length]
+    const other = structures[(index + 1) % structures.length]
+    if (index % 2 === 0) {
+      const labels = [...new Set([structure.label, ...structures.filter((entry) => entry.id !== structure.id).map((entry) => entry.label)])].slice(0, 4)
+      const shift = index % labels.length
+      const options = [...labels.slice(shift), ...labels.slice(0, shift)]
+      return {
+        id: `${modelId}-structure-${index + 1}`,
+        modelId,
+        kind: 'multiple-choice',
+        question: `Which structure best matches this description: ${structure.detail}`,
+        options,
+        correctIndex: options.indexOf(structure.label),
+        explanation: `${structure.label}: ${structure.detail}`,
+      }
+    }
+    const truthful = index % 4 === 1 || structures.length === 1
+    const detail = truthful ? structure.detail : other.detail
+    return {
+      id: `${modelId}-relationship-${index + 1}`,
+      modelId,
+      kind: 'true-false',
+      question: `${structure.label}: ${detail}`,
+      options: ['True', 'False'],
+      correctIndex: truthful ? 0 : 1,
+      explanation: truthful ? `${structure.label}: ${structure.detail}` : `False. ${structure.label}: ${structure.detail}`,
+    }
+  })
+  return [{ ...quiz, kind: 'multiple-choice' }, ...generated]
+}
+
+export const allQuizzes = Object.keys(quizzesByModel).flatMap(quizzesForModel)
 
 export function evaluateQuiz(quiz: Quiz, selectedIndex: number | undefined): Evaluation {
   const pass = selectedIndex === quiz.correctIndex

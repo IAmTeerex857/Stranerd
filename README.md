@@ -2,7 +2,7 @@
 
 A clean-room anatomy and engineering learning demo. Real-time 3D exploration is paired with deterministic lesson evaluation; the AI mentor explains engine results but never determines correctness.
 
-The library contains 13 subjects and 29 optimized, on-demand GLB specimens. Variant choices, model favorites, browsable hotspot bookmarks, notes, settings, and activity completion are stored locally with safe migration from earlier state. Every subject has authored hotspot-identification tasks evaluated by exact marker-ID sets plus one multiple-choice knowledge check graded against an authored answer index. AI explains these already-decided results; it does not grade them.
+The library contains 12 subjects. Eight anatomy subjects default to realistic textured primary specimens, followed by exact-mesh interactive specimens and preserved visual alternatives. Human Anatomy provides a progressively loaded six-system atlas. Digestive System includes intestinal anatomy rather than exposing a duplicate standalone Intestine subject. Each model has 20 contextual multiple-choice and true-or-false questions. Variant choices, favorites, bookmarks, notes, settings, and quiz completion are stored locally.
 
 The Engineering view is an accurate board/component-identification preview for the Arduino and Electronics Project specimens. It does not claim to simulate circuits or perform nodal analysis.
 
@@ -24,7 +24,7 @@ npm run build
 npm start
 ```
 
-`npm start` serves the API and a built `dist/` directory on `http://localhost:8787`.
+`npm start` serves the API and a built `dist/` directory on `http://localhost:8787`. The mentor supports standard OpenAI credentials or Azure OpenAI through `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, and `AZURE_OPENAI_DEPLOYMENT`.
 
 ## Deploy
 

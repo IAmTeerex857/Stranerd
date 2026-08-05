@@ -5,6 +5,29 @@ export type Hotspot = {
   label: string
   detail: string
   position: [number, number, number]
+  nodeId?: string
+  systemId?: AnatomySystemId
+  source?: 'marker' | 'mesh'
+  conditions?: ConditionRecord[]
+}
+
+export type AnatomySystemId = 'skin' | 'muscular' | 'skeleton' | 'cardiovascular' | 'nervous' | 'organs'
+
+export type ConditionRecord = {
+  id: string
+  label: string
+  summary: string
+  structureTerms: string[]
+}
+
+export type AnatomyLayer = {
+  id: AnatomySystemId
+  label: string
+  file: string
+  color: string
+  namedNodeCount: number
+  directMeshCount: number
+  defaultVisible: boolean
 }
 
 export type ModelEntry = {
@@ -13,12 +36,13 @@ export type ModelEntry = {
   scientificName: string
   system: string
   file: string
-  variants: { id: string; label: string; file: string; note?: string }[]
+  variants: { id: string; label: string; file: string; note?: string; segmentedSystem?: AnatomySystemId; hotspots?: Hotspot[] }[]
   description: string
   facts: string[]
   metadata: { region: string; scale: string; focus: string }
   hotspots: Hotspot[]
   anatomy: boolean
+  viewer?: 'standard' | 'segmented-body'
 }
 
 export type LessonState = { selectedIds: string[] }
@@ -37,6 +61,7 @@ export type Lesson = {
 export type Quiz = {
   id: string
   modelId: string
+  kind?: 'multiple-choice' | 'true-false'
   question: string
   options: string[]
   correctIndex: number
@@ -56,6 +81,7 @@ export type Settings = {
   wireframe: boolean
   layers: boolean
   isolate: boolean
+  labels: boolean
 }
 
 export type PersistedState = {

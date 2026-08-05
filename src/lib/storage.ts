@@ -2,7 +2,7 @@ import type { PersistedState, Settings } from '../types'
 
 export const STORAGE_KEY = 'stranerd.anatomy.v1'
 
-export const defaultSettings: Settings = { autoRotate: false, wireframe: false, layers: true, isolate: false }
+export const defaultSettings: Settings = { autoRotate: false, wireframe: false, layers: true, isolate: false, labels: false }
 
 export const defaultPersistedState: PersistedState = {
   selectedModelId: 'heart',

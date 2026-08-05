@@ -29,6 +29,9 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@gltf-transform/core": "^4.4.2",
+    "@gltf-transform/extensions": "^4.4.2",
+    "@gltf-transform/functions": "^4.4.2",
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
     "@types/node": "26.1.2",

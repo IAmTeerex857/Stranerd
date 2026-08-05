@@ -1,9 +1,12 @@
-import { Component, Suspense, useEffect, useMemo, useRef, type ErrorInfo, type ReactNode, type RefObject } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Component, Suspense, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode, type RefObject } from 'react'
+import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
 import { Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three'
-import { Box, Focus, Layers3, LoaderCircle, RotateCcw, ScanLine, Star } from 'lucide-react'
+import { Box, Eye, EyeOff, Focus, Layers3, LoaderCircle, RotateCcw, ScanLine, Star, Tags } from 'lucide-react'
 import type { Hotspot, ModelEntry, Settings } from '../types'
+import { anatomyLayers } from '../data/anatomyGraph'
+import { ProgressiveBodyModel } from './ProgressiveBodyModel'
+import { SegmentedSpecimenModel } from './SegmentedSpecimenModel'
 
 type ViewerProps = {
   model: ModelEntry
@@ -33,7 +36,7 @@ function LoadingModel() {
   return <Html center><div className="model-loader"><LoaderCircle className="spin" size={20} /><span>Loading geometry</span><b>{Math.round(progress)}%</b></div></Html>
 }
 
-function ModelGeometry({ url, settings }: { url: string; settings: Settings }) {
+function ModelGeometry({ url, settings, hotspots, onSelect, interactive = true }: { url: string; settings: Settings; hotspots: Hotspot[]; onSelect: (hotspot: Hotspot, multi: boolean) => void; interactive?: boolean }) {
   const { scene } = useGLTF(url)
   const invalidate = useThree((state) => state.invalidate)
   const prepared = useMemo(() => {
@@ -77,11 +80,22 @@ function ModelGeometry({ url, settings }: { url: string; settings: Settings }) {
     })
   }, [prepared, url])
 
-  return <primitive object={prepared} />
+  function selectSurface(event: ThreeEvent<MouseEvent>) {
+    if (!interactive || hotspots.length === 0) return
+    event.stopPropagation()
+    const nearest = hotspots.reduce((best, hotspot) => {
+      const distance = event.point.distanceToSquared(new Vector3(...hotspot.position))
+      return distance < best.distance ? { hotspot, distance } : best
+    }, { hotspot: hotspots[0], distance: Number.POSITIVE_INFINITY })
+    onSelect(nearest.hotspot, event.nativeEvent.shiftKey)
+  }
+
+  return <primitive object={prepared} onClick={selectSurface} onPointerOver={interactive ? () => { document.body.style.cursor = 'pointer' } : undefined} onPointerOut={interactive ? () => { document.body.style.cursor = '' } : undefined} />
 }
 
-function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef }: ViewerProps & { controlsRef: RefObject<{ reset: () => void } | null> }) {
+function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers }: ViewerProps & { controlsRef: RefObject<{ reset: () => void } | null>; loadedLayers: string[]; visibleLayers: string[] }) {
   const variant = model.variants.find((entry) => entry.id === selectedVariantId) ?? model.variants[0]
+  const hotspots = variant.hotspots ?? model.hotspots
   return (
     <>
       <ambientLight intensity={1.6} />
@@ -91,20 +105,26 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
       <pointLight position={[0, -2, 3]} intensity={1.2} color="#4db6ff" distance={8} />
       <group>
         <Suspense fallback={<LoadingModel />}>
-          <ModelBoundary key={variant.file} name={`${model.name} · ${variant.label}`}><ModelGeometry url={`/models/${variant.file}`} settings={settings} /></ModelBoundary>
+          <ModelBoundary key={variant.file} name={`${model.name} · ${variant.label}`}>{model.viewer === 'segmented-body'
+            ? <ProgressiveBodyModel layers={anatomyLayers.filter((layer) => loadedLayers.includes(layer.id))} visibleLayerIds={visibleLayers} selectedIds={selectedIds} settings={settings} onSelect={onSelect} />
+            : variant.segmentedSystem
+              ? <SegmentedSpecimenModel url={`/models/${variant.file}`} systemId={variant.segmentedSystem} selectedIds={selectedIds} settings={settings} onSelect={onSelect} />
+              : <ModelGeometry url={`/models/${variant.file}`} settings={settings} hotspots={hotspots} onSelect={onSelect} />}</ModelBoundary>
         </Suspense>
-        {settings.layers && !settings.isolate && <>
-          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.45, 0]}><torusGeometry args={[1.3, 0.008, 8, 80]} /><meshBasicMaterial color="#4db6ff" transparent opacity={0.22} /></mesh>
-          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.45, 0]}><torusGeometry args={[1.05, 0.008, 8, 80]} /><meshBasicMaterial color="#e26bd6" transparent opacity={0.18} /></mesh>
+        {model.viewer !== 'segmented-body' && !variant.segmentedSystem && settings.layers && !settings.isolate && <>
+          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.45, 0]}><torusGeometry args={[1.3, 0.003, 6, 80]} /><meshBasicMaterial color="#4db6ff" transparent opacity={0.14} /></mesh>
+          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.45, 0]}><torusGeometry args={[1.05, 0.003, 6, 80]} /><meshBasicMaterial color="#e26bd6" transparent opacity={0.12} /></mesh>
         </>}
-        {model.hotspots.map((hotspot, index) => {
+        {model.viewer !== 'segmented-body' && !variant.segmentedSystem && hotspots.map((hotspot, index) => {
           const selected = selectedIds.includes(hotspot.id)
+          const visible = settings.labels || selected
           if (settings.isolate && selectedIds.length > 0 && !selected) return null
+          if (!visible) return null
           return (
             <group key={hotspot.id} position={hotspot.position}>
               <mesh onClick={(event) => { event.stopPropagation(); onSelect(hotspot, event.nativeEvent.shiftKey) }}>
-                <sphereGeometry args={[selected ? 0.085 : 0.065, 18, 18]} />
-                <meshBasicMaterial color={selected ? '#e26bd6' : '#4db6ff'} toneMapped={false} />
+                <sphereGeometry args={[selected ? 0.038 : 0.025, 12, 12]} />
+                <meshBasicMaterial color={selected ? '#e26bd6' : '#4db6ff'} transparent opacity={selected ? 1 : 0.65} toneMapped={false} />
               </mesh>
               <Html distanceFactor={7} zIndexRange={[10, 0]}>
                 <button className={`hotspot-label ${selected ? 'selected' : ''}`} onClick={(event) => onSelect(hotspot, event.shiftKey)} aria-label={`Select ${hotspot.label}`}>
@@ -122,17 +142,26 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
 
 export function AnatomyViewer(props: ViewerProps) {
   const controlsRef = useRef<{ reset: () => void } | null>(null)
+  const defaults = anatomyLayers.filter((layer) => layer.defaultVisible).map((layer) => layer.id)
+  const [visibleLayers, setVisibleLayers] = useState<string[]>(defaults)
+  const [loadedLayers, setLoadedLayers] = useState<string[]>(defaults)
   const toggle = (key: keyof Settings) => props.onSettings({ ...props.settings, [key]: !props.settings[key] })
   const variant = props.model.variants.find((entry) => entry.id === props.selectedVariantId) ?? props.model.variants[0]
 
+  function toggleLayer(layerId: string) {
+    setLoadedLayers((current) => current.includes(layerId) ? current : [...current, layerId])
+    setVisibleLayers((current) => current.includes(layerId) ? current.filter((id) => id !== layerId) : [...current, layerId])
+  }
+
   return (
-    <section className="viewer panel anim" aria-label={`${props.model.name} 3D viewer`}>
+    <section className={`viewer ${props.model.viewer === 'segmented-body' ? 'segmented' : 'standard'} panel anim`} aria-label={`${props.model.name} 3D viewer`}>
       <div className="viewer-head">
-        <div><span className="eyebrow">Live specimen</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p><div className="variant-control"><label htmlFor={`variant-${props.model.id}`}>Specimen</label><select id={`variant-${props.model.id}`} value={variant.id} onChange={(event) => props.onVariant(event.target.value)}>{props.model.variants.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>{variant.note && <small>{variant.note}</small>}</div></div>
+        <div><span className="eyebrow">{props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p>{props.model.viewer !== 'segmented-body' && <div className="variant-control"><label htmlFor={`variant-${props.model.id}`}>Specimen</label><select id={`variant-${props.model.id}`} value={variant.id} onChange={(event) => props.onVariant(event.target.value)}>{props.model.variants.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>{variant.note && <small>{variant.note}</small>}</div>}</div>
         <div className="viewer-tools" aria-label="Viewer controls">
           <button className={props.favorite ? 'active' : ''} onClick={props.onFavorite} title={props.favorite ? 'Remove favorite' : 'Add favorite'} aria-pressed={props.favorite}><Star size={17} fill={props.favorite ? 'currentColor' : 'none'} /><span>Favorite</span></button>
           <button className={props.settings.autoRotate ? 'active' : ''} onClick={() => toggle('autoRotate')} title="Toggle auto rotate"><ScanLine size={17} /><span>Rotate</span></button>
           <button onClick={() => controlsRef.current?.reset()} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></button>
+          {props.model.viewer !== 'segmented-body' && <button className={props.settings.labels ? 'active' : ''} onClick={() => toggle('labels')} title="Toggle labels"><Tags size={17} /><span>Labels</span></button>}
           <button className={props.settings.wireframe ? 'active' : ''} onClick={() => toggle('wireframe')} title="Toggle wireframe"><Focus size={17} /><span>Wire</span></button>
           <button className={props.settings.layers ? 'active' : ''} onClick={() => toggle('layers')} title="Toggle reference layers"><Layers3 size={17} /><span>Layers</span></button>
           <button className={props.settings.isolate ? 'active' : ''} onClick={() => toggle('isolate')} title="Reduce reference overlays"><Box size={17} /><span>Focus</span></button>
@@ -140,13 +169,14 @@ export function AnatomyViewer(props: ViewerProps) {
       </div>
       <div className="canvas-wrap">
         <Canvas frameloop={props.settings.autoRotate ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, 4.4], fov: 42 }} gl={{ antialias: true, alpha: true }}>
-          <Scene {...props} controlsRef={controlsRef} />
+          <Scene {...props} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} />
         </Canvas>
+        {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
         <div className="axis"><span>Y</span><i /><b>X</b></div>
-        <p className="viewer-help">Authored coordinate markers · drag to orbit · shift-select for multiple</p>
+        <p className="viewer-help">Click the model to inspect · shift-click to multi-select · drag to orbit</p>
       </div>
       <div className="specimen-bar">
-        <span><b>{props.model.metadata.region}</b>Region</span><span><b>{props.model.metadata.scale}</b>Reference</span><span><b>{props.model.hotspots.length}</b>Markers</span>
+        <span><b>{props.model.metadata.region}</b>Region</span><span><b>{props.model.viewer === 'segmented-body' ? 'Layered systems' : props.model.metadata.scale}</b>Reference</span><span><b>{props.model.viewer === 'segmented-body' ? 'Click to explore' : 'Surface selection'}</b>Study mode</span>
       </div>
     </section>
   )

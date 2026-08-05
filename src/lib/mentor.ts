@@ -1,6 +1,10 @@
 type MentorContext = {
   model: string
   hotspot?: string
+  nodeId?: string
+  system?: string
+  conditions?: string[]
+  graphVersion?: string
   task?: string
   engineResult?: string
   facts: string[]

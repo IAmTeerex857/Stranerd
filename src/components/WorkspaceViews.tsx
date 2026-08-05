@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { ArrowRight, Bookmark, BookOpen, Check, Edit3, Plus, Search, Star, Trash2 } from 'lucide-react'
+import { ArrowRight, Bookmark, Check, Edit3, Plus, Search, Star, Trash2 } from 'lucide-react'
 import { models, systems } from '../data/models'
-import type { Hotspot, Lesson, ModelEntry, Note, Quiz } from '../types'
+import type { Evaluation, Hotspot, ModelEntry, Note, Quiz } from '../types'
 
 export function SystemsView({ onOpen }: { onOpen: (model: ModelEntry) => void }) {
   return <section className="content-view anim"><div className="view-title"><span className="eyebrow">Organ systems</span><h1>Connected by function.</h1><p>Move from system-level purpose to an explorable component.</p></div><div className="system-grid">{systems.map((system, index) => {
@@ -19,28 +19,26 @@ export function LibraryView({ onOpen, favorites, onFavorite }: LibraryProps) {
     result[model.system] = [...(result[model.system] ?? []), model]
     return result
   }, {})
-  return <section className="content-view anim"><div className="view-title library-title"><div><span className="eyebrow">Specimen library</span><h1>Models with context.</h1><p>Eleven anatomy studies and two engineering board previews.</p></div><div className="library-filters"><label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search models or systems" /></label><button className={favoritesOnly ? 'active' : ''} onClick={() => setFavoritesOnly((value) => !value)} aria-pressed={favoritesOnly}><Star size={15} />Favorites only · {favorites.length}</button></div></div>{filtered.length === 0 && <div className="empty-state">No models match these filters.</div>}{Object.entries(grouped).map(([system, entries]) => entries && <div className="library-group" key={system}><h2>{system}<span>{entries.length}</span></h2><div className="library-grid">{entries.map((model) => <article key={model.id} className="library-card"><div><div className="card-kicker"><span className="model-index">{model.variants.length} GLB {model.variants.length === 1 ? 'specimen' : 'specimens'}</span><button className={`favorite-button ${favorites.includes(model.id) ? 'active' : ''}`} onClick={() => onFavorite(model.id)} aria-label={`${favorites.includes(model.id) ? 'Remove' : 'Add'} ${model.name} favorite`} aria-pressed={favorites.includes(model.id)}><Star size={16} fill={favorites.includes(model.id) ? 'currentColor' : 'none'} /></button></div><h3>{model.name}</h3><em>{model.scientificName}</em><p>{model.description}</p></div><footer><span>{model.metadata.focus}</span><button onClick={() => onOpen(model)}>Inspect<ArrowRight size={15} /></button></footer></article>)}</div></div>)}</section>
+  return <section className="content-view anim"><div className="view-title library-title"><div><span className="eyebrow">Specimen library</span><h1>Models with context.</h1><p>Ten anatomy studies and two engineering board previews.</p></div><div className="library-filters"><label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search models or systems" /></label><button className={favoritesOnly ? 'active' : ''} onClick={() => setFavoritesOnly((value) => !value)} aria-pressed={favoritesOnly}><Star size={15} />Favorites only · {favorites.length}</button></div></div>{filtered.length === 0 && <div className="empty-state">No models match these filters.</div>}{Object.entries(grouped).map(([system, entries]) => entries && <div className="library-group" key={system}><h2>{system}<span>{entries.length}</span></h2><div className="library-grid">{entries.map((model) => <article key={model.id} className="library-card"><div><div className="card-kicker"><span className="model-index">{model.variants.length} GLB {model.variants.length === 1 ? 'specimen' : 'specimens'}</span><button className={`favorite-button ${favorites.includes(model.id) ? 'active' : ''}`} onClick={() => onFavorite(model.id)} aria-label={`${favorites.includes(model.id) ? 'Remove' : 'Add'} ${model.name} favorite`} aria-pressed={favorites.includes(model.id)}><Star size={16} fill={favorites.includes(model.id) ? 'currentColor' : 'none'} /></button></div><h3>{model.name}</h3><em>{model.scientificName}</em><p>{model.description}</p></div><footer><span>{model.metadata.focus}</span><button onClick={() => onOpen(model)}>Inspect<ArrowRight size={15} /></button></footer></article>)}</div></div>)}</section>
 }
 
-type LessonProps = {
+type QuizProps = {
   model: ModelEntry
-  lessons: Lesson[]
-  active: Lesson
-  completed: string[]
-  selectedIds: string[]
-  quiz: Quiz
+  quizzes: Quiz[]
+  quizIndex: number
   quizChoice?: number
-  quizCompleted: boolean
-  onActive: (lesson: Lesson) => void
-  onEvaluate: () => void
-  onHint: (text: string) => void
+  result?: Evaluation
+  completed: string[]
+  onQuiz: (index: number) => void
   onQuizChoice: (index: number) => void
   onQuizEvaluate: () => void
 }
 
-export function LessonsView({ model, lessons, active, completed, selectedIds, quiz, quizChoice, quizCompleted, onActive, onEvaluate, onHint, onQuizChoice, onQuizEvaluate }: LessonProps) {
-  const [hintIndex, setHintIndex] = useState(-1)
-  return <section className="content-view lesson-view anim"><div className="view-title"><span className="eyebrow">Authored lab</span><h1>{model.name} practical.</h1><p>Correctness is computed from authored IDs and answer indices, never from the mentor.</p></div><div className="lesson-layout"><div className="lesson-list">{lessons.map((lesson, index) => <button key={lesson.id} className={lesson.id === active.id ? 'active' : ''} onClick={() => { onActive(lesson); setHintIndex(-1) }}><span>{completed.includes(lesson.id) ? <Check size={16} /> : String(index + 1).padStart(2, '0')}</span><div><strong>{lesson.title}</strong><small>{lesson.prompt}</small></div></button>)}</div><article className="lesson-stage"><div className="lesson-number">TASK {String(lessons.indexOf(active) + 1).padStart(2, '0')} / {String(lessons.length).padStart(2, '0')}</div><BookOpen size={28} /><h2>{active.title}</h2><p>{active.prompt}</p><div className="selection-readout"><span>Current selection</span><code>{selectedIds.join(' + ') || 'none'}</code></div>{hintIndex >= 0 && <div className="hint">Hint {hintIndex + 1}: {active.hints[hintIndex]}</div>}<div className="lesson-actions"><button className="secondary" onClick={() => { const next = Math.min(hintIndex + 1, active.hints.length - 1); setHintIndex(next); onHint(active.hints[next]) }}>Reveal hint</button><button className="primary" onClick={onEvaluate}>Run evaluation<ArrowRight size={16} /></button></div></article></div><article className="quiz-card"><header><span>Knowledge check</span>{quizCompleted && <b><Check size={14} /> Complete</b>}</header><fieldset><legend>{quiz.question}</legend>{quiz.options.map((option, index) => <label key={option}><input type="radio" name={`quiz-${quiz.id}`} value={index} checked={quizChoice === index} onChange={() => onQuizChoice(index)} /><span>{String.fromCharCode(65 + index)}</span>{option}</label>)}</fieldset><button className="primary" onClick={onQuizEvaluate} disabled={quizChoice === undefined}>Grade knowledge check<ArrowRight size={16} /></button></article></section>
+export function QuizzesView({ model, quizzes, quizIndex, quizChoice, result, completed, onQuiz, onQuizChoice, onQuizEvaluate }: QuizProps) {
+  const quiz = quizzes[quizIndex]
+  if (!quiz) return null
+  const nextIndex = (quizIndex + 1) % quizzes.length
+  return <section className="content-view quiz-view anim"><div className="view-title"><span className="eyebrow">Model quiz</span><h1>Test what you noticed.</h1><p>Twenty questions stay grounded in the active {model.name.toLowerCase()} model.</p></div><div className="quiz-progress" aria-label="Quiz questions">{quizzes.map((entry, index) => <button key={entry.id} className={`${index === quizIndex ? 'active' : ''} ${completed.includes(entry.id) ? 'complete' : ''}`} onClick={() => onQuiz(index)} aria-label={`Question ${index + 1}: ${entry.kind === 'true-false' ? 'True or false' : 'Multiple choice'}`} title={entry.kind === 'true-false' ? 'True or false' : 'Multiple choice'}>{completed.includes(entry.id) ? <Check size={12} /> : index + 1}</button>)}</div><article className="quiz-stage"><header><span>{quiz.kind === 'true-false' ? 'TRUE OR FALSE' : 'MULTIPLE CHOICE'}</span><b>{quizIndex + 1} / {quizzes.length}</b></header><h2>{quiz.question}</h2><fieldset>{quiz.options.map((option, index) => <label key={option}><input type="radio" name={`quiz-${quiz.id}`} value={index} checked={quizChoice === index} onChange={() => onQuizChoice(index)} /><span>{quiz.kind === 'true-false' ? option.slice(0, 1) : String.fromCharCode(65 + index)}</span><b>{option}</b></label>)}</fieldset>{result && <div className={`quiz-feedback ${result.pass ? 'pass' : 'fail'}`}><strong>{result.pass ? 'Correct' : 'Not quite'}</strong><p>{quiz.explanation}</p></div>}<footer><small>{result ? (quizIndex === quizzes.length - 1 ? 'You reached the final question.' : 'Review the explanation, then continue.') : 'Choose one answer to continue.'}</small>{result ? <button className="primary" onClick={() => onQuiz(nextIndex)}>{quizIndex === quizzes.length - 1 ? 'Restart quiz' : 'Next question'}<ArrowRight size={16} /></button> : <button className="primary" onClick={onQuizEvaluate} disabled={quizChoice === undefined}>Check answer<ArrowRight size={16} /></button>}</footer></article></section>
 }
 
 type NotesProps = {
