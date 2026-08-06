@@ -78,7 +78,7 @@ Use established scientific facts. Keep explanations concise. Do not include mark
       messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(context) }],
       response_format: { type: 'json_object' },
       max_completion_tokens: 5000,
-    })
+    }, { signal: AbortSignal.timeout(40_000) })
     const quizzes = parseQuizSet(completion.choices[0]?.message.content || '', modelId)
     return quizzes ? { quizzes, source: hasAzure ? 'azure-openai' : 'openai' } : { quizzes: null, source: 'invalid-ai-response' }
   } catch (error) {

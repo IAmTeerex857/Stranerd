@@ -151,23 +151,8 @@ export const models: ModelEntry[] = [
     metadata: { region: 'Thorax to pelvis', scale: 'System overview', focus: 'Organ relationships and flow' },
     hotspots: [spot('esophagus', 'Esophagus', 'Muscular conduit moving a swallowed bolus to the stomach by peristalsis.', [0, 0.9, 0.25]), spot('stomach', 'Stomach', 'Reservoir that mixes food with acid and proteases to form chyme.', [-0.34, 0.18, 0.4]), spot('small-intestine', 'Small intestine', 'Primary site of enzymatic digestion and nutrient absorption.', [0.12, -0.62, 0.45])],
   },
-  {
-    id: 'arduino', name: 'Arduino Preview', scientificName: 'Embedded systems board', system: 'Engineering', file: 'arduino.glb', variants: variants('arduino.glb', 'arduino-v2.glb'), anatomy: false,
-    description: 'A preview of Stranerd’s component-learning approach beyond anatomy.',
-    facts: ['Microcontrollers combine processing, memory, and configurable I/O.', 'Digital pins represent discrete logic states.', 'The board’s regulator and USB interface support prototyping workflows.'],
-    metadata: { region: 'Engineering preview', scale: 'Board level', focus: 'Embedded systems' },
-    hotspots: [spot('microcontroller', 'Microcontroller', 'Executes the uploaded program and controls I/O.', [0, 0.05, 0.45]), spot('digital-io', 'Digital I/O', 'Header pins configurable as digital inputs or outputs.', [0, 0.72, 0.35]), spot('power-input', 'Power input', 'Accepts external supply power that is conditioned for the board rails.', [-0.75, -0.5, 0.35])],
-  },
-  {
-    id: 'electronics-project', name: 'Electronics Project', scientificName: 'Prototyping circuit board', system: 'Engineering', file: 'electronics-project.glb', variants: variants('electronics-project.glb'), anatomy: false,
-    description: 'A board-level component-identification preview using authored coordinate overlays on a single-mesh model.',
-    facts: ['Board inspection begins by identifying power, control, and interface regions before tracing signals.', 'Capacitors near supply pins reduce transient rail noise.', 'Connectors provide the electrical and mechanical boundary between a board and external devices.'],
-    metadata: { region: 'Engineering preview', scale: 'Board level', focus: 'Component identification' },
-    hotspots: [spot('controller-ic', 'Controller IC', 'Integrated circuit coordinating the board’s programmed behavior.', [0.05, 0.12, 0.48]), spot('capacitor-bank', 'Capacitor bank', 'Local energy storage and supply-noise filtering components.', [-0.52, -0.28, 0.4]), spot('interface-header', 'Interface header', 'Connection points for power or signals to external hardware.', [0.62, 0.46, 0.34])],
-  },
 ]
 
-export const anatomyModels = models.filter((model) => model.anatomy)
-export const engineeringModels = models.filter((model) => !model.anatomy)
+export const anatomyModels = models
 export const modelById = (id: string) => models.find((model) => model.id === id) ?? models[0]
 export const systems = [...new Set(anatomyModels.map((model) => model.system))]

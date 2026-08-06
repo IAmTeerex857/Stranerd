@@ -32,7 +32,7 @@ describe('deterministic anatomy evaluation', () => {
   })
 
   it('keeps the streamlined specimen catalog complete', () => {
-    expect(models.flatMap((model) => model.variants)).toHaveLength(44)
+    expect(models.flatMap((model) => model.variants)).toHaveLength(41)
     for (const model of models) expect(model.variants[0].file).toBe(model.file)
   })
 

@@ -20,7 +20,6 @@ export type MentorRequest = {
     guidedStep?: string
     facts?: string[]
   }
-  fallback?: string
 }
 
 const mentorInstructions = `You are Stranerd Mentor, a patient university-level anatomy and engineering educator.
@@ -38,7 +37,7 @@ function cleanReply(message: string) {
 }
 
 export async function getMentorReply(body: MentorRequest) {
-  const fallback = body.fallback || 'Review the highlighted structure and relate its form to its physiological role.'
+  const fallback = 'Review the highlighted structure and relate its form to its physiological role.'
 
   const hasAzure = Boolean(process.env.AZURE_OPENAI_API_KEY && process.env.AZURE_OPENAI_ENDPOINT && process.env.AZURE_OPENAI_DEPLOYMENT)
   if (!process.env.OPENAI_API_KEY && !hasAzure) {
@@ -58,17 +57,17 @@ export async function getMentorReply(body: MentorRequest) {
           { role: 'user', content: JSON.stringify({ ...body.context, question: body.question || 'Explain this structure.' }) },
         ],
         max_completion_tokens: 500,
-      })
+      }, { signal: AbortSignal.timeout(12_000) })
       return { message: cleanReply(completion.choices[0]?.message.content || fallback), source: 'azure-openai' }
     }
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-    const completion = await client.responses.create({
+      const completion = await client.responses.create({
       model: process.env.OPENAI_MODEL || 'gpt-5-mini',
       instructions: mentorInstructions,
       input: JSON.stringify({ ...body.context, question: body.question || 'Explain the engine result.' }),
       max_output_tokens: 300,
-    })
+      }, { signal: AbortSignal.timeout(12_000) })
     return { message: cleanReply(completion.output_text || fallback), source: 'openai' }
   } catch (error) {
     console.error('Mentor request failed:', error instanceof Error ? error.message : error)

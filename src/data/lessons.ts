@@ -63,14 +63,6 @@ export const lessonsByModel: Record<string, Lesson[]> = {
     { title: 'Bolus transport', prompt: 'Select the conduit carrying a swallowed bolus toward the stomach.', targetIds: ['esophagus'], fallback: 'Coordinated peristalsis moves a bolus through the esophagus.' },
     { title: 'Digestion to absorption', prompt: 'Select the stomach and small intestine in physiological sequence.', targetIds: ['stomach', 'small-intestine'], fallback: 'The stomach creates chyme; the small intestine then performs most enzymatic digestion and absorption.' },
   ]),
-  arduino: makeLessons('arduino', [
-    { title: 'Program execution', prompt: 'Select the component that executes uploaded instructions.', targetIds: ['microcontroller'], fallback: 'The microcontroller executes firmware and controls the board’s configurable interfaces.' },
-    { title: 'Prototype interfaces', prompt: 'Select the digital I/O header and power input regions.', targetIds: ['digital-io', 'power-input'], fallback: 'Power conditioning supports board rails while digital I/O connects firmware to external devices.' },
-  ]),
-  'electronics-project': makeLessons('electronics-project', [
-    { title: 'Control and interface', prompt: 'Select the controller IC and the external interface header.', targetIds: ['controller-ic', 'interface-header'], fallback: 'The controller processes behavior while headers expose power or signals at the board boundary.' },
-    { title: 'Supply stability', prompt: 'Identify the components used for local energy storage and rail-noise filtering.', targetIds: ['capacitor-bank'], fallback: 'Local capacitors supply transient current and reduce power-rail noise near active components.' },
-  ]),
 }
 
 export const lessons = Object.values(lessonsByModel).flat()

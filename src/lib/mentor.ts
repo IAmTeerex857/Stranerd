@@ -1,3 +1,5 @@
+import { aiRequest, type CreditBalance } from './ai'
+
 type MentorContext = {
   model: string
   hotspot?: string
@@ -17,21 +19,13 @@ type MentorContext = {
   facts: string[]
 }
 
-export async function askMentor(question: string, context: MentorContext, fallback: string): Promise<string> {
+export async function askMentor(question: string, context: MentorContext): Promise<{ message: string; balance: CreditBalance }> {
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 20_000)
+  const timeout = window.setTimeout(() => controller.abort(), 17_000)
   try {
-    const response = await fetch('/api/mentor', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, context, fallback }),
-      signal: controller.signal,
-    })
-    if (!response.ok) throw new Error(`Mentor request returned ${response.status}`)
-    const data = await response.json() as { message?: string }
-    return data.message || fallback
-  } catch {
-    return fallback
+    const data = await aiRequest('/api/mentor', { question, context }, controller.signal) as { message?: string; balance?: CreditBalance }
+    if (!data.message || !data.balance) throw new Error('Mentor response was incomplete.')
+    return { message: data.message, balance: data.balance }
   } finally {
     window.clearTimeout(timeout)
   }

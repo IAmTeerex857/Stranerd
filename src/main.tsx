@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { Analytics } from '@vercel/analytics/react'
 import App from './App'
 import { HeartCandidateTestView } from './components/HeartCandidateTestView'
+import { PublicPages } from './PublicPages'
+import { AuthProvider } from './auth'
 import './styles.css'
 
 class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> {
@@ -36,10 +38,13 @@ class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> 
 }
 
 const testView = new URLSearchParams(window.location.search).get('test')
+const path = window.location.pathname.length > 1 ? window.location.pathname.replace(/\/+$/, '') : '/'
 
 createRoot(document.getElementById('root')!).render(
   <AppBoundary>
-    {testView === 'heart-candidate' ? <HeartCandidateTestView /> : <App />}
-    <Analytics />
+    <AuthProvider>
+      {testView === 'heart-candidate' ? <HeartCandidateTestView /> : path === '/app' ? <App /> : <PublicPages path={path} />}
+      <Analytics />
+    </AuthProvider>
   </AppBoundary>,
 )

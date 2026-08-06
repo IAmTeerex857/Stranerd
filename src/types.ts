@@ -1,4 +1,4 @@
-export type ViewId = 'explore' | 'systems' | 'lessons' | 'engineering' | 'library' | 'notes'
+export type ViewId = 'explore' | 'systems' | 'lessons' | 'library' | 'notes'
 
 export type Hotspot = {
   id: string

@@ -1,4 +1,5 @@
 import type { ModelEntry, Quiz } from '../types'
+import { aiRequest, type CreditBalance } from './ai'
 
 function validQuiz(value: unknown): value is Quiz {
   if (!value || typeof value !== 'object') return false
@@ -15,25 +16,22 @@ function validQuiz(value: unknown): value is Quiz {
     && typeof quiz.explanation === 'string'
 }
 
-export async function generateAIQuiz(model: ModelEntry, previousQuestions: string[], fallback: Quiz[]) {
+export async function generateAIQuiz(model: ModelEntry, previousQuestions: string[]): Promise<{ quizzes: Quiz[]; balance: CreditBalance }> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 50_000)
   try {
-    const response = await fetch('/api/quiz', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        modelId: model.id,
-        model: model.name,
-        system: model.system,
-        description: model.description,
-        facts: model.facts,
-        structures: model.hotspots.map((hotspot) => ({ label: hotspot.label, detail: hotspot.detail })),
-        previousQuestions,
-      }),
-    })
-    if (!response.ok) throw new Error(`Quiz request returned ${response.status}`)
-    const data = await response.json() as { quizzes?: unknown }
-    return Array.isArray(data.quizzes) && data.quizzes.length === 20 && data.quizzes.every(validQuiz) ? data.quizzes : fallback
-  } catch {
-    return fallback
+    const data = await aiRequest('/api/quiz', {
+      modelId: model.id,
+      model: model.name,
+      system: model.system,
+      description: model.description,
+      facts: model.facts,
+      structures: model.hotspots.map((hotspot) => ({ label: hotspot.label, detail: hotspot.detail })),
+      previousQuestions,
+    }, controller.signal) as { quizzes?: unknown; balance?: CreditBalance }
+    if (!Array.isArray(data.quizzes) || data.quizzes.length !== 20 || !data.quizzes.every(validQuiz) || !data.balance) throw new Error('AI quiz response was incomplete.')
+    return { quizzes: data.quizzes, balance: data.balance }
+  } finally {
+    window.clearTimeout(timeout)
   }
 }
