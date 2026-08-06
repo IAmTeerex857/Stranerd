@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useState, type SetStateAction } from 'react'
-import { BookOpen, Bot, ChevronRight, CircleUserRound, ClipboardList, Library, Menu, Moon, Network, NotebookPen, PanelLeftClose, PanelLeftOpen, Search, Star, Sun, X } from 'lucide-react'
+import { useEffect, useMemo, useState, type SetStateAction } from 'react'
+import { BookOpen, Bot, ChevronRight, CircleUserRound, ClipboardList, Library, Menu, Network, NotebookPen, PanelLeftClose, PanelLeftOpen, Search, Star, X } from 'lucide-react'
 import { AnatomyViewer } from './components/AnatomyViewer'
 import { MentorPanel } from './components/MentorPanel'
 import { LibraryView, NotesView, QuizzesView, SystemsView } from './components/WorkspaceViews'
@@ -31,12 +31,6 @@ const greeting: ChatItem = {
   text: 'Click a structure to explore it with me, or open Activities for quizzes and guided dissection.',
 }
 
-type Theme = 'dark' | 'light'
-
-function loadTheme(): Theme {
-  return window.localStorage.getItem('stranerd.theme') === 'light' ? 'light' : 'dark'
-}
-
 function loadInitialState() {
   const state = loadState()
   const requestedModel = new URLSearchParams(window.location.search).get('model')
@@ -58,7 +52,6 @@ function ModelDetail({ model, hotspot }: DetailProps) {
 
 export default function App() {
   const { user, balance, setBalance } = useAuth()
-  const [theme, setTheme] = useState<Theme>(loadTheme)
   const [persisted, setPersisted] = useState<PersistedState>(loadInitialState)
   const initialModel = modelById(persisted.selectedModelId)
   const initialHotspot = initialModel.hotspots.find((hotspot) => hotspot.id === persisted.selectedHotspotIds[initialModel.id])
@@ -108,12 +101,6 @@ export default function App() {
     return () => { document.body.style.overflow = previous }
   }, [menuOpen])
 
-  useLayoutEffect(() => {
-    document.documentElement.dataset.theme = theme
-    document.documentElement.style.colorScheme = theme
-    window.localStorage.setItem('stranerd.theme', theme)
-  }, [theme])
-
   function updatePersisted(next: Partial<PersistedState>) {
     setPersisted((current) => ({ ...current, ...next }))
   }
@@ -162,6 +149,19 @@ export default function App() {
   }
 
   function explainDissectionAction(context: DissectionActionContext) {
+    setPersisted((current) => ({
+      ...current,
+      dissectionActionsByModel: {
+        ...current.dissectionActionsByModel,
+        [model.id]: [...(current.dissectionActionsByModel[model.id] ?? []), {
+          action: context.action,
+          structureIds: context.structureIds,
+          structures: context.structures,
+          hiddenStructures: context.hiddenStructures,
+          createdAt: new Date().toISOString(),
+        }].slice(-30),
+      },
+    }))
     const activeActivity = anatomyActivities.find((activity) => activity.id === activeActivityId && activity.modelId === model.id)
     const activeStep = guidedActivityStep === null ? undefined : activeActivity?.steps[guidedActivityStep]
     const stepComplete = Boolean(activeStep?.kind === 'action'
@@ -316,10 +316,10 @@ export default function App() {
       <div className="progress-card"><div><span>Quiz progress</span><b>{completion}%</b></div><i><b style={{ width: `${completion}%` }} /></i><small>{completedCount} of {activityCount} questions completed</small></div>
     </aside>
     <main className="workspace">
-      <header className="topbar"><div><span>{view === 'lessons' ? 'activities' : view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions"><a href="/account"><CircleUserRound size={16} />Account</a><button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}<span>{theme === 'dark' ? 'Light' : 'Dark'}</span></button>{view !== 'lessons' && <button onClick={() => chooseView('lessons')}><ClipboardList size={16} />Open activities</button>}</div></header>
+      <header className="topbar"><div><span>{view === 'lessons' ? 'activities' : view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions"><a href="/account"><CircleUserRound size={16} />Account</a>{view !== 'lessons' && <button onClick={() => chooseView('lessons')}><ClipboardList size={16} />Open activities</button>}</div></header>
       <div className="center-pane">{renderCenter()}</div>
     </main>
-    <MentorPanel model={model} selectedHotspot={selectedHotspot} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} />
+    <MentorPanel model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} />
     <nav className="mobile-tabs">{navItems.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)}><item.icon size={18} /><span>{item.label}</span></button>)}</nav>
     <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)}><Bot size={15} />Mentor{typing && <i />}</button>
   </div>

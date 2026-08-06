@@ -16,6 +16,9 @@ type MentorContext = {
   hiddenStructures?: string[]
   visibleNeighbors?: string[]
   guidedStep?: string
+  recentActions?: { action: string; structures: string[]; hiddenStructures: string[] }[]
+  movedStructures?: string[]
+  selectedStructures?: string[]
   facts: string[]
 }
 

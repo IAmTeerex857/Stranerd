@@ -42,6 +42,7 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
   const { scene } = useGLTF(layer.file)
   const { camera, controls, invalidate } = useThree()
   const drag = useRef<{ nodeId: string; movementId: string; mesh: Mesh; plane: Plane; startPoint: Vector3; startOffset: Vector3; startClient: [number, number]; pointerId: number; moved: boolean } | undefined>(undefined)
+  const suppressClick = useRef(false)
   const controlsRef = useRef<{ enabled: boolean } | null>(null)
   useEffect(() => {
     controlsRef.current = controls && 'enabled' in controls ? controls as unknown as { enabled: boolean } : null
@@ -175,7 +176,10 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
   }
 
   function pointerUp(event: ThreeEvent<PointerEvent>) {
-    if (drag.current?.moved) onMoveEnd?.(drag.current.nodeId)
+    if (drag.current?.moved) {
+      suppressClick.current = true
+      onMoveEnd?.(drag.current.nodeId)
+    }
     if (drag.current) (event.target as HTMLElement).releasePointerCapture?.(drag.current.pointerId)
     drag.current = undefined
     if (controlsRef.current) controlsRef.current.enabled = true
@@ -187,6 +191,10 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
       visible={visible}
       onClick={interactive ? (event: { object: Object3D; stopPropagation: () => void; nativeEvent: MouseEvent }) => {
         event.stopPropagation()
+        if (suppressClick.current) {
+          suppressClick.current = false
+          return
+        }
         onSelect(createMeshSelection(layer.id, structureName(event.object, prepared.root)), event.nativeEvent.shiftKey)
       } : undefined}
       onPointerDown={interactive ? pointerDown : undefined}

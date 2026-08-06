@@ -14,6 +14,7 @@ export const defaultPersistedState: PersistedState = {
   notes: [],
   chatByModel: {},
   selectedHotspotIds: {},
+  dissectionActionsByModel: {},
   settings: defaultSettings,
 }
 
@@ -38,6 +39,9 @@ export function parsePersistedState(raw: string | null): PersistedState {
         : {},
       selectedHotspotIds: value.selectedHotspotIds && typeof value.selectedHotspotIds === 'object' && !Array.isArray(value.selectedHotspotIds)
         ? Object.fromEntries(Object.entries(value.selectedHotspotIds).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+        : {},
+      dissectionActionsByModel: value.dissectionActionsByModel && typeof value.dissectionActionsByModel === 'object' && !Array.isArray(value.dissectionActionsByModel)
+        ? Object.fromEntries(Object.entries(value.dissectionActionsByModel).flatMap(([modelId, actions]) => Array.isArray(actions) ? [[modelId, actions.filter((action): action is PersistedState['dissectionActionsByModel'][string][number] => Boolean(action) && typeof action === 'object' && ['select', 'hide', 'show', 'isolate', 'transparent', 'move', 'reset'].includes(action.action) && Array.isArray(action.structureIds) && action.structureIds.every((id) => typeof id === 'string') && Array.isArray(action.structures) && action.structures.every((label) => typeof label === 'string') && Array.isArray(action.hiddenStructures) && action.hiddenStructures.every((label) => typeof label === 'string') && typeof action.createdAt === 'string').slice(-30)]] : []))
         : {},
       settings: Object.fromEntries(Object.entries(defaultSettings).map(([key, fallback]) => [
         key,

@@ -94,7 +94,16 @@ export type PersistedState = {
   notes: Note[]
   chatByModel: Record<string, ChatItem[]>
   selectedHotspotIds: Record<string, string>
+  dissectionActionsByModel: Record<string, DissectionHistoryItem[]>
   settings: Settings
+}
+
+export type DissectionHistoryItem = {
+  action: 'select' | 'hide' | 'show' | 'isolate' | 'transparent' | 'move' | 'reset'
+  structureIds: string[]
+  structures: string[]
+  hiddenStructures: string[]
+  createdAt: string
 }
 
 export type ChatItem = {

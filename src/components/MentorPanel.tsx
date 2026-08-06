@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { Bot, CornerDownRight, Send, X } from 'lucide-react'
-import type { ChatItem, Hotspot, ModelEntry } from '../types'
+import type { ChatItem, DissectionHistoryItem, Hotspot, ModelEntry } from '../types'
 import { askMentor } from '../lib/mentor'
 import { anatomyGraph, anatomyLayers } from '../data/anatomyGraph'
 import { useAuth } from '../auth-context'
@@ -9,6 +9,7 @@ import { AIActionError } from '../lib/ai'
 type Props = {
   model: ModelEntry
   selectedHotspot?: Hotspot
+  actionHistory: DissectionHistoryItem[]
   messages: ChatItem[]
   typing: boolean
   onMessages: Dispatch<SetStateAction<ChatItem[]>>
@@ -28,7 +29,7 @@ function MentorText({ text }: { text: string }) {
   })}</div>
 }
 
-export function MentorPanel({ model, selectedHotspot, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose }: Props) {
+export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose }: Props) {
   const { user, balance, setBalance } = useAuth()
   const [input, setInput] = useState('')
   const [actionError, setActionError] = useState<{ message: string; needsCredits: boolean }>()
@@ -59,6 +60,8 @@ export function MentorPanel({ model, selectedHotspot, messages, typing, onMessag
     onMessages((current) => [...current, student, { id: replyId, role: 'mentor', text: 'Preparing a grounded response…', pending: true }])
     onTyping(true)
     try {
+      const movedStructures = [...new Set(actionHistory.filter((action) => action.action === 'move').flatMap((action) => action.structures))]
+      const selectedStructures = [...new Set(actionHistory.filter((action) => action.action === 'select').flatMap((action) => action.structures))]
       const answer = await askMentor(question, {
         model: model.name,
         hotspot: selectedHotspot?.label,
@@ -66,6 +69,9 @@ export function MentorPanel({ model, selectedHotspot, messages, typing, onMessag
         system: anatomyLayers.find((layer) => layer.id === selectedHotspot?.systemId)?.label,
         conditions: selectedHotspot?.conditions?.map((condition) => condition.label),
         graphVersion: selectedHotspot?.source === 'mesh' ? anatomyGraph.contentVersion : undefined,
+        recentActions: actionHistory.slice(-20).map(({ action, structures, hiddenStructures }) => ({ action, structures, hiddenStructures })),
+        movedStructures,
+        selectedStructures,
         facts: model.facts,
       })
       setBalance(answer.balance)
@@ -79,6 +85,12 @@ export function MentorPanel({ model, selectedHotspot, messages, typing, onMessag
     } finally {
       onTyping(false)
     }
+  }
+
+  function handleInputKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== 'Enter' || event.shiftKey) return
+    event.preventDefault()
+    event.currentTarget.form?.requestSubmit()
   }
 
   return (
@@ -99,8 +111,8 @@ export function MentorPanel({ model, selectedHotspot, messages, typing, onMessag
       {actionError && <div className="mentor-action-error"><span>{actionError.message}</span>{actionError.needsCredits && <a href="/pricing">Get credits</a>}</div>}
       <form className="mentor-input" onSubmit={submit}>
         <label htmlFor="mentor-question">Ask about {selectedHotspot?.label || 'this model'}</label>
-        <div><input id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Why is this structure important?" maxLength={500} /><button aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><Send size={15} /><span>{user ? 'Ask AI · 1 credit' : 'Sign in to ask'}</span></button></div>
-        <small>{user ? `${balance ? `${balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance} credits available` : 'Loading credits'} · ` : ''}Authored model context is always free.</small>
+        <div><textarea id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder="Why is this structure important?" maxLength={500} rows={2} /><button aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><Send size={15} /><span>{user ? 'Ask AI · 1 credit' : 'Sign in to ask'}</span></button></div>
+        <small>{user ? `${balance ? `${balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance} credits available` : 'Loading credits'} · ` : ''}Enter to send · Shift+Enter for a new line.</small>
       </form>
     </aside>
   )

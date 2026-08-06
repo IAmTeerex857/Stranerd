@@ -39,6 +39,9 @@ class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> 
 
 const testView = new URLSearchParams(window.location.search).get('test')
 const path = window.location.pathname.length > 1 ? window.location.pathname.replace(/\/+$/, '') : '/'
+document.documentElement.dataset.theme = 'dark'
+document.documentElement.style.colorScheme = 'dark'
+window.localStorage.removeItem('stranerd.theme')
 
 createRoot(document.getElementById('root')!).render(
   <AppBoundary>

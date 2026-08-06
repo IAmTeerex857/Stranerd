@@ -11,6 +11,7 @@ describe('persistence parsing', () => {
     expect(state.completedLessonIds).toEqual(['heart-01'])
     expect(state.completedQuizIds).toEqual([])
     expect(state.chatByModel).toEqual({})
+    expect(state.dissectionActionsByModel).toEqual({})
   })
 
   it('keeps safe model chat and selection history', () => {
