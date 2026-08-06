@@ -2,7 +2,7 @@ import { Component, Suspense, useEffect, useMemo, useReducer, useRef, useState, 
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
 import { Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three'
-import { Box, Eye, EyeOff, Focus, Layers3, LoaderCircle, RotateCcw, ScanLine, Scissors, Search, Star, Tags, Undo2, X } from 'lucide-react'
+import { Box, ChevronDown, ChevronUp, Eye, EyeOff, Focus, Layers3, LoaderCircle, RotateCcw, ScanLine, Scissors, Search, Star, Tags, Undo2, X } from 'lucide-react'
 import type { Hotspot, ModelEntry, Settings } from '../types'
 import { anatomyLayers } from '../data/anatomyGraph'
 import { ProgressiveBodyModel } from './ProgressiveBodyModel'
@@ -99,7 +99,7 @@ function ModelGeometry({ url, settings, hotspots, onSelect, interactive = true }
   return <primitive object={prepared} onClick={selectSurface} onPointerOver={interactive ? () => { document.body.style.cursor = 'pointer' } : undefined} onPointerOut={interactive ? () => { document.body.style.cursor = '' } : undefined} />
 }
 
-function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers, dissection, onStructures, onMoveStart, onMove, onMoveEnd }: ViewerProps & { controlsRef: RefObject<{ reset: () => void } | null>; loadedLayers: string[]; visibleLayers: string[]; dissection?: DissectionSnapshot; onStructures: (structures: Hotspot[]) => void; onMoveStart: () => void; onMove: (nodeId: string, offset: [number, number, number]) => void; onMoveEnd: (nodeId: string) => void }) {
+function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled }: ViewerProps & { controlsRef: RefObject<{ reset: () => void } | null>; loadedLayers: string[]; visibleLayers: string[]; dissection?: DissectionSnapshot; onStructures: (structures: Hotspot[]) => void; onMoveStart: () => void; onMove: (nodeId: string, offset: [number, number, number]) => void; onMoveEnd: (nodeId: string) => void; touchMoveEnabled: boolean }) {
   const variant = model.variants.find((entry) => entry.id === selectedVariantId) ?? model.variants[0]
   const hotspots = variant.hotspots ?? model.hotspots
   return (
@@ -112,9 +112,9 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
       <group>
         <Suspense fallback={<LoadingModel />}>
           <ModelBoundary key={variant.file} name={`${model.name} · ${variant.label}`}>{model.viewer === 'segmented-body'
-            ? <ProgressiveBodyModel layers={anatomyLayers.filter((layer) => loadedLayers.includes(layer.id))} visibleLayerIds={visibleLayers} selectedIds={selectedIds} settings={settings} onSelect={onSelect} dissection={dissection} onStructures={onStructures} onMoveStart={onMoveStart} onMove={onMove} onMoveEnd={onMoveEnd} />
+            ? <ProgressiveBodyModel layers={anatomyLayers.filter((layer) => loadedLayers.includes(layer.id))} visibleLayerIds={visibleLayers} selectedIds={selectedIds} settings={settings} onSelect={onSelect} dissection={dissection} onStructures={onStructures} onMoveStart={onMoveStart} onMove={onMove} onMoveEnd={onMoveEnd} touchMoveEnabled={touchMoveEnabled} />
             : variant.segmentedSystem
-              ? <SegmentedSpecimenModel url={`/models/${variant.file}`} systemId={variant.segmentedSystem} selectedIds={selectedIds} settings={settings} onSelect={onSelect} dissection={dissection} onStructures={onStructures} onMoveStart={onMoveStart} onMove={onMove} onMoveEnd={onMoveEnd} />
+              ? <SegmentedSpecimenModel url={`/models/${variant.file}`} systemId={variant.segmentedSystem} selectedIds={selectedIds} settings={settings} onSelect={onSelect} dissection={dissection} onStructures={onStructures} onMoveStart={onMoveStart} onMove={onMove} onMoveEnd={onMoveEnd} touchMoveEnabled={touchMoveEnabled} />
               : <ModelGeometry url={`/models/${variant.file}`} settings={settings} hotspots={hotspots} onSelect={onSelect} />}</ModelBoundary>
         </Suspense>
         {model.viewer !== 'segmented-body' && !variant.segmentedSystem && settings.layers && !settings.isolate && <>
@@ -155,6 +155,8 @@ export function AnatomyViewer(props: ViewerProps) {
   const [dissection, dispatchDissection] = useReducer(dissectionReducer, undefined, createDissectionState)
   const [structures, setStructures] = useState<Hotspot[]>([])
   const [structureQuery, setStructureQuery] = useState('')
+  const [dissectPanelOpen, setDissectPanelOpen] = useState(false)
+  const [touchMoveEnabled, setTouchMoveEnabled] = useState(false)
   const toggle = (key: keyof Settings) => props.onSettings({ ...props.settings, [key]: !props.settings[key] })
   const variant = props.model.variants.find((entry) => entry.id === props.selectedVariantId) ?? props.model.variants[0]
   const canDissect = props.model.anatomy && (props.model.viewer === 'segmented-body' || props.model.variants.some((entry) => entry.segmentedSystem))
@@ -180,6 +182,8 @@ export function AnatomyViewer(props: ViewerProps) {
   function toggleDissectMode() {
     if (dissectMode) {
       setDissectMode(false)
+      setDissectPanelOpen(false)
+      setTouchMoveEnabled(false)
       dispatchDissection({ type: 'clear' })
       return
     }
@@ -188,6 +192,8 @@ export function AnatomyViewer(props: ViewerProps) {
     else if (props.model.viewer !== 'segmented-body') return
     dispatchDissection({ type: 'clear' })
     setDissectMode(true)
+    setDissectPanelOpen(false)
+    setTouchMoveEnabled(false)
   }
 
   function changeVariant(variantId: string) {
@@ -249,24 +255,27 @@ export function AnatomyViewer(props: ViewerProps) {
       </div>
       <div className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
         <Canvas frameloop={props.settings.autoRotate ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, props.activityLayout ? 6 : 4.4], fov: 42 }} gl={{ antialias: true, alpha: true }}>
-          <Scene {...props} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={setStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} />
+          <Scene {...props} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={setStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} touchMoveEnabled={touchMoveEnabled} />
         </Canvas>
         {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
-        {dissectMode && (variant.segmentedSystem || props.model.viewer === 'segmented-body') && <aside className="dissect-dock">
-          <header><div><span>Dissect Mode</span><b>{structures.length} structures</b></div><button onClick={toggleDissectMode} title="Exit Dissect Mode"><X size={14} /></button></header>
+        <div className="axis"><span>Y</span><i /><b>X</b></div>
+        <p className="viewer-help">{dissectMode ? 'Drag a structure to pull it out · drag empty space to orbit' : 'Click the model to inspect · shift-click to multi-select · drag to orbit'}</p>
+      </div>
+      {dissectMode && (variant.segmentedSystem || props.model.viewer === 'segmented-body') && <aside className={`dissect-dock ${dissectPanelOpen ? 'sheet-open' : 'sheet-collapsed'}`}>
+          <header><button className="mobile-sheet-toggle" onClick={() => setDissectPanelOpen((value) => !value)} aria-expanded={dissectPanelOpen}>{dissectPanelOpen ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button><div><span>Dissect Mode</span><b>{structures.length} structures · tap to {dissectPanelOpen ? 'collapse' : 'open'}</b></div><button onClick={toggleDissectMode} title="Exit Dissect Mode"><X size={14} /></button></header>
+          <div className="dissect-sheet-content">
           <div className="dissect-search"><Search size={13} /><input value={structureQuery} onChange={(event) => setStructureQuery(event.target.value)} placeholder="Search structures" aria-label="Search digestive structures" /></div>
           <div className="dissect-actions">
             <button disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'hide', ids: selectedStructureIds }); recordAction('hide', selectedStructureIds) }}><EyeOff size={13} />Hide</button>
             <button disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'show', ids: selectedStructureIds }); recordAction('show', selectedStructureIds) }}><Eye size={13} />Show</button>
             <button className={selectedStructureIds.some((id) => dissection.transparentIds.includes(id)) ? 'active' : ''} disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'toggle-transparent', ids: selectedStructureIds }); recordAction('transparent', selectedStructureIds) }}>Fade</button>
             <button className={dissection.isolate ? 'active' : ''} disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'toggle-isolate' }); recordAction('isolate', selectedStructureIds) }}>Isolate</button>
+            <button className={`touch-move-action ${touchMoveEnabled ? 'active' : ''}`} onClick={() => setTouchMoveEnabled((value) => !value)}>Move</button>
           </div>
           <div className="dissect-structures">{structureGroups.map(([group, entries]) => <section key={group}><h3>{group}<span>{entries.length}</span></h3>{entries.map((structure) => <button key={structure.id} className={`${props.selectedIds.includes(structure.id) ? 'selected' : ''} ${dissection.hiddenIds.includes(structure.id) ? 'hidden' : ''}`} onClick={(event) => selectStructure(structure, event.shiftKey)}><i />{structure.label}{dissection.hiddenIds.includes(structure.id) && <EyeOff size={11} />}</button>)}</section>)}</div>
           <footer><button disabled={dissection.history.length === 0} onClick={() => dispatchDissection({ type: 'undo' })}><Undo2 size={13} />Undo</button><button disabled={dissection.hiddenIds.length === 0} onClick={() => { const ids = dissection.hiddenIds; dispatchDissection({ type: 'show-all' }); recordAction('show', ids) }}>Show all</button><button onClick={resetDissection}>Reset</button></footer>
+          </div>
         </aside>}
-        <div className="axis"><span>Y</span><i /><b>X</b></div>
-        <p className="viewer-help">{dissectMode ? 'Drag a structure to pull it out · drag empty space to orbit' : 'Click the model to inspect · shift-click to multi-select · drag to orbit'}</p>
-      </div>
       <div className="specimen-bar">
         <span><b>{props.model.metadata.region}</b>Region</span><span><b>{props.model.viewer === 'segmented-body' ? 'Layered systems' : props.model.metadata.scale}</b>Reference</span><span><b>{dissectMode ? 'Dissect Mode' : props.model.viewer === 'segmented-body' ? 'Click to explore' : 'Surface selection'}</b>Study mode</span>
       </div>

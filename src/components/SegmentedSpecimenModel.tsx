@@ -35,15 +35,16 @@ type Props = {
   onMoveStart?: () => void
   onMove?: (nodeId: string, offset: [number, number, number]) => void
   onMoveEnd?: (nodeId: string) => void
+  touchMoveEnabled?: boolean
 }
 
-export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, onSelect, dissection, onStructures, onMoveStart, onMove, onMoveEnd }: Props) {
+export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, onSelect, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled }: Props) {
   const { scene } = useGLTF(url)
   const { camera, controls, gl, invalidate, raycaster } = useThree()
-  const interaction = useRef({ onSelect, onMoveStart, onMove, onMoveEnd, selectedIds, offsets: dissection?.offsets ?? {}, enabled: Boolean(dissection) })
+  const interaction = useRef({ onSelect, onMoveStart, onMove, onMoveEnd, selectedIds, offsets: dissection?.offsets ?? {}, enabled: Boolean(dissection), touchMoveEnabled })
   useEffect(() => {
-    interaction.current = { onSelect, onMoveStart, onMove, onMoveEnd, selectedIds, offsets: dissection?.offsets ?? {}, enabled: Boolean(dissection) }
-  }, [dissection, onMove, onMoveEnd, onMoveStart, onSelect, selectedIds])
+    interaction.current = { onSelect, onMoveStart, onMove, onMoveEnd, selectedIds, offsets: dissection?.offsets ?? {}, enabled: Boolean(dissection), touchMoveEnabled }
+  }, [dissection, onMove, onMoveEnd, onMoveStart, onSelect, selectedIds, touchMoveEnabled])
   const prepared = useMemo(() => {
     const root = scene.clone(true)
     const box = new Box3().setFromObject(root)
@@ -188,6 +189,7 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
     const pointerDown = (event: PointerEvent) => {
       start = new Vector2(event.clientX, event.clientY)
       if (!interaction.current.enabled) return
+      if (event.pointerType === 'touch' && !interaction.current.touchMoveEnabled) return
       raycaster.setFromCamera(pointerPosition(event), camera)
       const hit = raycaster.intersectObjects(prepared.proxies.filter((entry) => entry.proxy.visible).map((entry) => entry.proxy), false)[0]
       const candidate = hit && prepared.proxies.find((entry) => entry.proxy === hit.object)

@@ -18,16 +18,21 @@ type MentorContext = {
 }
 
 export async function askMentor(question: string, context: MentorContext, fallback: string): Promise<string> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 20_000)
   try {
     const response = await fetch('/api/mentor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question, context, fallback }),
+      signal: controller.signal,
     })
     if (!response.ok) throw new Error(`Mentor request returned ${response.status}`)
     const data = await response.json() as { message?: string }
     return data.message || fallback
   } catch {
     return fallback
+  } finally {
+    window.clearTimeout(timeout)
   }
 }

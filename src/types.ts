@@ -100,4 +100,5 @@ export type ChatItem = {
   role: 'mentor' | 'student' | 'engine'
   text: string
   status?: 'pass' | 'fail' | 'neutral'
+  pending?: boolean
 }

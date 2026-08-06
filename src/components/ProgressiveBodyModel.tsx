@@ -17,6 +17,7 @@ type Props = {
   onMoveStart?: () => void
   onMove?: (nodeId: string, offset: [number, number, number]) => void
   onMoveEnd?: (nodeId: string) => void
+  touchMoveEnabled?: boolean
 }
 
 function structureName(object: Object3D, root: Object3D) {
@@ -37,7 +38,7 @@ function cloneMaterial(material: Material, color: string) {
   return next
 }
 
-function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelect, dissection, onStructures, onMoveStart, onMove, onMoveEnd }: Omit<Props, 'layers' | 'visibleLayerIds' | 'onStructures'> & { layer: AnatomyLayer; visible: boolean; interactive: boolean; onStructures: (layerId: string, structures: Hotspot[]) => void }) {
+function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelect, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled }: Omit<Props, 'layers' | 'visibleLayerIds' | 'onStructures'> & { layer: AnatomyLayer; visible: boolean; interactive: boolean; onStructures: (layerId: string, structures: Hotspot[]) => void }) {
   const { scene } = useGLTF(layer.file)
   const { camera, controls, invalidate } = useThree()
   const drag = useRef<{ nodeId: string; movementId: string; mesh: Mesh; plane: Plane; startPoint: Vector3; startOffset: Vector3; startClient: [number, number]; pointerId: number; moved: boolean } | undefined>(undefined)
@@ -135,6 +136,7 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
 
   function pointerDown(event: ThreeEvent<PointerEvent>) {
     if (!dissection || !interactive || !(event.object instanceof Mesh)) return
+    if (event.nativeEvent.pointerType === 'touch' && !touchMoveEnabled) return
     const rawName = structureName(event.object, prepared.root)
     const nodeId = anatomyNodeId(layer.id, rawName)
     const entry = prepared.meshes.find((candidate) => candidate.mesh === event.object)
@@ -196,7 +198,7 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
   )
 }
 
-export function ProgressiveBodyModel({ layers, visibleLayerIds, selectedIds, settings, onSelect, dissection, onStructures, onMoveStart, onMove, onMoveEnd }: Props) {
+export function ProgressiveBodyModel({ layers, visibleLayerIds, selectedIds, settings, onSelect, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled }: Props) {
   const visibleCount = visibleLayerIds.length
   const structuresByLayer = useRef(new Map<string, Hotspot[]>())
   const reportStructures = useCallback((layerId: string, structures: Hotspot[]) => {
@@ -220,6 +222,7 @@ export function ProgressiveBodyModel({ layers, visibleLayerIds, selectedIds, set
           onMoveStart={onMoveStart}
           onMove={onMove}
           onMoveEnd={onMoveEnd}
+          touchMoveEnabled={touchMoveEnabled}
         />
         return layer.defaultVisible ? bodyLayer : <Suspense key={layer.id} fallback={null}>{bodyLayer}</Suspense>
       })}
