@@ -1120,11 +1120,11 @@
 .balance-panel,
 .account-grid article,
 .transaction-list {
-  background: #17130d;
+  background: #050505;
 }
 
 .balance-panel > div {
-  background: #0c1720;
+  background: #050505;
   color: #fff;
 }
 
@@ -1132,14 +1132,6 @@
 .balance-panel > div span,
 .balance-panel > div small {
   color: #fff;
-}
-
-.account-grid article:first-child {
-  border-top: 2px solid #7087b5;
-}
-
-.account-grid article:last-child {
-  border-top: 2px solid #75a58a;
 }
 
 .billing-actions button:hover:not(:disabled) {
