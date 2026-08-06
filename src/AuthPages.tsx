@@ -7,6 +7,7 @@ import { Page } from "./PublicLayout";
 import { GoogleIcon } from "./components/GoogleIcon";
 import { BillingButton } from "./components/BillingButton";
 import { cancelSubscription } from "./lib/billing";
+import { sendWelcomeEmail } from "./lib/email";
 
 type AccountData = {
   profile: {
@@ -123,11 +124,21 @@ export function AuthCallbackPage() {
         setError("The authentication response did not include a code.");
         return;
       }
-      const { error: exchangeError } =
+      const { data: exchange, error: exchangeError } =
         await supabase.auth.exchangeCodeForSession(code);
       if (!active) return;
       if (exchangeError) setError(exchangeError.message);
       else {
+        if (exchange.session) {
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              await sendWelcomeEmail();
+              break;
+            } catch {
+              if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 750));
+            }
+          }
+        }
         window.sessionStorage.removeItem("stranerd.auth.next");
         window.location.replace(next);
       }
