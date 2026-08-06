@@ -49,6 +49,7 @@ export default async function handler(request: Request, response: Response) {
       throw error
     }
   } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error) console.warn('Spotflow webhook rejected:', String(error.code))
     const result = billingErrorResponse(error)
     response.status(result.status).json(result.body)
   }

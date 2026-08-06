@@ -94,7 +94,10 @@ export function normalizeSpotflowEvent(body: Json, eventId: string): SpotflowEve
 
 function secretCandidates(secret: string) {
   const suffix = secret.replace(/^whsec_(?:test_|live_)?/, '')
-  return /^[0-9a-f]+$/i.test(suffix) && suffix.length % 2 === 0 ? [Buffer.from(suffix, 'hex')] : [Buffer.from(suffix, 'base64')]
+  const keys = [Buffer.from(secret), Buffer.from(suffix)]
+  if (/^[0-9a-f]+$/i.test(suffix) && suffix.length % 2 === 0) keys.push(Buffer.from(suffix, 'hex'))
+  else keys.push(Buffer.from(suffix, 'base64'))
+  return keys
 }
 
 function signatureCandidates(header: string) {
@@ -113,16 +116,20 @@ export function verifySpotflowSignature(rawBody: Buffer, headers: Record<string,
   const timestampValue = Array.isArray(headers['webhook-timestamp']) ? headers['webhook-timestamp'][0] : headers['webhook-timestamp']
   const timestamp = timestampValue || (Array.isArray(headers['x-spotflow-timestamp']) ? headers['x-spotflow-timestamp'][0] : headers['x-spotflow-timestamp'])
   const signature = Array.isArray(headers['x-spotflow-signature']) ? headers['x-spotflow-signature'][0] : headers['x-spotflow-signature']
-  if (!eventId || !timestamp || !signature) throw new BillingError(400, 'missing_webhook_headers', 'Required Spotflow webhook headers are missing.')
-  const timestampMs = /^\d+$/.test(timestamp) ? Number(timestamp) * (timestamp.length <= 10 ? 1000 : 1) : Date.parse(timestamp)
-  if (!Number.isFinite(timestampMs) || Math.abs(now - timestampMs) > 5 * 60_000) throw new BillingError(401, 'stale_webhook', 'Spotflow webhook timestamp is invalid or stale.')
+  if (!eventId || !signature) throw new BillingError(400, 'missing_webhook_headers', 'Required Spotflow webhook headers are missing.')
+  if (timestamp) {
+    const timestampMs = /^\d+$/.test(timestamp) ? Number(timestamp) * (timestamp.length <= 10 ? 1000 : 1) : Date.parse(timestamp)
+    if (!Number.isFinite(timestampMs) || Math.abs(now - timestampMs) > 5 * 60_000) throw new BillingError(401, 'stale_webhook', 'Spotflow webhook timestamp is invalid or stale.')
+  }
 
-  const payload = Buffer.from(`${eventId}.${timestamp}.${rawBody.toString('utf8')}`)
+  const payloads = timestamp
+    ? [Buffer.from(`${eventId}.${timestamp}.${rawBody.toString('utf8')}`)]
+    : [rawBody]
   const supplied = signatureCandidates(signature)
-  const valid = secretCandidates(secret).some((key) => {
+  const valid = secretCandidates(secret).some((key) => payloads.some((payload) => {
     const expected = createHmac('sha256', key).update(payload).digest()
     return supplied.some((candidate) => candidate.length === expected.length && timingSafeEqual(candidate, expected))
-  })
+  }))
   if (!valid) throw new BillingError(401, 'invalid_signature', 'Spotflow webhook signature is invalid.')
   return eventId
 }
@@ -161,13 +168,13 @@ export async function processSpotflowEvent(event: SpotflowEvent) {
     if (!productType) throw new BillingError(404, 'intent_not_found', 'Spotflow payment intent was not found.')
 
     if (productType === 'payg_100') {
-      if (!effectiveIntentId || !event.providerReference || event.amount !== 50000) throw new BillingError(400, 'amount_mismatch', 'Spotflow PAYG payment does not match the catalog.')
+      if (!effectiveIntentId || !event.providerReference || event.amount !== 500) throw new BillingError(400, 'amount_mismatch', 'Spotflow PAYG payment does not match the catalog.')
       const { error } = await client.rpc('apply_spotflow_payg_success', {
         p_event_id: event.eventId,
         p_payment_intent_id: effectiveIntentId,
         p_provider_payment_id: event.providerPaymentId,
         p_provider_reference: event.providerReference,
-        p_provider_amount: event.amount,
+        p_provider_amount: event.amount * 100,
         p_provider_currency: event.currency,
       })
       if (error) throw error

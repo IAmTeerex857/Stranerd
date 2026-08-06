@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth-context'
 import { startCheckout, type BillingProductId } from '../lib/billing'
 
@@ -6,6 +6,16 @@ export function BillingButton({ productId, children, className }: { productId: B
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>()
+
+  useEffect(() => {
+    const reset = () => setLoading(false)
+    window.addEventListener('pageshow', reset)
+    window.addEventListener('focus', reset)
+    return () => {
+      window.removeEventListener('pageshow', reset)
+      window.removeEventListener('focus', reset)
+    }
+  }, [])
 
   async function checkout() {
     if (!user) {

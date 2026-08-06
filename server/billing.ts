@@ -4,7 +4,7 @@ export type BillingProductId = 'subscription' | 'payg_100'
 
 export const billingCatalog = {
   subscription: { productType: 'subscription', amountMinor: 250000, providerAmount: undefined, currency: 'NGN', credits: 500 },
-  payg_100: { productType: 'payg_100', amountMinor: 50000, providerAmount: 50000, currency: 'NGN', credits: 100 },
+  payg_100: { productType: 'payg_100', amountMinor: 50000, providerAmount: 500, currency: 'NGN', credits: 100 },
 } as const
 
 export class BillingError extends Error {

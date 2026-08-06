@@ -8,7 +8,7 @@ describe('Spotflow webhooks', () => {
     const eventId = 'event-1'
     const timestamp = String(Math.floor(Date.now() / 1000))
     const secret = `whsec_test_${'01'.repeat(16)}`
-    const key = Buffer.from('0123456789abcdef0123456789abcdef', 'hex')
+    const key = Buffer.from('01'.repeat(16), 'hex')
     const signature = createHmac('sha256', key).update(`${eventId}.${timestamp}.${body.toString()}`).digest('base64')
     expect(verifySpotflowSignature(body, { 'webhook-id': eventId, 'webhook-timestamp': timestamp, 'x-spotflow-signature': `v1,${signature}` }, secret)).toBe(eventId)
   })
@@ -16,6 +16,14 @@ describe('Spotflow webhooks', () => {
   it('rejects stale webhook signatures', () => {
     const timestamp = String(Math.floor((Date.now() - 10 * 60_000) / 1000))
     expect(() => verifySpotflowSignature(Buffer.from('{}'), { 'webhook-id': 'event-1', 'webhook-timestamp': timestamp, 'x-spotflow-signature': 'bad' }, 'secret')).toThrow(/timestamp/i)
+  })
+
+  it('verifies Spotflow raw-body HMAC when no timestamp header is sent', () => {
+    const body = Buffer.from('{"eventType":"payment_successful"}')
+    const eventId = 'event-raw-1'
+    const secret = `whsec_test_${'02'.repeat(16)}`
+    const signature = createHmac('sha256', Buffer.from('02'.repeat(16), 'hex')).update(body).digest('hex')
+    expect(verifySpotflowSignature(body, { 'webhook-id': eventId, 'x-spotflow-signature': signature }, secret)).toBe(eventId)
   })
 
   it('normalizes allowlisted payment and subscription fields', () => {
