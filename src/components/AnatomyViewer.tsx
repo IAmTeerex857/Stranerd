@@ -184,6 +184,12 @@ export function AnatomyViewer(props: ViewerProps) {
   }, [props.model.id, props.model.name, structureQuery, structures])
 
   useEffect(() => {
+    if (props.model.id === 'lungs') return
+    const timeoutId = window.setTimeout(() => useGLTF.preload('/models/lungs-realistic.glb'), 1500)
+    return () => window.clearTimeout(timeoutId)
+  }, [props.model.id])
+
+  useEffect(() => {
     onDissectionStateRef.current = props.onDissectionState
   }, [props.onDissectionState])
 
@@ -279,7 +285,7 @@ export function AnatomyViewer(props: ViewerProps) {
         </div>
       </div>
       <div className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
-        <Canvas frameloop={props.settings.autoRotate ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, props.activityLayout ? 6 : 4.4], fov: 42 }} gl={{ antialias: true, alpha: true }}>
+        <Canvas frameloop={props.settings.autoRotate ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, props.activityLayout ? 6.3 : 4.7], fov: 42 }} gl={{ antialias: true, alpha: true }}>
           <Scene {...props} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={setStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} touchMoveEnabled={touchMoveEnabled} />
         </Canvas>
         {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
