@@ -22,6 +22,8 @@ export function BillingSuccessPage() {
         if (result.intent.status === 'successful') {
           window.localStorage.removeItem('stranerd.billing.pendingIntent')
           setMessage(`${result.intent.credits} credits were applied to your account.`)
+          setStatus('successful')
+          window.location.replace('/account')
           return
         }
         if (['failed', 'cancelled', 'refunded'].includes(result.intent.status)) {
@@ -41,5 +43,5 @@ export function BillingSuccessPage() {
   }, [intentId, user])
 
   if (!loading && !user) return <Page><main className="status-page"><div><span className="eyebrow">Payment return</span><h1>Sign in to confirm payment.</h1><a className="public-cta" href={`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`}>Continue with Google</a></div></main></Page>
-  return <Page><main className="status-page"><div>{status === 'failed' ? <CircleAlert size={24} /> : <span className={status === 'successful' ? 'status-complete' : 'status-mark'} />}<span className="eyebrow">Spotflow test checkout</span><h1>{status === 'successful' ? 'Payment confirmed.' : 'Confirming payment.'}</h1><p>{message}</p><a className="public-cta" href="/account">View account<ArrowRight size={15} /></a></div></main></Page>
+  return <Page><main className="status-page"><div>{status === 'failed' ? <CircleAlert size={24} /> : <span className={status === 'successful' ? 'status-complete' : 'status-mark'} />}<span className="eyebrow">Spotflow test checkout</span><h1>{status === 'successful' ? 'Payment confirmed. Redirecting...' : 'Confirming payment.'}</h1><p>{message}</p>{status !== 'successful' && <a className="public-cta" href="/account">View account<ArrowRight size={15} /></a>}</div></main></Page>
 }
