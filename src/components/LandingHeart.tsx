@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF } from '@react-three/drei'
 import { Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three'
@@ -44,18 +44,31 @@ type LandingSpecimenProps = {
   label: string
   className?: string
   fit?: number
+  mobileFit?: number
   cameraZ?: number
   autoRotate?: boolean
   rotation?: [number, number, number]
 }
 
-export function LandingSpecimen({ url, label, className = '', fit, cameraZ = 5.6, autoRotate = true, rotation }: LandingSpecimenProps) {
+function useMobileViewport() {
+  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 760px)').matches)
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 760px)')
+    const update = () => setMobile(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  return mobile
+}
+
+export function LandingSpecimen({ url, label, className = '', fit, mobileFit, cameraZ = 5.6, autoRotate = true, rotation }: LandingSpecimenProps) {
+  const mobile = useMobileViewport()
   return <div className={`landing-specimen-canvas ${className}`} aria-label={label}>
-    <Canvas frameloop={autoRotate ? 'always' : 'demand'} dpr={[1, 1.35]} camera={{ position: [0, 0.05, cameraZ], fov: 38 }} gl={{ antialias: true, alpha: true }}>
+    <Canvas frameloop={autoRotate ? 'always' : 'demand'} dpr={[1, 2]} camera={{ position: [0, 0.05, cameraZ], fov: 38 }} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}>
       <ambientLight intensity={1.7} />
       <directionalLight position={[4, 5, 6]} intensity={3.4} color="#f8fbff" />
       <directionalLight position={[-4, 1, -3]} intensity={1.8} color="#e26bd6" />
-      <Suspense fallback={<Loader />}><SpecimenModel url={url} fit={fit} rotation={rotation} /></Suspense>
+      <Suspense fallback={<Loader />}><SpecimenModel url={url} fit={mobile && mobileFit ? mobileFit : fit} rotation={rotation} /></Suspense>
       <OrbitControls makeDefault autoRotate={autoRotate} autoRotateSpeed={0.65} enablePan={false} enableZoom={false} enableDamping minPolarAngle={0.7} maxPolarAngle={2.35} />
     </Canvas>
   </div>
@@ -87,18 +100,34 @@ function BodyLayer({ url, color, opacity = 1 }: { url: string; color: string; op
   return <primitive object={layer} />
 }
 
+function LayeredBodyModel() {
+  const skeleton = useGLTF('/models/body/skeleton.glb').scene
+  const cardiovascular = useGLTF('/models/body/cardiovascular.glb').scene
+  const nervous = useGLTF('/models/body/nervous.glb').scene
+  const transform = useMemo(() => {
+    const box = new Box3()
+    ;[skeleton, cardiovascular, nervous].forEach((scene) => box.expandByObject(scene))
+    const size = box.getSize(new Vector3())
+    const center = box.getCenter(new Vector3())
+    const scale = 4.6 / Math.max(size.x, size.y, size.z, 0.001)
+    return { position: center.multiplyScalar(-scale), scale }
+  }, [cardiovascular, nervous, skeleton])
+
+  return <group position={transform.position} scale={transform.scale}>
+    <BodyLayer url="/models/body/skeleton.glb" color="#e9dfc2" opacity={0.88} />
+    <BodyLayer url="/models/body/cardiovascular.glb" color="#d74f63" opacity={0.96} />
+    <BodyLayer url="/models/body/nervous.glb" color="#f2c261" opacity={0.96} />
+  </group>
+}
+
 export function LandingLayeredBody() {
   return <div className="landing-specimen-canvas layered-body-canvas" aria-label="Rotating layered human anatomy showing skeleton, cardiovascular, and nervous systems">
-    <Canvas frameloop="always" dpr={[1, 1.25]} camera={{ position: [0, 0.15, 6.6], fov: 40 }} gl={{ antialias: true, alpha: true }}>
+    <Canvas frameloop="always" dpr={[1, 2]} camera={{ position: [0, 0.05, 6.6], fov: 40 }} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}>
       <ambientLight intensity={1.8} />
       <directionalLight position={[4, 5, 6]} intensity={3} color="#ffffff" />
       <directionalLight position={[-4, 1, -3]} intensity={1.4} color="#4db6ff" />
       <Suspense fallback={<Loader />}>
-        <group position={[0, -1.58, 0]} scale={1.7}>
-          <BodyLayer url="/models/body/skeleton.glb" color="#e9dfc2" opacity={0.78} />
-          <BodyLayer url="/models/body/cardiovascular.glb" color="#d74f63" opacity={0.9} />
-          <BodyLayer url="/models/body/nervous.glb" color="#f2c261" opacity={0.9} />
-        </group>
+        <LayeredBodyModel />
       </Suspense>
       <OrbitControls makeDefault autoRotate autoRotateSpeed={0.62} enablePan={false} enableZoom={false} enableDamping />
     </Canvas>
@@ -108,6 +137,7 @@ export function LandingLayeredBody() {
 useGLTF.preload('/models/heart-realistic.glb')
 useGLTF.preload('/models/brain-realistic.glb')
 useGLTF.preload('/models/lungs-realistic.glb')
+useGLTF.preload('/models/eye-realistic.glb')
 useGLTF.preload('/models/digestive-system-segmented.glb')
 useGLTF.preload('/models/body/skeleton.glb')
 useGLTF.preload('/models/body/cardiovascular.glb')

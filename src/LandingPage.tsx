@@ -64,7 +64,7 @@ function MentorInterface() {
 }
 
 function OrganShowcase() {
-  return <article className="organ-showcase eye-world"><div className="organ-visual"><LandingSpecimen url="/models/eye-realistic.glb" label="Rotating realistic eye specimen" fit={2.7} cameraZ={5.7} rotation={[0, 0.3, 0]} /><strong>Eye</strong></div><div className="organ-facts"><p><span>Eye</span> connects transparent optical structures to neural vision.</p><dl><div><dt>4</dt><dd>study specimens</dd></div><div><dt>20</dt><dd>questions per quiz set</dd></div><div><dt>1</dt><dd>guided optical pathway</dd></div></dl><aside><span>Structures in focus</span><b>Cornea</b><b>Lens</b><b>Retina</b><b>Optic nerve</b></aside><a href="/app?model=eye">Open eye study <ArrowRight /></a></div></article>
+  return <article className="organ-showcase eye-world"><div className="organ-visual"><LandingSpecimen url="/models/eye-realistic.glb" label="Rotating realistic eye specimen" fit={3.2} mobileFit={4.25} cameraZ={5.7} rotation={[0, 0.3, 0]} /><strong>Eye</strong></div><div className="organ-facts"><p><span>Eye</span> connects transparent optical structures to neural vision.</p><dl><div><dt>4</dt><dd>study specimens</dd></div><div><dt>20</dt><dd>questions per quiz set</dd></div><div><dt>1</dt><dd>guided optical pathway</dd></div></dl><aside><span>Structures in focus</span><b>Cornea</b><b>Lens</b><b>Retina</b><b>Optic nerve</b></aside><a href="/app?model=eye">Open eye study <ArrowRight /></a></div></article>
 }
 
 function LandingPricing() {
