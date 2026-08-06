@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Analytics } from '@vercel/analytics/react'
 import App from './App'
 import { HeartCandidateTestView } from './components/HeartCandidateTestView'
 import './styles.css'
@@ -37,5 +38,8 @@ class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> 
 const testView = new URLSearchParams(window.location.search).get('test')
 
 createRoot(document.getElementById('root')!).render(
-  <AppBoundary>{testView === 'heart-candidate' ? <HeartCandidateTestView /> : <App />}</AppBoundary>,
+  <AppBoundary>
+    {testView === 'heart-candidate' ? <HeartCandidateTestView /> : <App />}
+    <Analytics />
+  </AppBoundary>,
 )
