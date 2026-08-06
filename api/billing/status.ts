@@ -8,6 +8,8 @@ export default async function handler(request: Request, response: Response) {
     return
   }
   try {
+    response.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    response.setHeader('Pragma', 'no-cache')
     const user = await requireBillingUser(request.headers.authorization)
     const client = getBillingClient()
     const requestedIntent = typeof request.query.intent === 'string' ? request.query.intent : ''
@@ -25,22 +27,39 @@ export default async function handler(request: Request, response: Response) {
       response.status(404).json({ error: 'intent_not_found', message: 'Payment intent not found.' })
       return
     }
-    if (intent.status === 'pending' && intent.product_type === 'payg_100') {
+    if (intent.status === 'pending') {
       const provider = await spotflowRequest(`/payments?reference=${encodeURIComponent(intent.provider_reference)}`)
       const payment = Array.isArray(provider.content) ? provider.content.find((entry) => entry && typeof entry === 'object' && (entry as Record<string, unknown>).reference === intent!.provider_reference) as Record<string, unknown> | undefined : undefined
       if (payment?.status === 'successful') {
-        if (payment.amount !== 500 || payment.currency !== 'NGN' || typeof payment.id !== 'string') {
+        const validAmount = intent.product_type === 'payg_100' ? payment.amount === 500 : payment.amount === 2500
+        if (!validAmount || payment.currency !== 'NGN' || typeof payment.id !== 'string') {
           await client.from('payment_intents').update({ status: 'failed', metadata: { reconciliationError: 'provider_amount_mismatch', providerAmount: payment.amount } }).eq('id', intent.id)
         } else {
+          let subscription: Record<string, unknown> | undefined
+          if (intent.product_type === 'subscription') {
+            const subscriptions = await spotflowRequest('/subscriptions?pageSize=100')
+            subscription = Array.isArray(subscriptions.content) ? subscriptions.content.find((entry) => {
+              if (!entry || typeof entry !== 'object') return false
+              const item = entry as Record<string, unknown>
+              const metadata = item.metadata && typeof item.metadata === 'object' ? item.metadata as Record<string, unknown> : {}
+              return metadata.paymentIntentId === intent!.id && item.status === 'active'
+            }) as Record<string, unknown> | undefined : undefined
+            if (!subscription) throw new Error('Spotflow has not activated the subscription yet.')
+          }
           const event: SpotflowEvent = {
             eventId: `reconcile-${payment.id}`,
             eventType: 'payment_successful',
             paymentIntentId: intent.id,
             providerReference: intent.provider_reference,
             providerPaymentId: payment.id,
-            amount: payment.amount,
-            currency: payment.currency,
-            providerUpdatedAt: typeof payment.createdAt === 'string' ? payment.createdAt : new Date().toISOString(),
+            providerSubscriptionId: typeof subscription?.id === 'string' ? subscription.id : undefined,
+            providerPlanId: typeof payment.planId === 'string' ? payment.planId : typeof subscription?.planId === 'string' ? subscription.planId : undefined,
+            amount: payment.amount as number,
+            currency: payment.currency as string,
+            periodKey: payment.id,
+            periodStart: typeof subscription?.startDate === 'string' ? subscription.startDate : undefined,
+            periodEnd: typeof subscription?.nextPaymentDate === 'string' ? subscription.nextPaymentDate : undefined,
+            providerUpdatedAt: typeof payment.createdAt === 'string' ? payment.createdAt : undefined,
             metadata: { paymentIntentId: intent.id },
           }
           const { data: claim, error: claimError } = await client.rpc('claim_spotflow_event', { p_event_id: event.eventId, p_event_type: event.eventType, p_payload: safeWebhookPayload(event) })

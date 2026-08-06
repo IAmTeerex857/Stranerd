@@ -8,6 +8,7 @@ async function billingFetch(path: string, init: RequestInit = {}) {
   if (!data.session) throw new Error('Sign in to manage billing.')
   const response = await fetch(path, {
     ...init,
+    cache: 'no-store',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}`, ...init.headers },
   })
   const body = await response.json().catch(() => ({})) as Record<string, unknown>
