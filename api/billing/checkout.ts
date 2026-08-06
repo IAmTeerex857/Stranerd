@@ -43,7 +43,7 @@ export default async function handler(request: Request, response: Response) {
         method: 'POST',
         headers: { 'Idempotency-Key': providerReference },
         body: JSON.stringify({
-          reference: providerReference,
+          ...(productId === 'payg_100' ? { reference: providerReference } : {}),
           currency: product.currency,
           ...(product.providerAmount ? { amount: product.providerAmount } : {}),
           ...(productId === 'subscription' ? { planId: process.env.SPOTFLOW_PLUS_PLAN_ID } : {}),
@@ -61,9 +61,11 @@ export default async function handler(request: Request, response: Response) {
         }),
       })
       const checkoutUrl = typeof provider.checkoutUrl === 'string' ? provider.checkoutUrl : ''
+      const confirmedReference = typeof provider.reference === 'string' ? provider.reference : providerReference
       const checkout = new URL(checkoutUrl)
       if (checkout.protocol !== 'https:' || !/(^|\.)spotflow\.(co|one)$/.test(checkout.hostname)) throw new Error('Spotflow returned an invalid checkout URL.')
-      await client.from('payment_intents').update({ checkout_url: checkoutUrl, metadata: { mode: provider.mode || 'TEST', paymentCode: provider.paymentCode } }).eq('id', paymentIntentId)
+      const { error: updateError } = await client.from('payment_intents').update({ provider_reference: confirmedReference, checkout_url: checkoutUrl, metadata: { mode: provider.mode || 'TEST', paymentCode: provider.paymentCode } }).eq('id', paymentIntentId)
+      if (updateError) throw updateError
       response.json({ checkoutUrl, paymentIntentId })
     } catch (error) {
       await client.from('payment_intents').update({ status: 'failed', metadata: { initializationFailed: true } }).eq('id', paymentIntentId)
