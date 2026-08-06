@@ -30,6 +30,11 @@ describe('dissection state', () => {
     expect(state).toEqual(createDissectionState())
   })
 
+  it('restores a persisted snapshot without stale undo history', () => {
+    const state = createDissectionState({ hiddenIds: ['stomach'], transparentIds: ['liver'], offsets: { 'stomach::0': [1, 0, 0] }, isolate: true })
+    expect(state).toEqual({ hiddenIds: ['stomach'], transparentIds: ['liver'], offsets: { 'stomach::0': [1, 0, 0] }, isolate: true, history: [] })
+  })
+
   it('records manual movement as one undoable interaction', () => {
     let state = dissectionReducer(createDissectionState(), { type: 'begin-move' })
     state = dissectionReducer(state, { type: 'set-offset', id: 'stomach', offset: [1, 2, 3] })

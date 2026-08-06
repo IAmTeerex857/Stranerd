@@ -95,7 +95,18 @@ export type PersistedState = {
   chatByModel: Record<string, ChatItem[]>
   selectedHotspotIds: Record<string, string>
   dissectionActionsByModel: Record<string, DissectionHistoryItem[]>
+  dissectionByModel: Record<string, PersistedDissectionSession>
   settings: Settings
+}
+
+export type PersistedDissectionSession = {
+  active: boolean
+  hiddenIds: string[]
+  transparentIds: string[]
+  offsets: Record<string, [number, number, number]>
+  isolate: boolean
+  selectedIds: string[]
+  visibleLayerIds: string[]
 }
 
 export type DissectionHistoryItem = {

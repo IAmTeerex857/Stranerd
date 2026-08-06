@@ -55,8 +55,9 @@ export default function App() {
   const [persisted, setPersisted] = useState<PersistedState>(loadInitialState)
   const initialModel = modelById(persisted.selectedModelId)
   const initialHotspot = initialModel.hotspots.find((hotspot) => hotspot.id === persisted.selectedHotspotIds[initialModel.id])
+  const initialDissection = persisted.dissectionByModel[initialModel.id]
   const [view, setView] = useState<ViewId>('explore')
-  const [selectedIds, setSelectedIds] = useState<string[]>(initialHotspot ? [initialHotspot.id] : [])
+  const [selectedIds, setSelectedIds] = useState<string[]>(initialDissection?.active ? initialDissection.selectedIds : initialHotspot ? [initialHotspot.id] : [])
   const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | undefined>(initialHotspot)
   const [quizIndex, setQuizIndex] = useState(0)
   const [quizChoice, setQuizChoice] = useState<number>()
@@ -116,7 +117,8 @@ export default function App() {
   function selectModel(next: ModelEntry) {
     updatePersisted({ selectedModelId: next.id })
     const restoredHotspot = next.hotspots.find((hotspot) => hotspot.id === persisted.selectedHotspotIds[next.id])
-    setSelectedIds(restoredHotspot ? [restoredHotspot.id] : [])
+    const restoredDissection = persisted.dissectionByModel[next.id]
+    setSelectedIds(restoredDissection?.active ? restoredDissection.selectedIds : restoredHotspot ? [restoredHotspot.id] : [])
     setSelectedHotspot(restoredHotspot)
     setQuizIndex(0)
     setQuizChoice(undefined)
@@ -200,6 +202,13 @@ export default function App() {
   function toggleFavorite(modelId: string) {
     const exists = persisted.favoriteModelIds.includes(modelId)
     updatePersisted({ favoriteModelIds: exists ? persisted.favoriteModelIds.filter((id) => id !== modelId) : [...persisted.favoriteModelIds, modelId] })
+  }
+
+  function saveDissectionSession(session: PersistedState['dissectionByModel'][string]) {
+    setPersisted((current) => ({
+      ...current,
+      dissectionByModel: { ...current.dissectionByModel, [model.id]: session },
+    }))
   }
 
   function inspectBookmark(nextModel: ModelEntry, hotspot: Hotspot) {
@@ -295,7 +304,7 @@ export default function App() {
     setActivityQuizPassed(undefined)
   }
 
-  const viewer = <AnatomyViewer key={`${model.id}:${view === 'lessons' ? `${activityMode}:${activeActivityId || ''}` : 'explore'}`} model={model} selectedIds={selectedIds} selectedHotspot={selectedHotspot} settings={persisted.settings} selectedVariantId={selectedVariantId} favorite={favorite} onSelect={selectHotspot} onSettings={(settings) => updatePersisted({ settings })} onVariant={selectVariant} onFavorite={() => toggleFavorite(model.id)} onDissectionAction={explainDissectionAction} initialDissect={view === 'lessons' && activityMode === 'dissection' && Boolean(activeActivityId)} activityLayout={view === 'lessons'} guidedStep={guidedActivityStep} onGuidedStep={setGuidedActivityStep} />
+  const viewer = <AnatomyViewer key={`${model.id}:${view === 'lessons' ? `${activityMode}:${activeActivityId || ''}` : 'explore'}`} model={model} selectedIds={selectedIds} selectedHotspot={selectedHotspot} settings={persisted.settings} selectedVariantId={selectedVariantId} favorite={favorite} onSelect={selectHotspot} onSettings={(settings) => updatePersisted({ settings })} onVariant={selectVariant} onFavorite={() => toggleFavorite(model.id)} onDissectionAction={explainDissectionAction} dissectionSession={persisted.dissectionByModel[model.id]} onDissectionState={saveDissectionSession} initialDissect={view === 'lessons' && activityMode === 'dissection' && Boolean(activeActivityId)} activityLayout={view === 'lessons'} guidedStep={guidedActivityStep} onGuidedStep={setGuidedActivityStep} />
   const quizView = <QuizzesView model={model} quizzes={modelQuizzes} quizIndex={quizIndex} quizChoice={quizChoice} result={quizResult} completed={persisted.completedQuizIds} onQuiz={chooseQuiz} onQuizChoice={(index) => { setQuizChoice(index); setQuizResult(undefined) }} onQuizEvaluate={evaluateKnowledgeQuiz} onRestart={restartQuiz} onNewQuiz={takeNewAIQuiz} generatingQuiz={generatingQuiz} aiError={quizGenerationError} aiNeedsCredits={quizNeedsCredits} signedIn={Boolean(user)} creditBalance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : undefined} />
   const detail = <ModelDetail model={model} hotspot={selectedHotspot} />
 

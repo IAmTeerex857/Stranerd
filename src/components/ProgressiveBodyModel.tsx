@@ -54,6 +54,7 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
     const transparentMaterials = new Map<Material, Material>()
     const selectedTransparentMaterials = new Map<Material, Material>()
     const meshes: { mesh: Mesh; nodeId: string; movementId: string; rawName: string; originalPosition: Vector3; baseMaterial: Material | Material[] }[] = []
+    const movementCounts = new Map<string, number>()
 
     root.traverse((object) => {
       if (!(object instanceof Mesh)) return
@@ -89,7 +90,9 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
       })
       object.material = Array.isArray(object.material) ? bases : bases[0]
       const nodeId = anatomyNodeId(layer.id, rawName)
-      meshes.push({ mesh: object, nodeId, movementId: anatomyMovementId(nodeId, object.uuid), rawName, originalPosition: object.position.clone(), baseMaterial: object.material })
+      const movementIndex = movementCounts.get(nodeId) ?? 0
+      movementCounts.set(nodeId, movementIndex + 1)
+      meshes.push({ mesh: object, nodeId, movementId: anatomyMovementId(nodeId, String(movementIndex)), rawName, originalPosition: object.position.clone(), baseMaterial: object.material })
     })
 
     const structures = [...new Map(meshes.map((entry) => {

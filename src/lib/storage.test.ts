@@ -12,6 +12,12 @@ describe('persistence parsing', () => {
     expect(state.completedQuizIds).toEqual([])
     expect(state.chatByModel).toEqual({})
     expect(state.dissectionActionsByModel).toEqual({})
+    expect(state.dissectionByModel).toEqual({})
+  })
+
+  it('keeps valid persisted dissection sessions', () => {
+    const state = parsePersistedState(JSON.stringify({ dissectionByModel: { anatomy: { active: true, hiddenIds: ['stomach'], transparentIds: ['liver'], offsets: { 'stomach::0': [1, 2, 3], bad: [1] }, isolate: true, selectedIds: ['stomach'], visibleLayerIds: ['organs'] } } }))
+    expect(state.dissectionByModel.anatomy).toEqual({ active: true, hiddenIds: ['stomach'], transparentIds: ['liver'], offsets: { 'stomach::0': [1, 2, 3] }, isolate: true, selectedIds: ['stomach'], visibleLayerIds: ['organs'] })
   })
 
   it('keeps safe model chat and selection history', () => {

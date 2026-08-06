@@ -81,8 +81,8 @@ export type DissectionAction =
 
 const emptySnapshot = (): DissectionSnapshot => ({ hiddenIds: [], transparentIds: [], offsets: {}, isolate: false })
 
-export function createDissectionState(): DissectionState {
-  return { ...emptySnapshot(), history: [] }
+export function createDissectionState(initial?: DissectionSnapshot): DissectionState {
+  return { ...(initial ?? emptySnapshot()), history: [] }
 }
 
 function snapshot(state: DissectionState): DissectionSnapshot {

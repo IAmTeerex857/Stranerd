@@ -15,6 +15,7 @@ export const defaultPersistedState: PersistedState = {
   chatByModel: {},
   selectedHotspotIds: {},
   dissectionActionsByModel: {},
+  dissectionByModel: {},
   settings: defaultSettings,
 }
 
@@ -42,6 +43,24 @@ export function parsePersistedState(raw: string | null): PersistedState {
         : {},
       dissectionActionsByModel: value.dissectionActionsByModel && typeof value.dissectionActionsByModel === 'object' && !Array.isArray(value.dissectionActionsByModel)
         ? Object.fromEntries(Object.entries(value.dissectionActionsByModel).flatMap(([modelId, actions]) => Array.isArray(actions) ? [[modelId, actions.filter((action): action is PersistedState['dissectionActionsByModel'][string][number] => Boolean(action) && typeof action === 'object' && ['select', 'hide', 'show', 'isolate', 'transparent', 'move', 'reset'].includes(action.action) && Array.isArray(action.structureIds) && action.structureIds.every((id) => typeof id === 'string') && Array.isArray(action.structures) && action.structures.every((label) => typeof label === 'string') && Array.isArray(action.hiddenStructures) && action.hiddenStructures.every((label) => typeof label === 'string') && typeof action.createdAt === 'string').slice(-30)]] : []))
+        : {},
+      dissectionByModel: value.dissectionByModel && typeof value.dissectionByModel === 'object' && !Array.isArray(value.dissectionByModel)
+        ? Object.fromEntries(Object.entries(value.dissectionByModel).flatMap(([modelId, session]) => {
+          if (!session || typeof session !== 'object' || Array.isArray(session)) return []
+          const entry = session as Partial<PersistedState['dissectionByModel'][string]>
+          const offsets = entry.offsets && typeof entry.offsets === 'object' && !Array.isArray(entry.offsets)
+            ? Object.fromEntries(Object.entries(entry.offsets).filter((item): item is [string, [number, number, number]] => Array.isArray(item[1]) && item[1].length === 3 && item[1].every((number) => typeof number === 'number' && Number.isFinite(number))))
+            : {}
+          return [[modelId, {
+            active: entry.active === true,
+            hiddenIds: Array.isArray(entry.hiddenIds) ? entry.hiddenIds.filter((id): id is string => typeof id === 'string') : [],
+            transparentIds: Array.isArray(entry.transparentIds) ? entry.transparentIds.filter((id): id is string => typeof id === 'string') : [],
+            offsets,
+            isolate: entry.isolate === true,
+            selectedIds: Array.isArray(entry.selectedIds) ? entry.selectedIds.filter((id): id is string => typeof id === 'string') : [],
+            visibleLayerIds: Array.isArray(entry.visibleLayerIds) ? entry.visibleLayerIds.filter((id): id is string => typeof id === 'string') : [],
+          }]]
+        }))
         : {},
       settings: Object.fromEntries(Object.entries(defaultSettings).map(([key, fallback]) => [
         key,

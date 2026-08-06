@@ -3,7 +3,7 @@ import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
 import { Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three'
 import { Box, ChevronDown, ChevronUp, Eye, EyeOff, Focus, Layers3, LoaderCircle, RotateCcw, ScanLine, Scissors, Search, Star, Tags, Undo2, X } from 'lucide-react'
-import type { Hotspot, ModelEntry, Settings } from '../types'
+import type { Hotspot, ModelEntry, PersistedDissectionSession, Settings } from '../types'
 import { anatomyLayers } from '../data/anatomyGraph'
 import { ProgressiveBodyModel } from './ProgressiveBodyModel'
 import { SegmentedSpecimenModel } from './SegmentedSpecimenModel'
@@ -25,6 +25,8 @@ type ViewerProps = {
   activityLayout?: boolean
   guidedStep?: number | null
   onGuidedStep?: (step: number) => void
+  dissectionSession?: PersistedDissectionSession
+  onDissectionState?: (session: PersistedDissectionSession) => void
 }
 
 class ModelBoundary extends Component<{ children: ReactNode; name: string }, { failed: boolean }> {
@@ -148,11 +150,18 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
 
 export function AnatomyViewer(props: ViewerProps) {
   const controlsRef = useRef<{ reset: () => void } | null>(null)
+  const onDissectionStateRef = useRef(props.onDissectionState)
   const defaults = anatomyLayers.filter((layer) => layer.defaultVisible).map((layer) => layer.id)
-  const [visibleLayers, setVisibleLayers] = useState<string[]>(defaults)
-  const [loadedLayers, setLoadedLayers] = useState<string[]>(defaults)
-  const [dissectMode, setDissectMode] = useState(Boolean(props.initialDissect))
-  const [dissection, dispatchDissection] = useReducer(dissectionReducer, undefined, createDissectionState)
+  const restoredLayers = props.dissectionSession?.visibleLayerIds.length ? props.dissectionSession.visibleLayerIds : defaults
+  const [visibleLayers, setVisibleLayers] = useState<string[]>(restoredLayers)
+  const [loadedLayers, setLoadedLayers] = useState<string[]>([...new Set([...defaults, ...restoredLayers])])
+  const [dissectMode, setDissectMode] = useState(Boolean(props.initialDissect || props.dissectionSession?.active))
+  const [dissection, dispatchDissection] = useReducer(dissectionReducer, props.dissectionSession, (session) => createDissectionState(session ? {
+    hiddenIds: session.hiddenIds,
+    transparentIds: session.transparentIds,
+    offsets: session.offsets,
+    isolate: session.isolate,
+  } : undefined))
   const [structures, setStructures] = useState<Hotspot[]>([])
   const [structureQuery, setStructureQuery] = useState('')
   const [dissectPanelOpen, setDissectPanelOpen] = useState(false)
@@ -173,6 +182,22 @@ export function AnatomyViewer(props: ViewerProps) {
       })
     return [...groups]
   }, [props.model.id, props.model.name, structureQuery, structures])
+
+  useEffect(() => {
+    onDissectionStateRef.current = props.onDissectionState
+  }, [props.onDissectionState])
+
+  useEffect(() => {
+    onDissectionStateRef.current?.({
+      active: dissectMode,
+      hiddenIds: dissection.hiddenIds,
+      transparentIds: dissection.transparentIds,
+      offsets: dissection.offsets,
+      isolate: dissection.isolate,
+      selectedIds: props.selectedIds,
+      visibleLayerIds: visibleLayers,
+    })
+  }, [dissectMode, dissection.hiddenIds, dissection.isolate, dissection.offsets, dissection.transparentIds, props.selectedIds, visibleLayers])
 
   function toggleLayer(layerId: string) {
     setLoadedLayers((current) => current.includes(layerId) ? current : [...current, layerId])

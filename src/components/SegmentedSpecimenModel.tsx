@@ -54,6 +54,7 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
     root.position.copy(center).multiplyScalar(-scale)
     root.scale.setScalar(scale)
     const meshes: { mesh: Mesh; rawName: string; nodeId: string; movementId: string; renderOrder: number; originalPosition: Vector3; base: Material | Material[]; selected: Material | Material[]; transparent: Material | Material[]; selectedTransparent: Material | Material[] }[] = []
+    const movementCounts = new Map<string, number>()
 
     root.traverse((object) => {
       if (!(object instanceof Mesh)) return
@@ -105,11 +106,13 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
       })
       object.material = Array.isArray(object.material) ? base : base[0]
       const nodeId = structureId(object, systemId, rawName)
+      const movementIndex = movementCounts.get(nodeId) ?? 0
+      movementCounts.set(nodeId, movementIndex + 1)
       meshes.push({
         mesh: object,
         rawName,
         nodeId,
-        movementId: anatomyMovementId(nodeId, object.uuid),
+        movementId: anatomyMovementId(nodeId, String(movementIndex)),
         renderOrder: profile.renderOrder,
         originalPosition: object.position.clone(),
         base: object.material,
