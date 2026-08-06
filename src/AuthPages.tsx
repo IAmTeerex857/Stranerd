@@ -37,9 +37,9 @@ type AccountData = {
 export function LoginPage() {
   const { user, loading, configured, signInWithGoogle } = useAuth();
   const [error, setError] = useState<string>();
-  const next = safeReturnPath(
-    new URLSearchParams(window.location.search).get("next"),
-  );
+  const params = new URLSearchParams(window.location.search);
+  const next = safeReturnPath(params.get("next"));
+  const signingUp = params.get("mode") === "signup";
 
   async function signIn() {
     setError(undefined);
@@ -58,9 +58,8 @@ export function LoginPage() {
     <Page>
       <main className="status-page auth-page">
         <div>
-          <span className="eyebrow">Stranerd account</span>
-          <h1>{user ? "You are signed in." : "Continue with Google."}</h1>
-          <p>Sign in to use AI features, own credits, and manage billing.</p>
+          <h1>{user ? "You are signed in." : `${signingUp ? "Sign up" : "Sign in"} to access quizzes, 3D models, and AI guidance.`}</h1>
+          {!user && <p>Continue securely with your Google account.</p>}
           {error && (
             <p className="auth-error">
               <CircleAlert size={16} />
