@@ -23,7 +23,7 @@ export function BillingSuccessPage() {
           window.localStorage.removeItem('stranerd.billing.pendingIntent')
           setMessage(`${result.intent.credits} credits were applied to your account.`)
           setStatus('successful')
-          window.location.replace('/account')
+          window.setTimeout(() => window.location.replace('/account'), 900)
           return
         }
         if (['failed', 'cancelled', 'refunded'].includes(result.intent.status)) {
