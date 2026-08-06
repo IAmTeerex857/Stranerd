@@ -16,7 +16,7 @@ export default async function handler(request: Request, response: Response) {
       return
     }
     if (productId === 'subscription' && !process.env.SPOTFLOW_PLUS_PLAN_ID) {
-      response.status(503).json({ error: 'plan_not_configured', message: 'The Stranerd Plus test plan is not configured.' })
+      response.status(503).json({ error: 'plan_not_configured', message: 'The Stranerd Plus plan is not configured.' })
       return
     }
 
@@ -30,7 +30,7 @@ export default async function handler(request: Request, response: Response) {
       p_product_type: product.productType,
       p_amount_minor: product.amountMinor,
       p_credits: product.credits,
-      p_metadata: { mode: process.env.SPOTFLOW_MODE || 'test' },
+      p_metadata: { mode: process.env.SPOTFLOW_MODE },
     })
     if (intentError?.code === '23505' && productId === 'subscription') {
       response.status(409).json({ error: 'checkout_in_progress', message: 'A Stranerd Plus checkout is already pending for this account.' })

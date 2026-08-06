@@ -38,8 +38,9 @@ export async function requireBillingUser(authorization?: string): Promise<User> 
 
 function spotflowSecret() {
   const secret = process.env.SPOTFLOW_SECRET_KEY
-  if (!secret) throw new BillingError(503, 'spotflow_not_configured', 'Spotflow test billing is not configured.')
-  if ((process.env.SPOTFLOW_MODE || 'test') !== 'test' || !secret.startsWith('sk_test_')) throw new BillingError(503, 'live_billing_disabled', 'Only Spotflow test mode is enabled during integration.')
+  const mode = process.env.SPOTFLOW_MODE
+  if (!secret || !mode) throw new BillingError(503, 'spotflow_not_configured', 'Spotflow billing is not configured.')
+  if (!['test', 'live'].includes(mode) || !secret.startsWith(`sk_${mode}_`)) throw new BillingError(503, 'spotflow_mode_mismatch', 'Spotflow billing mode does not match its secret key.')
   return secret
 }
 
