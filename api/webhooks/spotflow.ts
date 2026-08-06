@@ -49,7 +49,14 @@ export default async function handler(request: Request, response: Response) {
       throw error
     }
   } catch (error) {
-    if (error && typeof error === 'object' && 'code' in error) console.warn('Spotflow webhook rejected:', String(error.code))
+    if (error && typeof error === 'object' && 'code' in error) {
+      const signature = request.headers['x-spotflow-signature']?.toString() || ''
+      console.warn('Spotflow webhook rejected:', String(error.code), {
+        headerNames: Object.keys(request.headers).filter((name) => name.startsWith('webhook-') || name.startsWith('x-spotflow-')),
+        signatureShape: signature.replace(/[A-Za-z0-9+/=_-]/g, 'x').slice(0, 120),
+        signatureLength: signature.length,
+      })
+    }
     const result = billingErrorResponse(error)
     response.status(result.status).json(result.body)
   }

@@ -9,13 +9,16 @@ export default async function handler(request: Request, response: Response) {
   }
   try {
     const user = await requireBillingUser(request.headers.authorization)
-    const intentId = typeof request.query.intent === 'string' ? request.query.intent : ''
-    if (!/^[0-9a-f-]{36}$/i.test(intentId)) {
+    const client = getBillingClient()
+    const requestedIntent = typeof request.query.intent === 'string' ? request.query.intent : ''
+    if (requestedIntent && !/^[0-9a-f-]{36}$/i.test(requestedIntent)) {
       response.status(400).json({ error: 'invalid_intent', message: 'A valid payment intent is required.' })
       return
     }
-    const client = getBillingClient()
-    const { data: initialIntent, error } = await client.from('payment_intents').select('id,provider_reference,product_type,status,credits,created_at,updated_at').eq('id', intentId).eq('user_id', user.id).maybeSingle()
+    let intentQuery = client.from('payment_intents').select('id,provider_reference,product_type,status,credits,created_at,updated_at').eq('user_id', user.id)
+    intentQuery = requestedIntent ? intentQuery.eq('id', requestedIntent) : intentQuery.eq('status', 'pending').order('created_at', { ascending: false }).limit(1)
+    const { data: intentRows, error } = await intentQuery
+    const initialIntent = intentRows?.[0]
     let intent = initialIntent
     if (error) throw error
     if (!intent) {
@@ -44,7 +47,7 @@ export default async function handler(request: Request, response: Response) {
           if (claimError) throw claimError
           if (claim === 'claimed') await processSpotflowEvent(event)
         }
-        const refreshed = await client.from('payment_intents').select('id,provider_reference,product_type,status,credits,created_at,updated_at').eq('id', intentId).eq('user_id', user.id).single()
+        const refreshed = await client.from('payment_intents').select('id,provider_reference,product_type,status,credits,created_at,updated_at').eq('id', intent.id).eq('user_id', user.id).single()
         if (refreshed.error) throw refreshed.error
         intent = refreshed.data
       }

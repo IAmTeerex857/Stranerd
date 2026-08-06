@@ -22,8 +22,8 @@ export async function startCheckout(productId: BillingProductId) {
   window.location.assign(body.checkoutUrl)
 }
 
-export async function getBillingStatus(intentId: string) {
-  return billingFetch(`/api/billing/status?intent=${encodeURIComponent(intentId)}`) as Promise<{
+export async function getBillingStatus(intentId?: string) {
+  return billingFetch(`/api/billing/status${intentId ? `?intent=${encodeURIComponent(intentId)}` : ''}`) as Promise<{
     intent: { id: string; product_type: BillingProductId; status: string; credits: number }
     wallet?: { free_balance: number; subscription_balance: number; purchased_balance: number }
   }>
