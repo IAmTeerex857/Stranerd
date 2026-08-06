@@ -10,6 +10,16 @@ describe('persistence parsing', () => {
     const state = parsePersistedState(JSON.stringify({ selectedModelId: 'heart', completedLessonIds: ['heart-01'] }))
     expect(state.completedLessonIds).toEqual(['heart-01'])
     expect(state.completedQuizIds).toEqual([])
+    expect(state.chatByModel).toEqual({})
+  })
+
+  it('keeps safe model chat and selection history', () => {
+    const state = parsePersistedState(JSON.stringify({
+      chatByModel: { heart: [{ id: 'one', role: 'mentor', text: 'Saved', pending: true }, { bad: true }] },
+      selectedHotspotIds: { heart: 'left-atrium', bad: 3 },
+    }))
+    expect(state.chatByModel.heart).toEqual([{ id: 'one', role: 'mentor', text: 'Saved', pending: false }])
+    expect(state.selectedHotspotIds).toEqual({ heart: 'left-atrium' })
   })
 
   it('keeps valid fields and filters malformed collections', () => {

@@ -12,6 +12,8 @@ export const defaultPersistedState: PersistedState = {
   favoriteModelIds: [],
   bookmarkedHotspotRefs: [],
   notes: [],
+  chatByModel: {},
+  selectedHotspotIds: {},
   settings: defaultSettings,
 }
 
@@ -31,6 +33,12 @@ export function parsePersistedState(raw: string | null): PersistedState {
       notes: Array.isArray(value.notes)
         ? value.notes.filter((note) => note && typeof note.id === 'string' && typeof note.modelId === 'string' && typeof note.text === 'string' && typeof note.updatedAt === 'string')
         : [],
+      chatByModel: value.chatByModel && typeof value.chatByModel === 'object' && !Array.isArray(value.chatByModel)
+        ? Object.fromEntries(Object.entries(value.chatByModel).flatMap(([modelId, messages]) => Array.isArray(messages) ? [[modelId, messages.filter((message): message is PersistedState['chatByModel'][string][number] => Boolean(message) && typeof message === 'object' && typeof message.id === 'string' && ['mentor', 'student', 'engine'].includes(message.role) && typeof message.text === 'string').map((message) => ({ ...message, pending: false }))]] : []))
+        : {},
+      selectedHotspotIds: value.selectedHotspotIds && typeof value.selectedHotspotIds === 'object' && !Array.isArray(value.selectedHotspotIds)
+        ? Object.fromEntries(Object.entries(value.selectedHotspotIds).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+        : {},
       settings: Object.fromEntries(Object.entries(defaultSettings).map(([key, fallback]) => [
         key,
         value.settings && typeof value.settings === 'object' && typeof value.settings[key as keyof Settings] === 'boolean'

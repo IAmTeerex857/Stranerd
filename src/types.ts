@@ -92,6 +92,8 @@ export type PersistedState = {
   favoriteModelIds: string[]
   bookmarkedHotspotRefs: string[]
   notes: Note[]
+  chatByModel: Record<string, ChatItem[]>
+  selectedHotspotIds: Record<string, string>
   settings: Settings
 }
 

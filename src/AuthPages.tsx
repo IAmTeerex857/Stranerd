@@ -4,6 +4,7 @@ import { useAuth } from './auth-context'
 import { safeReturnPath } from './auth-utils'
 import { supabase } from './lib/supabase'
 import { Page } from './PublicLayout'
+import { GoogleIcon } from './components/GoogleIcon'
 
 type AccountData = {
   profile: { display_name: string | null; email: string | null; avatar_url: string | null } | null
@@ -26,7 +27,7 @@ export function LoginPage() {
     }
   }
 
-  return <Page><main className="status-page auth-page"><div><span className="eyebrow">Stranerd account</span><h1>{user ? 'You are signed in.' : 'Continue with Google.'}</h1><p>Sign in to use AI features, own credits, and manage billing.</p>{error && <p className="auth-error"><CircleAlert size={16} />{error}</p>}{!configured && <p className="auth-error"><CircleAlert size={16} />Supabase browser variables are not configured.</p>}{user ? <a className="public-cta" href={next}>Continue<ArrowRight size={15} /></a> : <button className="google-button" disabled={loading || !configured} onClick={signIn}><span>G</span>{loading ? 'Checking session...' : 'Continue with Google'}</button>}<small>By continuing, you agree to the Terms of Service and acknowledge the Privacy Policy.</small></div></main></Page>
+  return <Page><main className="status-page auth-page"><div><span className="eyebrow">Stranerd account</span><h1>{user ? 'You are signed in.' : 'Continue with Google.'}</h1><p>Sign in to use AI features, own credits, and manage billing.</p>{error && <p className="auth-error"><CircleAlert size={16} />{error}</p>}{!configured && <p className="auth-error"><CircleAlert size={16} />Supabase browser variables are not configured.</p>}{user ? <a className="public-cta" href={next}>Continue<ArrowRight size={15} /></a> : <button className="google-button" disabled={loading || !configured} onClick={signIn}><GoogleIcon />{loading ? 'Checking session...' : 'Continue with Google'}</button>}<small>By continuing, you agree to the Terms of Service and acknowledge the Privacy Policy.</small></div></main></Page>
 }
 
 export function AuthCallbackPage() {

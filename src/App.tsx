@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState, type SetStateAction } from 'react'
 import { BookOpen, Bot, ChevronRight, CircleUserRound, ClipboardList, Library, Menu, Moon, Network, NotebookPen, PanelLeftClose, PanelLeftOpen, Search, Star, Sun, X } from 'lucide-react'
 import { AnatomyViewer } from './components/AnatomyViewer'
 import { MentorPanel } from './components/MentorPanel'
@@ -60,9 +60,11 @@ export default function App() {
   const { user, balance, setBalance } = useAuth()
   const [theme, setTheme] = useState<Theme>(loadTheme)
   const [persisted, setPersisted] = useState<PersistedState>(loadInitialState)
+  const initialModel = modelById(persisted.selectedModelId)
+  const initialHotspot = initialModel.hotspots.find((hotspot) => hotspot.id === persisted.selectedHotspotIds[initialModel.id])
   const [view, setView] = useState<ViewId>('explore')
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [selectedHotspot, setSelectedHotspot] = useState<Hotspot>()
+  const [selectedIds, setSelectedIds] = useState<string[]>(initialHotspot ? [initialHotspot.id] : [])
+  const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | undefined>(initialHotspot)
   const [quizIndex, setQuizIndex] = useState(0)
   const [quizChoice, setQuizChoice] = useState<number>()
   const [quizResult, setQuizResult] = useState<Evaluation>()
@@ -76,12 +78,12 @@ export default function App() {
   const [guidedActivityStep, setGuidedActivityStep] = useState<number | null>(null)
   const [activityQuizChoice, setActivityQuizChoice] = useState<number>()
   const [activityQuizPassed, setActivityQuizPassed] = useState<boolean>()
-  const [messages, setMessages] = useState<ChatItem[]>([greeting])
   const [typing, setTyping] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mentorOpen, setMentorOpen] = useState(false)
   const model = modelById(persisted.selectedModelId)
+  const messages = persisted.chatByModel[model.id] ?? [greeting]
   const fallbackQuizzes = useMemo(() => quizzesForModel(model.id, quizSeed), [model.id, quizSeed])
   const modelQuizzes = generatedQuizSet?.modelId === model.id ? generatedQuizSet.quizzes : fallbackQuizzes
   const quiz = modelQuizzes[quizIndex] ?? modelQuizzes[0]
@@ -116,10 +118,19 @@ export default function App() {
     setPersisted((current) => ({ ...current, ...next }))
   }
 
+  function setMessages(action: SetStateAction<ChatItem[]>) {
+    setPersisted((current) => {
+      const currentMessages = current.chatByModel[current.selectedModelId] ?? [greeting]
+      const nextMessages = typeof action === 'function' ? action(currentMessages) : action
+      return { ...current, chatByModel: { ...current.chatByModel, [current.selectedModelId]: nextMessages.slice(-100) } }
+    })
+  }
+
   function selectModel(next: ModelEntry) {
     updatePersisted({ selectedModelId: next.id })
-    setSelectedIds([])
-    setSelectedHotspot(undefined)
+    const restoredHotspot = next.hotspots.find((hotspot) => hotspot.id === persisted.selectedHotspotIds[next.id])
+    setSelectedIds(restoredHotspot ? [restoredHotspot.id] : [])
+    setSelectedHotspot(restoredHotspot)
     setQuizIndex(0)
     setQuizChoice(undefined)
     setQuizResult(undefined)
@@ -142,6 +153,7 @@ export default function App() {
 
   function selectHotspot(hotspot: Hotspot, multi: boolean, explain = true) {
     setSelectedHotspot(hotspot)
+    updatePersisted({ selectedHotspotIds: { ...persisted.selectedHotspotIds, [model.id]: hotspot.id } })
     setSelectedIds((current) => multi ? (current.includes(hotspot.id) ? current.filter((id) => id !== hotspot.id) : [...current, hotspot.id]) : [hotspot.id])
     if (multi || !explain) return
     const contextMessage: ChatItem = { id: crypto.randomUUID(), role: 'engine', text: `SELECTED · ${hotspot.label}`, status: 'neutral' }
@@ -191,7 +203,7 @@ export default function App() {
   }
 
   function inspectBookmark(nextModel: ModelEntry, hotspot: Hotspot) {
-    updatePersisted({ selectedModelId: nextModel.id })
+    updatePersisted({ selectedModelId: nextModel.id, selectedHotspotIds: { ...persisted.selectedHotspotIds, [nextModel.id]: hotspot.id } })
     setQuizChoice(undefined)
     setQuizResult(undefined)
     setSelectedIds([hotspot.id])

@@ -114,6 +114,9 @@ Use General Learning as the stronger editorial reference and Alice as the produc
 - A live or pre-rendered 3D anatomy hero.
 - Motion built around anatomy layers, selection, labels, and dissection.
 - Responsive design and `prefers-reduced-motion` support.
+- Use flat black surfaces in dark mode and white/off-white surfaces in light mode across marketing and application shells.
+- Do not use gradients. Use borders, spacing, typography, restrained accent color, and subtle solid tonal changes for hierarchy.
+- The anatomy canvas must be black in dark mode and white in light mode.
 
 ### Landing Page Sections
 
