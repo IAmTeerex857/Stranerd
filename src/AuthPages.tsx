@@ -5,6 +5,8 @@ import { safeReturnPath } from './auth-utils'
 import { supabase } from './lib/supabase'
 import { Page } from './PublicLayout'
 import { GoogleIcon } from './components/GoogleIcon'
+import { BillingButton } from './components/BillingButton'
+import { cancelSubscription } from './lib/billing'
 
 type AccountData = {
   profile: { display_name: string | null; email: string | null; avatar_url: string | null } | null
@@ -71,6 +73,20 @@ export function AccountPage() {
   const { user, loading: authLoading, signOut } = useAuth()
   const [data, setData] = useState<AccountData>()
   const [error, setError] = useState<string>()
+  const [cancelling, setCancelling] = useState(false)
+
+  async function cancelCurrentSubscription() {
+    setCancelling(true)
+    setError(undefined)
+    try {
+      await cancelSubscription()
+      setData((current) => current ? { ...current, subscription: current.subscription ? { ...current.subscription, cancel_at_period_end: true } : null } : current)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Subscription cancellation could not be requested.')
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   useEffect(() => {
     if (!user || !supabase) return
@@ -99,5 +115,5 @@ export function AccountPage() {
   const name = data?.profile?.display_name || user.user_metadata.full_name || user.email || 'Stranerd learner'
   const avatar = data?.profile?.avatar_url || user.user_metadata.avatar_url
 
-  return <Page><main className="account-page"><header className="account-heading">{avatar && <img src={avatar} alt="" referrerPolicy="no-referrer" />}<div><span className="eyebrow">Your account</span><h1>{name}</h1><p>{data?.profile?.email || user.email}</p></div><button onClick={() => void signOut()}><LogOut size={16} />Sign out</button></header>{error && <p className="auth-error"><CircleAlert size={16} />{error}</p>}<section className="balance-panel"><div><WalletCards size={20} /><span>Available balance</span><strong>{total}</strong><small>credits</small></div><dl><div><dt>Free</dt><dd>{wallet?.free_balance ?? 0}</dd></div><div><dt>Subscription</dt><dd>{wallet?.subscription_balance ?? 0}</dd></div><div><dt>Purchased</dt><dd>{wallet?.purchased_balance ?? 0}</dd></div></dl></section><section className="account-grid"><article><span className="eyebrow">Plan</span><h2>{data?.subscription?.status === 'active' ? 'Stranerd Plus' : 'Free account'}</h2><p>{data?.subscription?.current_period_end ? `Current period ends ${new Date(data.subscription.current_period_end).toLocaleDateString()}.` : 'Subscribe when you need a larger monthly AI allowance.'}</p><a href="/pricing">View pricing<ArrowRight size={14} /></a></article><article><span className="eyebrow">Account controls</span><h2>Your data</h2><p>Request account deletion through support. Identity and learning data will be handled under the Privacy Policy.</p><a href="mailto:officialstranerd@gmail.com?subject=Stranerd%20account%20deletion%20request">Request deletion<ArrowRight size={14} /></a></article></section><section className="transaction-list"><header><span className="eyebrow">Recent credit activity</span><h2>Transactions</h2></header>{!data && !error && <p>Loading your balance...</p>}{data?.transactions.length === 0 && <p>No credit activity yet.</p>}{data?.transactions.map((transaction) => <div key={transaction.id}><span>{transaction.feature.replace('_', ' ')}</span><b className={transaction.amount > 0 ? 'positive' : ''}>{transaction.amount > 0 ? '+' : ''}{transaction.amount}</b><time>{new Date(transaction.created_at).toLocaleDateString()}</time></div>)}</section></main></Page>
+  return <Page><main className="account-page"><header className="account-heading">{avatar && <img src={avatar} alt="" referrerPolicy="no-referrer" />}<div><span className="eyebrow">Your account</span><h1>{name}</h1><p>{data?.profile?.email || user.email}</p></div><button onClick={() => void signOut()}><LogOut size={16} />Sign out</button></header>{error && <p className="auth-error"><CircleAlert size={16} />{error}</p>}<section className="balance-panel"><div><WalletCards size={20} /><span>Available balance</span><strong>{total}</strong><small>credits</small></div><dl><div><dt>Free</dt><dd>{wallet?.free_balance ?? 0}</dd></div><div><dt>Subscription</dt><dd>{wallet?.subscription_balance ?? 0}</dd></div><div><dt>Purchased</dt><dd>{wallet?.purchased_balance ?? 0}</dd></div></dl></section><section className="account-grid"><article><span className="eyebrow">Plan</span><h2>{data?.subscription?.status === 'active' ? 'Stranerd Plus' : 'Free account'}</h2><p>{data?.subscription?.current_period_end ? `Current period ends ${new Date(data.subscription.current_period_end).toLocaleDateString()}.${data.subscription.cancel_at_period_end ? ' Cancellation requested.' : ''}` : 'Subscribe when you need a larger monthly AI allowance.'}</p><div className="billing-actions">{data?.subscription?.status === 'active' ? data.subscription.cancel_at_period_end ? <button disabled>Cancellation scheduled</button> : <button onClick={cancelCurrentSubscription} disabled={cancelling}>{cancelling ? 'Cancelling...' : 'Cancel at period end'}</button> : <BillingButton productId="subscription">Subscribe in test mode</BillingButton>}<BillingButton productId="payg_100">Buy 100 credits</BillingButton></div><a href="/pricing">View pricing<ArrowRight size={14} /></a></article><article><span className="eyebrow">Account controls</span><h2>Your data</h2><p>Request account deletion through support. Identity and learning data will be handled under the Privacy Policy.</p><a href="mailto:officialstranerd@gmail.com?subject=Stranerd%20account%20deletion%20request">Request deletion<ArrowRight size={14} /></a></article></section><section className="transaction-list"><header><span className="eyebrow">Recent credit activity</span><h2>Transactions</h2></header>{!data && !error && <p>Loading your balance...</p>}{data?.transactions.length === 0 && <p>No credit activity yet.</p>}{data?.transactions.map((transaction) => <div key={transaction.id}><span>{transaction.feature.replace('_', ' ')}</span><b className={transaction.amount > 0 ? 'positive' : ''}>{transaction.amount > 0 ? '+' : ''}{transaction.amount}</b><time>{new Date(transaction.created_at).toLocaleDateString()}</time></div>)}</section></main></Page>
 }

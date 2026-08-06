@@ -2,6 +2,8 @@ import { ArrowRight, Check, CircleAlert } from 'lucide-react'
 import { AccountPage, AuthCallbackPage, LoginPage } from './AuthPages'
 import { Page } from './PublicLayout'
 import { LegalPage } from './LegalPages'
+import { BillingButton } from './components/BillingButton'
+import { BillingSuccessPage } from './BillingPages'
 
 const legalPaths = new Set(['/legal/privacy', '/legal/terms', '/legal/refunds'])
 
@@ -10,7 +12,7 @@ function HomePage() {
 }
 
 function PricingPage() {
-  return <Page><main className="public-page"><header className="public-title"><span className="eyebrow">Simple pricing</span><h1>Learn freely. Use AI when it helps.</h1><p>Core anatomy models, activities, dissection, notes, and authored quizzes remain available without AI credits.</p></header><section className="pricing-grid"><article><span>Free</span><h2>NGN 0</h2><p>Explore the complete anatomy learning workspace.</p><ul><li><Check size={15} />20 one-time signup credits</li><li><Check size={15} />All anatomy models and activities</li><li><Check size={15} />Notes and deterministic quizzes</li></ul><a href="/app">Start learning</a></article><article className="featured"><span>Stranerd Plus</span><h2>NGN 2,500 <small>/ month</small></h2><p>A monthly AI allowance for regular study.</p><ul><li><Check size={15} />500 credits each billing cycle</li><li><Check size={15} />Explicit, one-credit AI actions</li><li><Check size={15} />Cancel with access through the period</li></ul><a className="public-cta" href="/login">Sign in to subscribe</a></article><article><span>Credit pack</span><h2>NGN 500</h2><p>Add credits without a subscription.</p><ul><li><Check size={15} />100 purchased credits</li><li><Check size={15} />Credits do not expire</li><li><Check size={15} />Buy packs repeatedly</li></ul><a href="/login">Sign in to buy</a></article></section></main></Page>
+  return <Page><main className="public-page"><header className="public-title"><span className="eyebrow">Simple pricing</span><h1>Learn freely. Use AI when it helps.</h1><p>Core anatomy models, activities, dissection, notes, and authored quizzes remain available without AI credits.</p></header><section className="pricing-grid"><article><span>Free</span><h2>NGN 0</h2><p>Explore the complete anatomy learning workspace.</p><ul><li><Check size={15} />20 one-time signup credits</li><li><Check size={15} />All anatomy models and activities</li><li><Check size={15} />Notes and deterministic quizzes</li></ul><a href="/app">Start learning</a></article><article className="featured"><span>Stranerd Plus</span><h2>NGN 2,500 <small>/ month</small></h2><p>A monthly AI allowance for regular study.</p><ul><li><Check size={15} />500 credits each billing cycle</li><li><Check size={15} />Explicit, one-credit AI actions</li><li><Check size={15} />Cancel with access through the period</li></ul><BillingButton className="public-cta" productId="subscription">Subscribe in test mode</BillingButton></article><article><span>Credit pack</span><h2>NGN 500</h2><p>Add credits without a subscription.</p><ul><li><Check size={15} />100 purchased credits</li><li><Check size={15} />Credits do not expire</li><li><Check size={15} />Buy packs repeatedly</li></ul><BillingButton productId="payg_100">Buy 100 credits in test mode</BillingButton></article></section></main></Page>
 }
 
 function StatusPage({ kind }: { kind: 'success' | 'cancelled' }) {
@@ -31,7 +33,7 @@ export function PublicPages({ path }: { path: string }) {
   if (path === '/login') return <LoginPage />
   if (path === '/auth/callback') return <AuthCallbackPage />
   if (path === '/account') return <AccountPage />
-  if (path === '/billing/success') return <StatusPage kind="success" />
+  if (path === '/billing/success') return <BillingSuccessPage />
   if (path === '/billing/cancelled') return <StatusPage kind="cancelled" />
   if (legalPaths.has(path)) return <LegalPage path={path} />
   return <NotFoundPage />
