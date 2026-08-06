@@ -46,6 +46,13 @@ describe('runCreditProtected', () => {
     expect(fake.updates).toContainEqual(expect.objectContaining({ status: 'successful' }))
   })
 
+  it('reserves the server-selected number of credits', async () => {
+    const fake = fakeClient()
+    setAiCreditClientForTests(fake.client)
+    await runCreditProtected({ authorization: 'Bearer token', requestId, feature: 'ai_quiz', amount: 5, provider: 'openai' }, async () => ({ value: 'assessment', source: 'openai', successful: true }))
+    expect(fake.rpc).toHaveBeenCalledWith('reserve_credits', expect.objectContaining({ p_amount: 5 }))
+  })
+
   it('refunds an invalid provider response', async () => {
     const fake = fakeClient()
     setAiCreditClientForTests(fake.client)

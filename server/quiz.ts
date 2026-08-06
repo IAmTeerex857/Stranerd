@@ -11,6 +11,7 @@ type GeneratedQuiz = {
 }
 
 export type QuizGenerationRequest = {
+  action?: 'generate' | 'hint' | 'corrections'
   modelId?: string
   model?: string
   system?: string
@@ -18,6 +19,9 @@ export type QuizGenerationRequest = {
   facts?: string[]
   structures?: { label: string; detail: string }[]
   previousQuestions?: string[]
+  quiz?: GeneratedQuiz
+  quizzes?: GeneratedQuiz[]
+  answers?: (number | null)[]
 }
 
 function validText(value: unknown): value is string {
@@ -45,6 +49,26 @@ export function parseQuizSet(raw: string, modelId: string): GeneratedQuiz[] | un
       }
     })
     return quizzes.every(Boolean) ? quizzes as GeneratedQuiz[] : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function parseQuizHint(raw: string) {
+  try {
+    const value = JSON.parse(raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')) as { hint?: unknown }
+    return validText(value.hint) ? value.hint.trim() : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function parseQuizCorrections(raw: string) {
+  try {
+    const value = JSON.parse(raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')) as { corrections?: unknown }
+    return Array.isArray(value.corrections) && value.corrections.length === 20 && value.corrections.every(validText)
+      ? value.corrections.map((correction) => correction.trim())
+      : undefined
   } catch {
     return undefined
   }
@@ -84,5 +108,61 @@ Use established scientific facts. Keep explanations concise. Do not include mark
   } catch (error) {
     console.error('Quiz generation failed:', error instanceof Error ? error.message : error)
     return { quizzes: null, source: 'offline' }
+  }
+}
+
+function quizClient() {
+  const hasAzure = Boolean(process.env.AZURE_OPENAI_API_KEY && process.env.AZURE_OPENAI_ENDPOINT && process.env.AZURE_OPENAI_DEPLOYMENT)
+  if (!process.env.OPENAI_API_KEY && !hasAzure) return undefined
+  return {
+    source: hasAzure ? 'azure-openai' : 'openai',
+    model: hasAzure ? process.env.AZURE_OPENAI_DEPLOYMENT! : process.env.OPENAI_MODEL || 'gpt-5-mini',
+    client: hasAzure
+      ? new OpenAI({ apiKey: process.env.AZURE_OPENAI_API_KEY, baseURL: `${process.env.AZURE_OPENAI_ENDPOINT!.replace(/\/$/, '')}/openai/v1` })
+      : new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
+  }
+}
+
+export async function generateQuizHint(body: QuizGenerationRequest) {
+  const provider = quizClient()
+  if (!provider || !body.quiz) return { hint: null, source: 'offline' }
+  try {
+    const completion = await provider.client.chat.completions.create({
+      model: provider.model,
+      messages: [{ role: 'system', content: 'Give one concise, useful hint for the anatomy assessment question. Do not state, quote, or identify the correct answer. Return only JSON with a non-empty "hint" string.' }, { role: 'user', content: JSON.stringify({ model: body.model, system: body.system, question: body.quiz.question, options: body.quiz.options }) }],
+      response_format: { type: 'json_object' },
+      max_completion_tokens: 220,
+    }, { signal: AbortSignal.timeout(25_000) })
+    const hint = parseQuizHint(completion.choices[0]?.message.content || '') || null
+    return { hint, source: hint ? provider.source : 'invalid-ai-response' }
+  } catch (error) {
+    console.error('Quiz hint generation failed:', error instanceof Error ? error.message : error)
+    return { hint: null, source: 'offline' }
+  }
+}
+
+export async function generateQuizCorrections(body: QuizGenerationRequest) {
+  const provider = quizClient()
+  if (!provider || !Array.isArray(body.quizzes) || body.quizzes.length !== 20 || !Array.isArray(body.answers) || body.answers.length !== 20) return { corrections: null, source: 'offline' }
+  try {
+    const questions = body.quizzes.map((quiz, index) => ({
+      number: index + 1,
+      question: quiz.question,
+      options: quiz.options,
+      selectedIndex: body.answers![index],
+      correctIndex: quiz.correctIndex,
+      authoredExplanation: quiz.explanation,
+    }))
+    const completion = await provider.client.chat.completions.create({
+      model: provider.model,
+      messages: [{ role: 'system', content: 'Explain the correction for exactly 20 anatomy assessment questions. Each explanation must directly explain why the correct answer is right and clarify the learner\'s selected answer when it was wrong. Be accurate and concise. Return only JSON with a "corrections" array of exactly 20 non-empty strings in question order.' }, { role: 'user', content: JSON.stringify({ model: body.model, system: body.system, questions }) }],
+      response_format: { type: 'json_object' },
+      max_completion_tokens: 5000,
+    }, { signal: AbortSignal.timeout(40_000) })
+    const corrections = parseQuizCorrections(completion.choices[0]?.message.content || '') || null
+    return { corrections, source: corrections ? provider.source : 'invalid-ai-response' }
+  } catch (error) {
+    console.error('Quiz correction generation failed:', error instanceof Error ? error.message : error)
+    return { corrections: null, source: 'offline' }
   }
 }

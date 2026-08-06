@@ -6,16 +6,17 @@ import { LibraryView, NotesView, QuizzesView, SystemsView } from './components/W
 import { anatomyModels, modelById, models } from './data/models'
 import logoUrl from '../Logo Stranerd.png'
 import iconUrl from '../Icon Logo Stranerd.png'
-import { allQuizzes, evaluateQuiz, quizzesForModel } from './data/quizzes'
+import { allQuizzes, quizzesForModel } from './data/quizzes'
 import { loadState, saveState } from './lib/storage'
-import type { ChatItem, Evaluation, Hotspot, ModelEntry, PersistedState, Quiz, ViewId } from './types'
+import type { ChatItem, Hotspot, ModelEntry, PersistedState, Quiz, ViewId } from './types'
 import type { DissectionActionContext } from './data/dissection'
 import { DissectionActivitiesView } from './components/DissectionActivitiesView'
 import { anatomyActivities, type AnatomyActivity } from './data/activities'
 import { digestiveDissectionQuiz } from './data/dissection'
-import { generateAIQuiz } from './lib/quiz'
+import { generateAICorrections, generateAIHint, generateAIQuiz } from './lib/quiz'
 import { useAuth } from './auth-context'
 import { AIActionError } from './lib/ai'
+import { CreditModal, type CreditPrompt } from './components/CreditModal'
 
 const navItems: { id: ViewId; label: string; icon: typeof Search }[] = [
   { id: 'explore', label: 'Explore', icon: Search },
@@ -35,6 +36,15 @@ function loadInitialState() {
   const state = loadState()
   const requestedModel = new URLSearchParams(window.location.search).get('model')
   return requestedModel && models.some((entry) => entry.id === requestedModel) ? { ...state, selectedModelId: requestedModel } : state
+}
+
+function loadAssessmentSeed() {
+  const key = 'stranerd.assessment.seed.v1'
+  const saved = Number(window.localStorage.getItem(key))
+  if (Number.isInteger(saved) && saved > 0) return saved
+  const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1
+  window.localStorage.setItem(key, String(seed))
+  return seed
 }
 
 function Brand() {
@@ -60,9 +70,13 @@ export default function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>(initialDissection?.active ? initialDissection.selectedIds : initialHotspot ? [initialHotspot.id] : [])
   const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | undefined>(initialHotspot)
   const [quizIndex, setQuizIndex] = useState(0)
-  const [quizChoice, setQuizChoice] = useState<number>()
-  const [quizResult, setQuizResult] = useState<Evaluation>()
-  const [quizSeed, setQuizSeed] = useState(() => crypto.getRandomValues(new Uint32Array(1))[0])
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({})
+  const [assessmentSubmitted, setAssessmentSubmitted] = useState(false)
+  const [assessmentHints, setAssessmentHints] = useState<Record<number, string>>({})
+  const [assessmentCorrections, setAssessmentCorrections] = useState<string[]>()
+  const [loadingHintIndex, setLoadingHintIndex] = useState<number>()
+  const [loadingCorrections, setLoadingCorrections] = useState(false)
+  const [quizSeed, setQuizSeed] = useState(loadAssessmentSeed)
   const [generatedQuizSet, setGeneratedQuizSet] = useState<{ modelId: string; quizzes: Quiz[] }>()
   const [generatingQuiz, setGeneratingQuiz] = useState(false)
   const [quizGenerationError, setQuizGenerationError] = useState<string>()
@@ -76,11 +90,11 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mentorOpen, setMentorOpen] = useState(false)
+  const [creditPrompt, setCreditPrompt] = useState<CreditPrompt>()
   const model = modelById(persisted.selectedModelId)
   const messages = persisted.chatByModel[model.id] ?? [greeting]
   const fallbackQuizzes = useMemo(() => quizzesForModel(model.id, quizSeed), [model.id, quizSeed])
   const modelQuizzes = generatedQuizSet?.modelId === model.id ? generatedQuizSet.quizzes : fallbackQuizzes
-  const quiz = modelQuizzes[quizIndex] ?? modelQuizzes[0]
   const savedVariantId = persisted.selectedVariantIds[model.id]
   const selectedVariantId = model.variants.some((variant) => variant.id === savedVariantId) ? savedVariantId! : model.variants[0].id
   const favorite = persisted.favoriteModelIds.includes(model.id)
@@ -121,8 +135,7 @@ export default function App() {
     setSelectedIds(restoredDissection?.active ? restoredDissection.selectedIds : restoredHotspot ? [restoredHotspot.id] : [])
     setSelectedHotspot(restoredHotspot)
     setQuizIndex(0)
-    setQuizChoice(undefined)
-    setQuizResult(undefined)
+    resetAssessment()
     setGeneratedQuizSet(undefined)
     setActiveActivityId(undefined)
     setGuidedActivityStep(null)
@@ -213,30 +226,35 @@ export default function App() {
 
   function inspectBookmark(nextModel: ModelEntry, hotspot: Hotspot) {
     updatePersisted({ selectedModelId: nextModel.id, selectedHotspotIds: { ...persisted.selectedHotspotIds, [nextModel.id]: hotspot.id } })
-    setQuizChoice(undefined)
-    setQuizResult(undefined)
+    resetAssessment()
     setSelectedIds([hotspot.id])
     setSelectedHotspot(hotspot)
     setMenuOpen(false)
     setView('explore')
   }
 
-  async function evaluateKnowledgeQuiz() {
-    const result = evaluateQuiz(quiz, quizChoice)
-    setQuizResult(result)
-    if (result.pass && !persisted.completedQuizIds.includes(quiz.id)) updatePersisted({ completedQuizIds: [...persisted.completedQuizIds, quiz.id] })
-  }
-
   function chooseQuiz(index: number) {
     setQuizIndex(index)
-    setQuizChoice(undefined)
-    setQuizResult(undefined)
   }
 
-  function restartQuiz() {
+  function resetAssessment() {
     setQuizIndex(0)
-    setQuizChoice(undefined)
-    setQuizResult(undefined)
+    setQuizAnswers({})
+    setAssessmentSubmitted(false)
+    setAssessmentHints({})
+    setAssessmentCorrections(undefined)
+    setLoadingHintIndex(undefined)
+    setLoadingCorrections(false)
+    setQuizGenerationError(undefined)
+    setQuizNeedsCredits(false)
+  }
+
+  function submitAssessment() {
+    if (Object.keys(quizAnswers).length !== modelQuizzes.length) return
+    const passedIds = modelQuizzes.filter((entry, index) => quizAnswers[index] === entry.correctIndex).map((entry) => entry.id)
+    updatePersisted({ completedQuizIds: [...new Set([...persisted.completedQuizIds, ...passedIds])] })
+    setAssessmentSubmitted(true)
+    window.requestAnimationFrame(() => document.querySelector('.assessment-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
   async function takeNewAIQuiz() {
@@ -254,13 +272,61 @@ export default function App() {
       setBalance(result.balance)
       setQuizSeed(nextSeed)
       setGeneratedQuizSet({ modelId: model.id, quizzes: result.quizzes })
-      restartQuiz()
+      resetAssessment()
     } catch (error) {
       if (error instanceof AIActionError && error.balance) setBalance(error.balance)
+      if (error instanceof AIActionError && error.code === 'insufficient_credits') setCreditPrompt({ action: 'A new assessment', required: 5 })
       setQuizNeedsCredits(error instanceof AIActionError && error.code === 'insufficient_credits')
       setQuizGenerationError(error instanceof Error ? error.message : 'The AI quiz could not be generated. No credit was charged.')
     } finally {
       setGeneratingQuiz(false)
+    }
+  }
+
+  async function requestAssessmentHint(index: number) {
+    if (loadingHintIndex !== undefined || assessmentHints[index]) return
+    if (!user) {
+      window.location.assign(`/login?next=${encodeURIComponent(`/app?model=${model.id}`)}`)
+      return
+    }
+    setLoadingHintIndex(index)
+    setQuizGenerationError(undefined)
+    setQuizNeedsCredits(false)
+    try {
+      const result = await generateAIHint(model, modelQuizzes[index])
+      setBalance(result.balance)
+      setAssessmentHints((current) => ({ ...current, [index]: result.hint }))
+    } catch (error) {
+      if (error instanceof AIActionError && error.balance) setBalance(error.balance)
+      if (error instanceof AIActionError && error.code === 'insufficient_credits') setCreditPrompt({ action: 'An assessment hint', required: 1 })
+      setQuizNeedsCredits(error instanceof AIActionError && error.code === 'insufficient_credits')
+      setQuizGenerationError(error instanceof Error ? error.message : 'The hint could not be generated. No credit was charged.')
+    } finally {
+      setLoadingHintIndex(undefined)
+    }
+  }
+
+  async function requestAssessmentCorrections() {
+    if (!assessmentSubmitted || loadingCorrections || assessmentCorrections) return
+    if (!user) {
+      window.location.assign(`/login?next=${encodeURIComponent(`/app?model=${model.id}`)}`)
+      return
+    }
+    setLoadingCorrections(true)
+    setQuizGenerationError(undefined)
+    setQuizNeedsCredits(false)
+    try {
+      const answers = modelQuizzes.map((_, index) => quizAnswers[index] ?? null)
+      const result = await generateAICorrections(model, modelQuizzes, answers)
+      setBalance(result.balance)
+      setAssessmentCorrections(result.corrections)
+    } catch (error) {
+      if (error instanceof AIActionError && error.balance) setBalance(error.balance)
+      if (error instanceof AIActionError && error.code === 'insufficient_credits') setCreditPrompt({ action: 'Detailed assessment corrections', required: 2 })
+      setQuizNeedsCredits(error instanceof AIActionError && error.code === 'insufficient_credits')
+      setQuizGenerationError(error instanceof Error ? error.message : 'Corrections could not be generated. No credit was charged.')
+    } finally {
+      setLoadingCorrections(false)
     }
   }
 
@@ -284,8 +350,7 @@ export default function App() {
     setActivityQuizChoice(undefined)
     setActivityQuizPassed(undefined)
     setActivityMode('dissection')
-    setQuizChoice(undefined)
-    setQuizResult(undefined)
+    resetAssessment()
     setGeneratedQuizSet(undefined)
   }
 
@@ -305,14 +370,14 @@ export default function App() {
   }
 
   const viewer = <AnatomyViewer key={`${model.id}:${view === 'lessons' ? `${activityMode}:${activeActivityId || ''}` : 'explore'}`} model={model} selectedIds={selectedIds} selectedHotspot={selectedHotspot} settings={persisted.settings} selectedVariantId={selectedVariantId} favorite={favorite} onSelect={selectHotspot} onSettings={(settings) => updatePersisted({ settings })} onVariant={selectVariant} onFavorite={() => toggleFavorite(model.id)} onDissectionAction={explainDissectionAction} dissectionSession={persisted.dissectionByModel[model.id]} onDissectionState={saveDissectionSession} initialDissect={view === 'lessons' && activityMode === 'dissection' && Boolean(activeActivityId)} activityLayout={view === 'lessons'} guidedStep={guidedActivityStep} onGuidedStep={setGuidedActivityStep} />
-  const quizView = <QuizzesView model={model} quizzes={modelQuizzes} quizIndex={quizIndex} quizChoice={quizChoice} result={quizResult} completed={persisted.completedQuizIds} onQuiz={chooseQuiz} onQuizChoice={(index) => { setQuizChoice(index); setQuizResult(undefined) }} onQuizEvaluate={evaluateKnowledgeQuiz} onRestart={restartQuiz} onNewQuiz={takeNewAIQuiz} generatingQuiz={generatingQuiz} aiError={quizGenerationError} aiNeedsCredits={quizNeedsCredits} signedIn={Boolean(user)} creditBalance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : undefined} />
+  const quizView = <QuizzesView model={model} quizzes={modelQuizzes} quizIndex={quizIndex} answers={quizAnswers} submitted={assessmentSubmitted} hints={assessmentHints} corrections={assessmentCorrections} loadingHintIndex={loadingHintIndex} loadingCorrections={loadingCorrections} onQuiz={chooseQuiz} onAnswer={(index) => setQuizAnswers((current) => ({ ...current, [quizIndex]: index }))} onSubmit={submitAssessment} onHint={requestAssessmentHint} onNewAssessment={takeNewAIQuiz} onCorrections={requestAssessmentCorrections} generatingAssessment={generatingQuiz} aiError={quizGenerationError} aiNeedsCredits={quizNeedsCredits} signedIn={Boolean(user)} creditBalance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : undefined} />
   const detail = <ModelDetail model={model} hotspot={selectedHotspot} />
 
   function renderCenter() {
     if (view === 'systems') return <SystemsView onOpen={inspectModel} />
     if (view === 'library') return <LibraryView onOpen={inspectModel} favorites={persisted.favoriteModelIds} onFavorite={toggleFavorite} />
     if (view === 'notes') return <NotesView notes={persisted.notes} model={model} hotspotId={selectedHotspot?.id} bookmarks={persisted.bookmarkedHotspotRefs} onNotes={(notes) => updatePersisted({ notes })} onRemoveBookmark={(ref) => updatePersisted({ bookmarkedHotspotRefs: persisted.bookmarkedHotspotRefs.filter((item) => item !== ref) })} onInspectBookmark={inspectBookmark} />
-    if (view === 'lessons') return <div className="lesson-workspace activity-workspace">{viewer}<div className="activity-pane"><nav className="activity-tabs"><button className={activityMode === 'quiz' ? 'active' : ''} onClick={() => setActivityMode('quiz')}>Quick quiz</button><button className={activityMode === 'dissection' ? 'active' : ''} onClick={() => setActivityMode('dissection')}>Dissection labs</button></nav>{activityMode === 'quiz' ? quizView : <DissectionActivitiesView activeActivityId={activeActivityId} modelId={model.id} onLaunch={launchDissectionActivity} guidedStep={guidedActivityStep} quizChoice={activityQuizChoice} quizPassed={activityQuizPassed} onStartGuide={() => { setGuidedActivityStep(0); setActivityQuizChoice(undefined); setActivityQuizPassed(undefined) }} onQuizChoice={(choice) => { setActivityQuizChoice(choice); setActivityQuizPassed(undefined) }} onQuizCheck={checkActivityQuestion} onStepContinue={continueActivity} />}</div></div>
+    if (view === 'lessons') return <div className="lesson-workspace activity-workspace">{viewer}<div className="activity-pane"><nav className="activity-tabs"><button className={activityMode === 'quiz' ? 'active' : ''} onClick={() => setActivityMode('quiz')}>Assessment</button><button className={activityMode === 'dissection' ? 'active' : ''} onClick={() => setActivityMode('dissection')}>Dissection labs</button></nav>{activityMode === 'quiz' ? quizView : <DissectionActivitiesView activeActivityId={activeActivityId} modelId={model.id} onLaunch={launchDissectionActivity} guidedStep={guidedActivityStep} quizChoice={activityQuizChoice} quizPassed={activityQuizPassed} onStartGuide={() => { setGuidedActivityStep(0); setActivityQuizChoice(undefined); setActivityQuizPassed(undefined) }} onQuizChoice={(choice) => { setActivityQuizChoice(choice); setActivityQuizPassed(undefined) }} onQuizCheck={checkActivityQuestion} onStepContinue={continueActivity} />}</div></div>
     return <div className="explore-view">{viewer}{detail}</div>
   }
 
@@ -320,7 +385,7 @@ export default function App() {
     <header className="mobile-head"><Brand /><button onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation">{menuOpen ? <X /> : <Menu />}</button></header>
     <aside className={`sidebar ${menuOpen ? 'open' : ''} ${effectiveSidebarCollapsed ? 'collapsed' : ''}`}>
       <div className="side-brand"><Brand /><button onClick={() => setSidebarCollapsed((value) => !value)} aria-label={effectiveSidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>{effectiveSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div>
-      <nav>{navItems.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)}><item.icon size={18} /><span>{item.label}</span>{item.id === 'library' && persisted.favoriteModelIds.length > 0 && <b>{persisted.favoriteModelIds.length}</b>}{item.id === 'notes' && persisted.notes.length + persisted.bookmarkedHotspotRefs.length > 0 && <b>{persisted.notes.length + persisted.bookmarkedHotspotRefs.length}</b>}</button>)}</nav>
+      <nav>{navItems.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined} title={effectiveSidebarCollapsed ? item.label : undefined}><item.icon size={18} /><span>{item.label}</span>{item.id === 'library' && persisted.favoriteModelIds.length > 0 && <b>{persisted.favoriteModelIds.length}</b>}{item.id === 'notes' && persisted.notes.length + persisted.bookmarkedHotspotRefs.length > 0 && <b>{persisted.notes.length + persisted.bookmarkedHotspotRefs.length}</b>}</button>)}</nav>
       <div className="side-section"><header><span>Anatomy models</span><button onClick={() => chooseView('library')}>All {models.length}</button></header><div className="model-list">{sideModels.map((entry) => <button key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}<ChevronRight size={14} /></button>)}</div></div>
       <div className="progress-card"><div><span>Quiz progress</span><b>{completion}%</b></div><i><b style={{ width: `${completion}%` }} /></i><small>{completedCount} of {activityCount} questions completed</small></div>
     </aside>
@@ -328,8 +393,9 @@ export default function App() {
       <header className="topbar"><div><span>{view === 'lessons' ? 'activities' : view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions"><a href="/account"><CircleUserRound size={16} />Account</a>{view !== 'lessons' && <button onClick={() => chooseView('lessons')}><ClipboardList size={16} />Open activities</button>}</div></header>
       <div className="center-pane">{renderCenter()}</div>
     </main>
-    <MentorPanel model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} />
-    <nav className="mobile-tabs">{navItems.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)}><item.icon size={18} /><span>{item.label}</span></button>)}</nav>
-    <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)}><Bot size={15} />Mentor{typing && <i />}</button>
+    <MentorPanel model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'An AI Mentor response', required: 1 })} />
+    <nav className="mobile-tabs" aria-label="Workspace navigation">{navItems.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></button>)}</nav>
+    <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)} aria-expanded={mentorOpen} aria-controls="stranerd-mentor"><Bot size={15} />Mentor{typing && <i />}</button>
+    <CreditModal prompt={creditPrompt} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} onClose={() => setCreditPrompt(undefined)} />
   </div>
 }

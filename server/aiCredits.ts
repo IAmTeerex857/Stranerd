@@ -19,6 +19,7 @@ type ProtectedInput = {
   authorization?: string
   requestId?: string
   feature: 'mentor' | 'ai_quiz'
+  amount?: number
   provider: string
   model?: string
   clientIp?: string
@@ -82,6 +83,8 @@ async function updateUsage(client: SupabaseClient, requestId: string, values: Re
 
 export async function runCreditProtected<T>(input: ProtectedInput, operation: ProtectedOperation<T>) {
   if (!validRequestId(input.requestId)) throw new AiRequestError(400, 'invalid_request_id', 'A valid request ID is required.')
+  const amount = input.amount ?? 1
+  if (!Number.isInteger(amount) || amount < 1 || amount > 100) throw new AiRequestError(400, 'invalid_credit_amount', 'A valid credit amount is required.')
   const token = bearerToken(input.authorization)
   const client = getServiceClient()
   const { data: auth, error: authError } = await client.auth.getUser(token)
@@ -109,7 +112,7 @@ export async function runCreditProtected<T>(input: ProtectedInput, operation: Pr
   if (existingUsage) {
     const metadata = existingUsage.metadata as { source?: string; response?: T; pendingResponse?: T } | null
     if (existingUsage.status === 'successful' && metadata?.response !== undefined) {
-      const { data: replayBalance, error: replayError } = await client.rpc('reserve_credits', { p_user_id: auth.user.id, p_feature: input.feature, p_amount: 1, p_request_id: input.requestId })
+      const { data: replayBalance, error: replayError } = await client.rpc('reserve_credits', { p_user_id: auth.user.id, p_feature: input.feature, p_amount: amount, p_request_id: input.requestId })
       if (replayError) throw new AiRequestError(500, 'replay_failed', 'The completed AI request could not be replayed.')
       return { value: metadata.response, source: metadata.source || input.provider, balance: replayBalance as ReservationResult }
     }
@@ -125,7 +128,7 @@ export async function runCreditProtected<T>(input: ProtectedInput, operation: Pr
   const { data: reserved, error: reserveError } = await client.rpc('reserve_credits', {
     p_user_id: auth.user.id,
     p_feature: input.feature,
-    p_amount: 1,
+    p_amount: amount,
     p_request_id: input.requestId,
   })
   if (reserveError) {

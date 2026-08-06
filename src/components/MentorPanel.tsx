@@ -16,6 +16,7 @@ type Props = {
   onTyping: (value: boolean) => void
   mobileOpen?: boolean
   onMobileClose?: () => void
+  onInsufficientCredits?: () => void
 }
 
 function MentorText({ text }: { text: string }) {
@@ -29,7 +30,7 @@ function MentorText({ text }: { text: string }) {
   })}</div>
 }
 
-export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose }: Props) {
+export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose, onInsufficientCredits }: Props) {
   const { user, balance, setBalance } = useAuth()
   const [input, setInput] = useState('')
   const [actionError, setActionError] = useState<{ message: string; needsCredits: boolean }>()
@@ -78,6 +79,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
       onMessages((current) => current.map((message) => message.id === replyId ? { ...message, text: answer.message, pending: false } : message))
     } catch (error) {
       if (error instanceof AIActionError && error.balance) setBalance(error.balance)
+      if (error instanceof AIActionError && error.code === 'insufficient_credits') onInsufficientCredits?.()
       const message = error instanceof Error ? error.message : 'The AI request failed. No credit was charged.'
       setActionError({ message, needsCredits: error instanceof AIActionError && error.code === 'insufficient_credits' })
       const fallback = `Focus on ${model.name} structure-function relationships: ${model.facts[0]}`
@@ -94,7 +96,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
   }
 
   return (
-    <aside className={`mentor ${mobileOpen ? 'mobile-open' : ''} panel anim3`}>
+    <aside id="stranerd-mentor" className={`mentor ${mobileOpen ? 'mobile-open' : ''} panel anim3`} aria-label="Stranerd Mentor">
       <header className="mentor-head"><span className="mentor-avatar"><Bot size={17} /></span><div><strong>Stranerd Mentor</strong><small><i /> explicit AI · 1 credit</small></div>{onMobileClose && <button className="mentor-mobile-close" onClick={onMobileClose} aria-label="Close mentor"><X size={17} /></button>}</header>
       {selectedHotspot && <div className="mentor-context"><header><span>Selected context</span><b>{selectedHotspot.source === 'mesh' ? `KG ${anatomyGraph.contentVersion}` : model.name}</b></header><strong>{selectedHotspot.label}</strong><small>{anatomyLayers.find((layer) => layer.id === selectedHotspot.systemId)?.label || model.system} system</small><button onClick={() => setInput(`Explain the structure and function of ${selectedHotspot.label}.`)}>Ask about this<CornerDownRight size={13} /></button></div>}
       <div className="transcript" ref={transcript} aria-live="polite">
@@ -108,7 +110,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
         {typing && <div className="typing"><i /><i /><i /><span>Mentor is responding</span></div>}
         <div ref={transcriptEnd} aria-hidden="true" />
       </div>
-      {actionError && <div className="mentor-action-error"><span>{actionError.message}</span>{actionError.needsCredits && <a href="/pricing">Get credits</a>}</div>}
+      {actionError && !actionError.needsCredits && <div className="mentor-action-error"><span>{actionError.message}</span></div>}
       <form className="mentor-input" onSubmit={submit}>
         <label htmlFor="mentor-question">Ask about {selectedHotspot?.label || 'this model'}</label>
         <div><textarea id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder="Why is this structure important?" maxLength={500} rows={2} /><button aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><Send size={15} /><span>{user ? 'Ask AI · 1 credit' : 'Sign in to ask'}</span></button></div>
