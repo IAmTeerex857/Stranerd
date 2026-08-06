@@ -17,7 +17,8 @@ async function billingFetch(path: string, init: RequestInit = {}) {
 
 export async function startCheckout(productId: BillingProductId) {
   const body = await billingFetch('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ productId }) })
-  if (typeof body.checkoutUrl !== 'string') throw new Error('Spotflow checkout URL was not returned.')
+  if (typeof body.checkoutUrl !== 'string' || typeof body.paymentIntentId !== 'string') throw new Error('Spotflow checkout details were not returned.')
+  window.localStorage.setItem('stranerd.billing.pendingIntent', body.paymentIntentId)
   window.location.assign(body.checkoutUrl)
 }
 

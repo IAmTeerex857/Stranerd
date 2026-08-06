@@ -64,7 +64,7 @@ export default async function handler(request: Request, response: Response) {
       const checkout = new URL(checkoutUrl)
       if (checkout.protocol !== 'https:' || !/(^|\.)spotflow\.(co|one)$/.test(checkout.hostname)) throw new Error('Spotflow returned an invalid checkout URL.')
       await client.from('payment_intents').update({ checkout_url: checkoutUrl, metadata: { mode: provider.mode || 'TEST', paymentCode: provider.paymentCode } }).eq('id', paymentIntentId)
-      response.json({ checkoutUrl })
+      response.json({ checkoutUrl, paymentIntentId })
     } catch (error) {
       await client.from('payment_intents').update({ status: 'failed', metadata: { initializationFailed: true } }).eq('id', paymentIntentId)
       throw error

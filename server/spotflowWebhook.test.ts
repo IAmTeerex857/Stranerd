@@ -26,6 +26,13 @@ describe('Spotflow webhooks', () => {
     expect(verifySpotflowSignature(body, { 'webhook-id': eventId, 'x-spotflow-signature': signature }, secret)).toBe(eventId)
   })
 
+  it('derives a deterministic event ID when Spotflow omits webhook-id', () => {
+    const body = Buffer.from('{"eventType":"payment_successful","id":"payment-1"}')
+    const secret = `whsec_test_${'03'.repeat(16)}`
+    const signature = createHmac('sha256', Buffer.from('03'.repeat(16), 'hex')).update(body).digest('base64')
+    expect(verifySpotflowSignature(body, { 'x-spotflow-signature': signature }, secret)).toMatch(/^body-[0-9a-f]{64}$/)
+  })
+
   it('normalizes allowlisted payment and subscription fields', () => {
     const event = normalizeSpotflowEvent({
       eventType: 'subscription_successful',

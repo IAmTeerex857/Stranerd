@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import type { Request } from 'express'
 import { BillingError, getBillingClient } from './billing.js'
 
@@ -112,17 +112,18 @@ function signatureCandidates(header: string) {
 }
 
 export function verifySpotflowSignature(rawBody: Buffer, headers: Record<string, string | string[] | undefined>, secret: string, now = Date.now()) {
-  const eventId = Array.isArray(headers['webhook-id']) ? headers['webhook-id'][0] : headers['webhook-id']
+  const suppliedEventId = Array.isArray(headers['webhook-id']) ? headers['webhook-id'][0] : headers['webhook-id']
   const timestampValue = Array.isArray(headers['webhook-timestamp']) ? headers['webhook-timestamp'][0] : headers['webhook-timestamp']
   const timestamp = timestampValue || (Array.isArray(headers['x-spotflow-timestamp']) ? headers['x-spotflow-timestamp'][0] : headers['x-spotflow-timestamp'])
   const signature = Array.isArray(headers['x-spotflow-signature']) ? headers['x-spotflow-signature'][0] : headers['x-spotflow-signature']
-  if (!eventId || !signature) throw new BillingError(400, 'missing_webhook_headers', 'Required Spotflow webhook headers are missing.')
+  if (!signature) throw new BillingError(400, 'missing_webhook_headers', 'Spotflow webhook signature is missing.')
+  const eventId = suppliedEventId || `body-${createHash('sha256').update(rawBody).digest('hex')}`
   if (timestamp) {
     const timestampMs = /^\d+$/.test(timestamp) ? Number(timestamp) * (timestamp.length <= 10 ? 1000 : 1) : Date.parse(timestamp)
     if (!Number.isFinite(timestampMs) || Math.abs(now - timestampMs) > 5 * 60_000) throw new BillingError(401, 'stale_webhook', 'Spotflow webhook timestamp is invalid or stale.')
   }
 
-  const payloads = timestamp
+  const payloads = timestamp && suppliedEventId
     ? [Buffer.from(`${eventId}.${timestamp}.${rawBody.toString('utf8')}`)]
     : [rawBody]
   const supplied = signatureCandidates(signature)
