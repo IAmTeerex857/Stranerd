@@ -6,6 +6,7 @@ import { HeartCandidateTestView } from './components/HeartCandidateTestView'
 import { PublicPages } from './PublicPages'
 import { AuthProvider } from './auth'
 import './styles.css'
+import './landing.css'
 
 class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> {
   state: { error?: Error } = {}

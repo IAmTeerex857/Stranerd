@@ -22,7 +22,7 @@
   --overlay-soft: rgba(10, 12, 15, 0.72);
   --sunken: rgba(0, 0, 0, 0.15);
   --field-bg: rgba(0, 0, 0, 0.2);
-  --display: "Sora", system-ui, sans-serif;
+  --display: "DM Sans", system-ui, sans-serif;
   --body: "Manrope", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   color: var(--ink);
@@ -870,12 +870,14 @@ h3 {
   width: 138px;
   max-width: 100%;
   height: auto;
+  filter: brightness(0) invert(1);
 }
 .brand-icon {
   display: none;
   width: 28px;
   height: 28px;
   object-fit: contain;
+  filter: grayscale(1) brightness(3);
 }
 .brand span {
   margin: 3px 0 0 25px;
