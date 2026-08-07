@@ -38,7 +38,7 @@ export function LoginPage() {
   const { user, loading, configured, signInWithGoogle } = useAuth();
   const [error, setError] = useState<string>();
   const params = new URLSearchParams(window.location.search);
-  const next = safeReturnPath(params.get("next"));
+  const next = safeReturnPath(params.get("next"), "/app");
   const signingUp = params.get("mode") === "signup";
 
   async function signIn() {
@@ -102,6 +102,7 @@ export function AuthCallbackPage() {
   const next = safeReturnPath(
     new URLSearchParams(window.location.search).get("next") ||
       window.sessionStorage.getItem("stranerd.auth.next"),
+    "/app",
   );
 
   useEffect(() => {
