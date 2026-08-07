@@ -15,7 +15,7 @@ const app = express()
 const port = Number(process.env.PORT) || 8787
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const securityHeaders: Record<string, string> = {
-  'Content-Security-Policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://bezxmhtakraxschfftkj.supabase.co wss://bezxmhtakraxschfftkj.supabase.co; upgrade-insecure-requests",
+  'Content-Security-Policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://bezxmhtakraxschfftkj.supabase.co wss://bezxmhtakraxschfftkj.supabase.co; upgrade-insecure-requests",
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
   'X-Content-Type-Options': 'nosniff',
