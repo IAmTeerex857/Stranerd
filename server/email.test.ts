@@ -26,9 +26,10 @@ describe('welcome email', () => {
       return new Response(JSON.stringify({ id: 'email-1' }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     })
     vi.stubGlobal('fetch', fetchMock)
-    await expect(sendWelcomeEmail({ email: 'learner@example.com', user_metadata: { name: 'Ada' } } as never)).resolves.toBe('email-1')
+    await expect(sendWelcomeEmail({ id: 'user-1', email: 'learner@example.com', user_metadata: { name: 'Ada' } } as never)).resolves.toBe('email-1')
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
     expect(request).toMatchObject({ from: 'Stranerd <hello@stranerd.com>', to: ['learner@example.com'], reply_to: 'support@example.com' })
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({ 'Idempotency-Key': 'welcome/user-1' })
   })
 
   it('rejects incomplete Resend responses', async () => {

@@ -66,7 +66,7 @@ export async function sendWelcomeEmail(user: User) {
   const email = welcomeEmail(user)
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': `welcome/${user.id}` },
     body: JSON.stringify({ from, to: [user.email], reply_to: replyTo || undefined, ...email }),
     signal: AbortSignal.timeout(20_000),
   })

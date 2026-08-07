@@ -1,4 +1,6 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
+import { createHmac } from 'node:crypto'
+import type { Request } from 'express'
 
 export type BillingProductId = 'subscription' | 'payg_100'
 
@@ -34,6 +36,21 @@ export async function requireBillingUser(authorization?: string): Promise<User> 
   const { data, error } = await getBillingClient().auth.getUser(token)
   if (error || !data.user) throw new BillingError(401, 'invalid_session', 'Your session is invalid or expired.')
   return data.user
+}
+
+export async function checkBillingRateLimit(userId: string, action: string, request: Request, userLimit: number, ipLimit: number) {
+  const forwarded = process.env.VERCEL === '1' ? request.headers['x-vercel-forwarded-for']?.toString().split(',')[0]?.trim() : undefined
+  const address = forwarded || (process.env.VERCEL === '1' ? undefined : request.ip || request.socket?.remoteAddress)
+  const ipHash = address ? createHmac('sha256', process.env.RATE_LIMIT_HASH_SECRET || process.env.SUPABASE_SECRET_KEY!).update(address).digest('hex') : null
+  const { data, error } = await getBillingClient().rpc('check_ai_rate_limits', {
+    p_user_key: `billing:${action}:user:${userId}`,
+    p_user_limit: userLimit,
+    p_ip_key: ipHash ? `billing:${action}:ip:${ipHash}` : null,
+    p_ip_limit: ipLimit,
+    p_window_seconds: 60,
+  })
+  if (error) throw new BillingError(503, 'rate_limit_unavailable', 'Billing request limits could not be verified.')
+  if (!data) throw new BillingError(429, 'rate_limited', 'Too many billing requests. Please wait and try again.')
 }
 
 function spotflowSecret() {

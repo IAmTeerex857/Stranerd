@@ -23,7 +23,16 @@ describe('Spotflow webhooks', () => {
     const eventId = 'event-raw-1'
     const secret = `whsec_test_${'02'.repeat(16)}`
     const signature = createHmac('sha256', Buffer.from('02'.repeat(16), 'hex')).update(body).digest('hex')
-    expect(verifySpotflowSignature(body, { 'webhook-id': eventId, 'x-spotflow-signature': signature }, secret)).toBe(eventId)
+    expect(verifySpotflowSignature(body, { 'webhook-id': eventId, 'x-spotflow-signature': signature }, secret)).toMatch(/^body-[0-9a-f]{64}$/)
+  })
+
+  it('ignores an unsigned event ID for timestamp-less signatures', () => {
+    const body = Buffer.from('{"eventType":"payment_successful"}')
+    const secret = `whsec_test_${'04'.repeat(16)}`
+    const signature = createHmac('sha256', Buffer.from('04'.repeat(16), 'hex')).update(body).digest('hex')
+    const first = verifySpotflowSignature(body, { 'webhook-id': 'first', 'x-spotflow-signature': signature }, secret)
+    const replay = verifySpotflowSignature(body, { 'webhook-id': 'changed', 'x-spotflow-signature': signature }, secret)
+    expect(replay).toBe(first)
   })
 
   it('derives a deterministic event ID when Spotflow omits webhook-id', () => {

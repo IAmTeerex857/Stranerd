@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { billingErrorResponse, getBillingClient, requireBillingUser, spotflowRequest } from '../../server/billing.js'
+import { billingErrorResponse, checkBillingRateLimit, getBillingClient, requireBillingUser, spotflowRequest } from '../../server/billing.js'
 import { processSpotflowEvent, safeWebhookPayload, type SpotflowEvent } from '../../server/spotflowWebhook.js'
 
 export default async function handler(request: Request, response: Response) {
@@ -11,6 +11,7 @@ export default async function handler(request: Request, response: Response) {
     response.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
     response.setHeader('Pragma', 'no-cache')
     const user = await requireBillingUser(request.headers.authorization)
+    await checkBillingRateLimit(user.id, 'status', request, 60, 120)
     const client = getBillingClient()
     const requestedIntent = typeof request.query.intent === 'string' ? request.query.intent : ''
     if (requestedIntent && !/^[0-9a-f-]{36}$/i.test(requestedIntent)) {
