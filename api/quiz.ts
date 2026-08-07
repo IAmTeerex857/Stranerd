@@ -31,9 +31,7 @@ export default async function handler(request: Request, response: Response) {
       return
     }
     const provider = configuredAiProvider()
-    const trustedIp = process.env.VERCEL === '1'
-      ? request.headers['x-vercel-forwarded-for']?.toString().split(',')[0]?.trim()
-      : request.ip || request.socket?.remoteAddress
+    const trustedIp = request.headers['x-vercel-forwarded-for']?.toString().split(',')[0]?.trim() || (process.env.NODE_ENV === 'production' ? undefined : request.ip || request.socket?.remoteAddress)
     const amount = action === 'generate' ? 5 : action === 'corrections' ? 2 : 1
     const result = await runCreditProtected<Record<string, unknown>>({ authorization: request.headers.authorization, requestId: request.headers['x-request-id'] as string | undefined, feature: 'ai_quiz', amount, provider, model: provider === 'azure-openai' ? process.env.AZURE_OPENAI_DEPLOYMENT : process.env.OPENAI_MODEL || 'gpt-5-mini', clientIp: trustedIp }, async () => {
       if (action === 'hint') {

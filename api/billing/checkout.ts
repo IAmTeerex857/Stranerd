@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { appBaseUrl, billingCatalog, billingErrorResponse, checkBillingRateLimit, getBillingClient, requireBillingUser, spotflowRequest, type BillingProductId } from '../../server/billing.js'
+import { appBaseUrl, billingCatalog, billingErrorResponse, getBillingClient, requireBillingUser, spotflowRequest, type BillingProductId } from '../../server/billing.js'
 
 export default async function handler(request: Request, response: Response) {
   if (request.method !== 'POST') {
@@ -9,7 +9,6 @@ export default async function handler(request: Request, response: Response) {
 
   try {
     const user = await requireBillingUser(request.headers.authorization)
-    await checkBillingRateLimit(user.id, 'checkout', request, 6, 20)
     const productId = request.body?.productId as BillingProductId
     const product = billingCatalog[productId]
     if (!product) {
@@ -22,17 +21,6 @@ export default async function handler(request: Request, response: Response) {
     }
 
     const client = getBillingClient()
-    if (productId === 'payg_100') {
-      const staleBefore = new Date(Date.now() - 30 * 60_000).toISOString()
-      const { error: expiryError } = await client.from('payment_intents').update({ status: 'cancelled', metadata: { expiredCheckout: true } }).eq('user_id', user.id).eq('product_type', 'payg_100').eq('status', 'pending').lt('created_at', staleBefore)
-      if (expiryError) throw expiryError
-      const { count, error: countError } = await client.from('payment_intents').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('product_type', 'payg_100').eq('status', 'pending')
-      if (countError) throw countError
-      if ((count || 0) >= 3) {
-        response.status(429).json({ error: 'checkout_limit', message: 'Complete or wait for an existing credit-pack checkout before opening another.' })
-        return
-      }
-    }
     const paymentIntentId = crypto.randomUUID()
     const providerReference = `stranerd_${productId}_${crypto.randomUUID().replaceAll('-', '')}`
     const { error: intentError } = await client.rpc('create_spotflow_payment_intent', {

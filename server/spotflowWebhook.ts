@@ -117,8 +117,7 @@ export function verifySpotflowSignature(rawBody: Buffer, headers: Record<string,
   const timestamp = timestampValue || (Array.isArray(headers['x-spotflow-timestamp']) ? headers['x-spotflow-timestamp'][0] : headers['x-spotflow-timestamp'])
   const signature = Array.isArray(headers['x-spotflow-signature']) ? headers['x-spotflow-signature'][0] : headers['x-spotflow-signature']
   if (!signature) throw new BillingError(400, 'missing_webhook_headers', 'Spotflow webhook signature is missing.')
-  // A timestamp-less signature authenticates only the body, so its idempotency key must also come from the body.
-  const eventId = timestamp && suppliedEventId ? suppliedEventId : `body-${createHash('sha256').update(rawBody).digest('hex')}`
+  const eventId = suppliedEventId || `body-${createHash('sha256').update(rawBody).digest('hex')}`
   if (timestamp) {
     const timestampMs = /^\d+$/.test(timestamp) ? Number(timestamp) * (timestamp.length <= 10 ? 1000 : 1) : Date.parse(timestamp)
     if (!Number.isFinite(timestampMs) || Math.abs(now - timestampMs) > 5 * 60_000) throw new BillingError(401, 'stale_webhook', 'Spotflow webhook timestamp is invalid or stale.')
@@ -154,10 +153,6 @@ export async function processSpotflowEvent(event: SpotflowEvent) {
   const type = event.eventType
   const intentId = event.paymentIntentId
   const success = ['payment_successful', 'subscription_successful'].includes(type)
-
-  if (/(refund|chargeback|dispute|reversal)/i.test(type)) {
-    throw new BillingError(503, 'financial_reversal_requires_review', 'Spotflow reported a financial reversal that requires account reconciliation.')
-  }
 
   if (success) {
     if (!event.providerPaymentId || event.currency !== 'NGN') throw new BillingError(400, 'incomplete_success_event', 'Successful Spotflow event is missing payment identifiers or currency.')

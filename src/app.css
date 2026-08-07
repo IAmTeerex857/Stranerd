@@ -1103,10 +1103,6 @@
   letter-spacing: -0.05em;
 }
 
-.account-heading .eyebrow::before {
-  display: none;
-}
-
 .account-heading img,
 .account-heading button,
 .balance-panel,
