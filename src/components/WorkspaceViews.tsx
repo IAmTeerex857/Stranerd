@@ -1,33 +1,62 @@
 import { useMemo, useState } from 'react'
-import { ArrowRight, Bookmark, Check, Edit3, Lightbulb, Plus, Search, Star, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ClipboardList, GalleryVerticalEnd, Lightbulb, Search, Star } from 'lucide-react'
 import { models, systems } from '../data/models'
-import type { Hotspot, ModelEntry, Note, Quiz } from '../types'
+import { assessmentProgressForModel } from '../data/quizzes'
+import { flashcardDeckForModel, flashcardProgress } from '../data/flashcards'
+import type { FlashcardDeck, FlashcardDeckProgress, GeneratedDeckSummary, ModelEntry, Quiz } from '../types'
 
-export function SystemsView({ onOpen }: { onOpen: (model: ModelEntry) => void }) {
-  return <section className="content-view anim">
-    <div className="view-title"><span className="eyebrow">Organ systems</span><h1>Connected by function.</h1><p>Move from system-level purpose to an explorable component.</p></div>
-    <div className="system-grid">{systems.map((system, index) => {
-      const entries = models.filter((model) => model.system === system)
-      return <article className="system-card" key={system}><span>{String(index + 1).padStart(2, '0')}</span><h2>{system}</h2><p>{entries.map((entry) => entry.name).join(' · ')}</p><button onClick={() => onOpen(entries[0])}>Open {entries[0].name}<ArrowRight size={16} /></button></article>
-    })}</div>
-  </section>
-}
+type ContentFilter = 'all' | 'models' | 'assessments' | 'flashcards'
+type ProgressFilter = 'all' | 'not-started' | 'in-progress' | 'complete'
+type LibraryProps = { onOpen: (model: ModelEntry) => void; onAssessment: (model: ModelEntry) => void; onFlashcards: (deck: FlashcardDeck) => void; onGenerate: (model: ModelEntry) => void; onGeneratedDeck: (deck: GeneratedDeckSummary) => void; onUnlockDeck: (deck: GeneratedDeckSummary) => void; onReportDeck: (deck: GeneratedDeckSummary) => void; generatedDecks: GeneratedDeckSummary[]; generatedError?: string; favorites: string[]; onFavorite: (modelId: string) => void; completedQuizIds: string[]; flashcardProgressByDeck: Record<string, FlashcardDeckProgress>; currentModelId: string }
 
-type LibraryProps = { onOpen: (model: ModelEntry) => void; favorites: string[]; onFavorite: (modelId: string) => void }
-
-export function LibraryView({ onOpen, favorites, onFavorite }: LibraryProps) {
+export function LibraryView({ onOpen, onAssessment, onFlashcards, onGenerate, onGeneratedDeck, onUnlockDeck, onReportDeck, generatedDecks, generatedError, favorites, onFavorite, completedQuizIds, flashcardProgressByDeck, currentModelId }: LibraryProps) {
   const [query, setQuery] = useState('')
   const [favoritesOnly, setFavoritesOnly] = useState(false)
-  const filtered = useMemo(() => models.filter((model) => (!favoritesOnly || favorites.includes(model.id)) && `${model.name} ${model.system} ${model.description}`.toLowerCase().includes(query.toLowerCase())), [favorites, favoritesOnly, query])
+  const [contentFilter, setContentFilter] = useState<ContentFilter>('all')
+  const [systemFilter, setSystemFilter] = useState('all')
+  const [progressFilter, setProgressFilter] = useState<ProgressFilter>('all')
+  const filtered = useMemo(() => models.filter((model) => {
+    const assessment = assessmentProgressForModel(model.id, completedQuizIds)
+    const deck = flashcardDeckForModel(model.id)!
+    const cards = flashcardProgress(deck, flashcardProgressByDeck[deck.id]?.cards)
+    const matchesProgress = progressFilter === 'all'
+      || (contentFilter === 'assessments' && assessment.status === progressFilter)
+      || (contentFilter === 'flashcards' && cards.status === progressFilter)
+      || (contentFilter === 'all' && (assessment.status === progressFilter || cards.status === progressFilter))
+    return (!favoritesOnly || favorites.includes(model.id))
+      && (systemFilter === 'all' || model.system === systemFilter)
+      && matchesProgress
+      && `${model.name} ${model.system} ${model.description} assessment flashcards foundations`.toLowerCase().includes(query.trim().toLowerCase())
+  }), [completedQuizIds, contentFilter, favorites, favoritesOnly, flashcardProgressByDeck, progressFilter, query, systemFilter])
   const grouped = filtered.reduce<Record<string, ModelEntry[]>>((result, model) => {
     result[model.system] = [...(result[model.system] ?? []), model]
     return result
   }, {})
+  const generatedVisible = generatedDecks.filter((deck) => {
+    const model = models.find((entry) => entry.id === deck.modelId)
+    return (contentFilter === 'all' || contentFilter === 'flashcards') && Boolean(model) && (systemFilter === 'all' || model?.system === systemFilter) && (!favoritesOnly || favorites.includes(deck.modelId)) && `${deck.title} ${deck.description} ${model?.name}`.toLowerCase().includes(query.trim().toLowerCase())
+  })
+  const renderGenerated = (deck: GeneratedDeckSummary) => {
+    const progress = deck.cards ? flashcardProgress({ ...deck, cards: deck.cards }, flashcardProgressByDeck[deck.id]?.cards) : undefined
+    return <article key={deck.id} className="library-card generated-deck-card"><div><div className="card-kicker"><span className="model-index"><GalleryVerticalEnd size={13} />AI deck · {deck.visibility}</span><span className={`progress-status ${progress?.status ?? 'locked'}`}>{deck.owner ? 'yours' : deck.unlocked ? progress?.status.replace('-', ' ') : 'locked'}</span></div><h3>{deck.title}</h3><em>12 AI-generated cards</em><p>{deck.description}</p>{progress && <i className="library-progress"><b style={{ width: `${(progress.reviewed / progress.total) * 100}%` }} /></i>}</div><footer><span>{deck.owner ? deck.visibility : deck.unlocked ? `${progress?.reviewed ?? 0} reviewed` : 'Unlock once'}</span><div>{!deck.owner && <button onClick={() => onReportDeck(deck)}>Report</button>}{deck.owner || deck.unlocked ? <button onClick={() => onGeneratedDeck(deck)}>Study<ArrowRight size={15} /></button> : <button onClick={() => onUnlockDeck(deck)}>Unlock · 5 credits<ArrowRight size={15} /></button>}</div></footer></article>
+  }
 
   return <section className="content-view anim">
-    <div className="view-title library-title"><div><span className="eyebrow">Specimen library</span><h1>Models with context.</h1><p>Ten anatomy studies spanning organs, systems, and whole-body relationships.</p></div><div className="library-filters"><label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search models or systems" /></label><button className={favoritesOnly ? 'active' : ''} onClick={() => setFavoritesOnly((value) => !value)} aria-pressed={favoritesOnly}><Star size={15} />Favorites only · {favorites.length}</button></div></div>
-    {filtered.length === 0 && <div className="empty-state">No models match these filters.</div>}
-    {Object.entries(grouped).map(([system, entries]) => entries && <div className="library-group" key={system}><h2>{system}<span>{entries.length}</span></h2><div className="library-grid">{entries.map((model) => <article key={model.id} className="library-card"><div><div className="card-kicker"><span className="model-index">{model.variants.length} GLB {model.variants.length === 1 ? 'specimen' : 'specimens'}</span><button className={`favorite-button ${favorites.includes(model.id) ? 'active' : ''}`} onClick={() => onFavorite(model.id)} aria-label={`${favorites.includes(model.id) ? 'Remove' : 'Add'} ${model.name} favorite`} aria-pressed={favorites.includes(model.id)}><Star size={16} fill={favorites.includes(model.id) ? 'currentColor' : 'none'} /></button></div><h3>{model.name}</h3><em>{model.scientificName}</em><p>{model.description}</p></div><footer><span>{model.metadata.focus}</span><button onClick={() => onOpen(model)}>Inspect<ArrowRight size={15} /></button></footer></article>)}</div></div>)}
+    <div className="view-title library-title"><div><span className="eyebrow">Learning library</span><h1>Models, assessments, and decks.</h1><p>Explore anatomy, measure retained knowledge, or review free verified flashcards with optional 3D context.</p></div><div className="library-filters"><label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search Library" /></label><div className="library-filter-row content-types" role="group" aria-label="Content type">{(['all', 'models', 'assessments', 'flashcards'] as ContentFilter[]).map((filter) => <button key={filter} className={contentFilter === filter ? 'active' : ''} onClick={() => setContentFilter(filter)}>{filter}</button>)}</div><div className="library-filter-row"><label>System<select value={systemFilter} onChange={(event) => setSystemFilter(event.target.value)}><option value="all">All systems</option>{systems.map((system) => <option key={system}>{system}</option>)}</select></label><label>Progress<select value={progressFilter} onChange={(event) => setProgressFilter(event.target.value as ProgressFilter)}><option value="all">All progress</option><option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="complete">Complete</option></select></label></div><button className={favoritesOnly ? 'active' : ''} onClick={() => setFavoritesOnly((value) => !value)} aria-pressed={favoritesOnly}><Star size={15} />Favorite models · {favorites.length}</button></div></div>
+    {generatedError && <p className="auth-error" role="alert">{generatedError}</p>}
+    {filtered.length === 0 && generatedVisible.length === 0 && <div className="empty-state">No Library content matches these filters.</div>}
+    {generatedVisible.some((deck) => deck.owner) && <div className="library-group generated-library-group"><h2>My generated decks<span>{generatedVisible.filter((deck) => deck.owner).length}</span></h2><div className="library-grid">{generatedVisible.filter((deck) => deck.owner).map(renderGenerated)}</div></div>}
+    {generatedVisible.some((deck) => !deck.owner) && <div className="library-group generated-library-group"><h2>Community decks<span>{generatedVisible.filter((deck) => !deck.owner).length}</span></h2><div className="library-grid">{generatedVisible.filter((deck) => !deck.owner).map(renderGenerated)}</div></div>}
+    {Object.entries(grouped).map(([system, entries]) => entries && <div className="library-group" key={system}><h2>{system}<span>{entries.length} {entries.length === 1 ? 'model' : 'models'}</span></h2><div className="library-grid">{entries.flatMap((model) => {
+      const progress = assessmentProgressForModel(model.id, completedQuizIds)
+      const deck = flashcardDeckForModel(model.id)!
+      const deckProgress = flashcardProgress(deck, flashcardProgressByDeck[deck.id]?.cards)
+      const cards = []
+      if (contentFilter === 'all' || contentFilter === 'models') cards.push(<article key={`${model.id}-model`} className={`library-card ${model.id === currentModelId ? 'current' : ''}`}><div><div className="card-kicker"><span className="model-index">Model · {model.variants.length} {model.variants.length === 1 ? 'specimen' : 'specimens'}</span><button className={`favorite-button ${favorites.includes(model.id) ? 'active' : ''}`} onClick={() => onFavorite(model.id)} aria-label={`${favorites.includes(model.id) ? 'Remove' : 'Add'} ${model.name} favorite`} aria-pressed={favorites.includes(model.id)}><Star size={16} fill={favorites.includes(model.id) ? 'currentColor' : 'none'} /></button></div><h3>{model.name}</h3><em>{model.scientificName}</em><p>{model.description}</p></div><footer><span>{model.id === currentModelId ? 'Current study' : model.metadata.focus}</span><button onClick={() => onOpen(model)}>Explore<ArrowRight size={15} /></button></footer></article>)
+      if (contentFilter === 'all' || contentFilter === 'assessments') cards.push(<article key={`${model.id}-assessment`} className="library-card assessment-card"><div><div className="card-kicker"><span className="model-index"><ClipboardList size={13} />Default assessment</span><span className={`progress-status ${progress.status}`}>{progress.status.replace('-', ' ')}</span></div><h3>{model.name} assessment</h3><em>20 verified questions</em><p>Test structure identification, function, and anatomical relationships for this model.</p><i className="library-progress"><b style={{ width: `${(progress.completed / progress.total) * 100}%` }} /></i></div><footer><span>{progress.completed} of {progress.total} correct</span><button onClick={() => onAssessment(model)}>{progress.completed > 0 ? 'Continue' : 'Start'}<ArrowRight size={15} /></button></footer></article>)
+      if (contentFilter === 'all' || contentFilter === 'flashcards') cards.push(<article key={`${model.id}-flashcards`} className="library-card flashcard-deck-card"><div><div className="card-kicker"><span className="model-index"><GalleryVerticalEnd size={13} />Default flashcards</span><span className={`progress-status ${deckProgress.status}`}>{deckProgress.status.replace('-', ' ')}</span></div><h3>{deck.title}</h3><em>{deck.cards.length} verified cards · free</em><p>{deck.description}</p><i className="library-progress"><b style={{ width: `${(deckProgress.reviewed / deckProgress.total) * 100}%` }} /></i></div><footer><span>{deckProgress.reviewed} of {deckProgress.total} reviewed</span><div><button onClick={() => onGenerate(model)}>Generate new</button><button onClick={() => onFlashcards(deck)}>{deckProgress.reviewed > 0 ? 'Continue' : 'Study'}<ArrowRight size={15} /></button></div></footer></article>)
+      return cards
+    })}</div></div>)}
   </section>
 }
 
@@ -52,9 +81,10 @@ type QuizProps = {
   aiNeedsCredits: boolean
   signedIn: boolean
   creditBalance?: number
+  onBack: () => void
 }
 
-export function QuizzesView({ model, quizzes, quizIndex, answers, submitted, hints, corrections, loadingHintIndex, loadingCorrections, onQuiz, onAnswer, onSubmit, onHint, onNewAssessment, onCorrections, generatingAssessment, aiError, aiNeedsCredits, signedIn, creditBalance }: QuizProps) {
+export function QuizzesView({ model, quizzes, quizIndex, answers, submitted, hints, corrections, loadingHintIndex, loadingCorrections, onQuiz, onAnswer, onSubmit, onHint, onNewAssessment, onCorrections, generatingAssessment, aiError, aiNeedsCredits, signedIn, creditBalance, onBack }: QuizProps) {
   const quiz = quizzes[quizIndex]
   if (!quiz) return null
   const answeredCount = Object.keys(answers).length
@@ -65,7 +95,7 @@ export function QuizzesView({ model, quizzes, quizIndex, answers, submitted, hin
   const balanceLabel = creditBalance === undefined ? 'Loading credits' : `${creditBalance} credits available`
 
   return <section className="content-view quiz-view assessment-view anim">
-    <div className="view-title assessment-title">
+    <button className="library-back" onClick={onBack}><ArrowLeft size={14} />Back to Library</button><div className="view-title assessment-title">
       <div><span className="eyebrow">Model assessment</span><h1>{model.name} assessment</h1></div>
       <aside><span>Attempt progress</span><strong>{answeredCount}<small>/ {quizzes.length}</small></strong><i><b style={{ width: `${(answeredCount / quizzes.length) * 100}%` }} /></i></aside>
     </div>
@@ -88,43 +118,5 @@ export function QuizzesView({ model, quizzes, quizIndex, answers, submitted, hin
       {correction && <div className="assessment-correction"><span>AI correction</span><h3>{selectedAnswer === quiz.correctIndex ? 'Your answer was correct.' : `Correct answer: ${quiz.options[quiz.correctIndex]}`}</h3><p>{correction}</p></div>}
       <footer><small>{submitted ? 'Detailed correction unlocked for this attempt.' : `${answeredCount} of ${quizzes.length} answered`}</small><div className="assessment-actions">{quizIndex > 0 && <button className="secondary" onClick={() => onQuiz(quizIndex - 1)}>Previous</button>}{quizIndex < quizzes.length - 1 && <button className="secondary" onClick={() => onQuiz(quizIndex + 1)}>Next<ArrowRight size={15} /></button>}{!submitted && answeredCount === quizzes.length && <button className="primary" onClick={onSubmit}>Submit</button>}</div></footer>
     </article>}
-  </section>
-}
-
-type NotesProps = {
-  notes: Note[]
-  model: ModelEntry
-  hotspotId?: string
-  bookmarks: string[]
-  onNotes: (notes: Note[]) => void
-  onRemoveBookmark: (ref: string) => void
-  onInspectBookmark: (model: ModelEntry, hotspot: Hotspot) => void
-}
-
-export function NotesView({ notes, model, hotspotId, bookmarks, onNotes, onRemoveBookmark, onInspectBookmark }: NotesProps) {
-  const [draft, setDraft] = useState('')
-  const [editing, setEditing] = useState<string>()
-  const visible = notes.filter((note) => note.modelId === model.id)
-  const savedStructures = bookmarks.flatMap((ref) => {
-    const separator = ref.indexOf(':')
-    if (separator <= 0) return []
-    const bookmarkedModel = models.find((entry) => entry.id === ref.slice(0, separator))
-    const hotspot = bookmarkedModel?.hotspots.find((entry) => entry.id === ref.slice(separator + 1))
-    return bookmarkedModel && hotspot ? [{ ref, model: bookmarkedModel, hotspot }] : []
-  })
-
-  function save() {
-    if (!draft.trim()) return
-    if (editing) onNotes(notes.map((note) => note.id === editing ? { ...note, text: draft.trim(), updatedAt: new Date().toISOString() } : note))
-    else onNotes([...notes, { id: crypto.randomUUID(), modelId: model.id, hotspotId, text: draft.trim(), updatedAt: new Date().toISOString() }])
-    setDraft('')
-    setEditing(undefined)
-  }
-
-  return <section className="content-view notes-view anim">
-    <div className="view-title"><span className="eyebrow">Field notes</span><h1>{model.name} notebook.</h1><p>Notes and saved structures stay on this device.</p></div>
-    <div className="note-compose"><label htmlFor="note-text">{editing ? 'Edit note' : `New note · ${hotspotId || 'general model'}`}</label><textarea id="note-text" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Record an observation, relationship, or question…" /><button className="primary" onClick={save} disabled={!draft.trim()}><Plus size={16} />{editing ? 'Update note' : 'Add note'}</button></div>
-    <div className="note-list">{visible.length === 0 && <div className="empty-state">No notes for this model yet.</div>}{visible.map((note) => <article key={note.id}><header><span>{note.hotspotId || 'GENERAL'}</span><time>{new Date(note.updatedAt).toLocaleDateString()}</time></header><p>{note.text}</p><footer><button onClick={() => { setEditing(note.id); setDraft(note.text) }}><Edit3 size={15} />Edit</button><button onClick={() => onNotes(notes.filter((item) => item.id !== note.id))}><Trash2 size={15} />Delete</button></footer></article>)}</div>
-    <section className="saved-structures" aria-labelledby="saved-structures-title"><header><div><Bookmark size={17} /><h2 id="saved-structures-title">Saved structures</h2></div><span>{savedStructures.length} bookmarked</span></header>{savedStructures.length === 0 && <div className="empty-state">Bookmark a marker in Explore to keep it here.</div>}<div className="saved-grid">{savedStructures.map((item) => <article key={item.ref}><span>{item.model.name}</span><h3>{item.hotspot.label}</h3><p>{item.hotspot.detail}</p><footer><button onClick={() => onRemoveBookmark(item.ref)}><Trash2 size={14} />Remove</button><button onClick={() => onInspectBookmark(item.model, item.hotspot)}>Inspect<ArrowRight size={14} /></button></footer></article>)}</div></section>
   </section>
 }

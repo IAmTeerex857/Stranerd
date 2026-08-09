@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { models } from './models'
-import { allQuizzes, evaluateQuiz, quizzesForModel } from './quizzes'
+import { allQuizzes, assessmentProgressForModel, defaultQuizIdsForModel, evaluateQuiz, quizzesForModel } from './quizzes'
 
 describe('session-generated knowledge quizzes', () => {
   it('provides 20 four-option multiple-choice quizzes for every model', () => {
@@ -31,5 +31,13 @@ describe('session-generated knowledge quizzes', () => {
       expect(evaluateQuiz(quiz, quiz.correctIndex).pass).toBe(true)
       expect(evaluateQuiz(quiz, (quiz.correctIndex + 1) % quiz.options.length).pass).toBe(false)
     }
+  })
+
+  it('reports progress from unique default question IDs only', () => {
+    const ids = defaultQuizIdsForModel('heart')
+    expect(ids).toHaveLength(20)
+    expect(assessmentProgressForModel('heart', [])).toMatchObject({ completed: 0, total: 20, status: 'not-started' })
+    expect(assessmentProgressForModel('heart', [ids[0], ids[0], 'ai-generated'])).toMatchObject({ completed: 1, status: 'in-progress' })
+    expect(assessmentProgressForModel('heart', ids)).toMatchObject({ completed: 20, status: 'complete' })
   })
 })

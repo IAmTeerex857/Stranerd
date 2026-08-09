@@ -16,6 +16,7 @@ export const defaultPersistedState: PersistedState = {
   selectedHotspotIds: {},
   dissectionActionsByModel: {},
   dissectionByModel: {},
+  flashcardProgressByDeck: {},
   settings: defaultSettings,
 }
 
@@ -60,6 +61,21 @@ export function parsePersistedState(raw: string | null): PersistedState {
             selectedIds: Array.isArray(entry.selectedIds) ? entry.selectedIds.filter((id): id is string => typeof id === 'string') : [],
             visibleLayerIds: Array.isArray(entry.visibleLayerIds) ? entry.visibleLayerIds.filter((id): id is string => typeof id === 'string') : [],
           }]]
+        }))
+        : {},
+      flashcardProgressByDeck: value.flashcardProgressByDeck && typeof value.flashcardProgressByDeck === 'object' && !Array.isArray(value.flashcardProgressByDeck)
+        ? Object.fromEntries(Object.entries(value.flashcardProgressByDeck).slice(0, 50).flatMap(([deckId, progress]) => {
+          if (!progress || typeof progress !== 'object' || Array.isArray(progress)) return []
+          const entry = progress as Partial<PersistedState['flashcardProgressByDeck'][string]>
+          if (typeof entry.contentVersion !== 'string' || !entry.cards || typeof entry.cards !== 'object' || Array.isArray(entry.cards)) return []
+          const cards = Object.fromEntries(Object.entries(entry.cards).slice(0, 200).flatMap(([cardId, card]) => {
+            if (!card || typeof card !== 'object' || Array.isArray(card)) return []
+            const review = card as Partial<PersistedState['flashcardProgressByDeck'][string]['cards'][string]>
+            return ['again', 'hard', 'good', 'easy'].includes(review.grade ?? '') && Number.isInteger(review.reviewCount) && (review.reviewCount ?? -1) >= 0 && typeof review.updatedAt === 'string'
+              ? [[cardId, { grade: review.grade!, reviewCount: review.reviewCount!, updatedAt: review.updatedAt }]]
+              : []
+          }))
+          return [[deckId, { contentVersion: entry.contentVersion, cards }]]
         }))
         : {},
       settings: Object.fromEntries(Object.entries(defaultSettings).map(([key, fallback]) => [

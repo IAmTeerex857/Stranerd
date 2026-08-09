@@ -1,4 +1,4 @@
-import { ArrowRight, Bookmark, Bot, Check, ChevronRight, EyeOff, Layers3, Move3d, RotateCcw, ScanSearch } from 'lucide-react'
+import { ArrowRight, Bot, Check, ChevronRight, EyeOff, Layers3, Library, Move3d, RotateCcw, ScanSearch } from 'lucide-react'
 import { LandingHeart, LandingLayeredBody, LandingSpecimen } from './components/LandingHeart'
 import { LandingTimeline } from './components/LandingTimeline'
 import { Page } from './PublicLayout'
@@ -52,7 +52,7 @@ function LearningLoop() {
   return <div className="learning-loop-grid">
     <article className="loop-card activity-card"><header><span>01 · Guided activity</span><b>Step 2 of 5</b></header><h3>Trace cardiac flow</h3><p>Relate chambers, vessels, pressure, and direction through model actions.</p><ol><li className="complete"><Check />Select the left ventricle</li><li className="active"><span>02</span>Connect structure to function</li><li><span>03</span>Isolate and compare</li></ol><footer>Action and recall, together</footer></article>
     <article className="loop-card quiz-card-demo"><header><span>02 · Authored quiz</span><b>12 / 20</b></header><h3>Why is the left ventricular wall thicker?</h3><div className="quiz-option correct"><span>A</span><p>Systemic resistance is higher</p></div><div className="quiz-option"><span>B</span><p>Pulmonary blood is more viscous</p></div><footer>Deterministic grading · no AI credit</footer></article>
-    <article className="loop-card notebook-card"><header><span>03 · Notebook</span><Bookmark size={15} /></header><blockquote>“The pancreatic head sits within the curve of the duodenum.”</blockquote><div><span>Saved structure</span><strong>Pancreas</strong></div><footer>Notes stay attached to study context</footer></article>
+    <article className="loop-card notebook-card"><header><span>03 · Flashcards</span><Library size={15} /></header><blockquote>“Which anatomical structure is highlighted?”</blockquote><div><span>Verified deck</span><strong>Pancreas</strong></div><footer>Free recall with optional 3D context</footer></article>
   </div>
 }
 
@@ -69,14 +69,14 @@ function OrganShowcase() {
 
 function LandingPricing() {
   return <div className="landing-pricing-grid">
-    <article><span>Free account</span><h3>NGN 0</h3><p>Full anatomy learning workspace, with 20 signup credits.</p><ul><li><Check />All anatomy studies</li><li><Check />Dissection and activities</li><li><Check />Authored quizzes and notes</li></ul><a href="/app">Start learning <ArrowRight /></a></article>
+    <article><span>Free account</span><h3>NGN 0</h3><p>Full anatomy learning workspace, with 20 signup credits.</p><ul><li><Check />All anatomy studies</li><li><Check />Manual and guided Labs</li><li><Check />Verified assessments and flashcards</li></ul><a href="/app">Start learning <ArrowRight /></a></article>
     <article className="featured"><span>Stranerd Plus</span><h3>NGN 2,500 <small>/ month</small></h3><p>500 AI credits after every successful billing cycle.</p><ul><li><Check />Explicit AI actions</li><li><Check />Credits reset each cycle</li><li><Check />Cancel at period end</li></ul><a href="/pricing">Choose Plus <ArrowRight /></a></article>
     <article><span>Credit pack</span><h3>NGN 500</h3><p>100 purchased credits that do not expire.</p><ul><li><Check />No subscription required</li><li><Check />Buy repeatedly</li><li><Check />Spent after included credits</li></ul><a href="/pricing">Buy credits <ArrowRight /></a></article>
   </div>
 }
 
 const faqs = [
-  ['Can I explore anatomy without signing in?', 'Yes. Models, Dissect Mode, activities, authored quizzes, notes, and educational context are available without using AI credits.'],
+  ['Can I explore anatomy without signing in?', 'Yes. Models, manual and guided Labs, verified assessments, default flashcards, and educational context are available without using AI credits.'],
   ['When does Stranerd use a credit?', 'Only when you explicitly ask AI Mentor or request a new AI-generated quiz. The cost is shown before the action.'],
   ['What happens if an AI request fails?', 'The reserved credit is refunded automatically. Failed or invalid AI responses cost zero net credits.'],
   ['Do purchased credits expire?', 'No. Purchased PAYG credits remain in your account and are spent only after free and subscription credits.'],
@@ -101,7 +101,7 @@ export function LandingPage() {
 
     <section className="landing-story landing-reveal"><SectionMarker index="03">Dissect</SectionMarker><div className="story-heading split"><h2>Pull relationships apart.<br />Then put the idea together.</h2><p>Hide, fade, isolate, and move structures. Guided activities connect each action to a spatial or functional question.</p></div><DissectInterface /></section>
 
-    <section className="landing-loop landing-reveal"><SectionMarker index="04">Learn actively</SectionMarker><div className="story-heading"><h2>A learning loop, not a model viewer.</h2><p>Every session can move from observation to action, recall, explanation, and saved notes.</p></div><LearningLoop /></section>
+    <section className="landing-loop landing-reveal"><SectionMarker index="04">Learn actively</SectionMarker><div className="story-heading"><h2>A learning loop, not a model viewer.</h2><p>Every session can move from observation to action, recall, explanation, and measured progress.</p></div><LearningLoop /></section>
 
     <section className="landing-organ-worlds landing-reveal"><SectionMarker index="05">Across systems</SectionMarker><div className="story-heading"><h2>Different anatomy.<br />One learning language.</h2><p>Color and motion change with the subject. The controls and study loop stay familiar.</p></div><OrganShowcase /></section>
 

@@ -5,6 +5,10 @@ import App from './App'
 import { HeartCandidateTestView } from './components/HeartCandidateTestView'
 import { PublicPages } from './PublicPages'
 import { AuthProvider } from './auth'
+import { ThemeProvider } from './theme'
+import { bootstrapTheme } from './theme-utils'
+import { PreferencesProvider } from './preferences'
+import { bootstrapPreferences } from './preferences-utils'
 import './styles.css'
 import './landing.css'
 import './app.css'
@@ -41,15 +45,19 @@ class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> 
 
 const testView = new URLSearchParams(window.location.search).get('test')
 const path = window.location.pathname.length > 1 ? window.location.pathname.replace(/\/+$/, '') : '/'
-document.documentElement.dataset.theme = 'dark'
-document.documentElement.style.colorScheme = 'dark'
-window.localStorage.removeItem('stranerd.theme')
+const themeEnabled = path === '/app' || path === '/account'
+bootstrapTheme(themeEnabled)
+bootstrapPreferences(themeEnabled)
 
 createRoot(document.getElementById('root')!).render(
   <AppBoundary>
     <AuthProvider>
-      {testView === 'heart-candidate' ? <HeartCandidateTestView /> : path === '/app' ? <App /> : <PublicPages path={path} />}
-      <Analytics />
+      <ThemeProvider enabled={themeEnabled}>
+        <PreferencesProvider enabled={themeEnabled}>
+          {testView === 'heart-candidate' ? <HeartCandidateTestView /> : path === '/app' ? <App /> : <PublicPages path={path} />}
+          <Analytics />
+        </PreferencesProvider>
+      </ThemeProvider>
     </AuthProvider>
   </AppBoundary>,
 )

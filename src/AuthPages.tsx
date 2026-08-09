@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, CircleAlert, LogOut, WalletCards } from "lucide-react";
+import { ArrowRight, Bookmark, BookOpenCheck, CircleAlert, CreditCard, ExternalLink, GalleryVerticalEnd, Heart, LogOut, Volume2, WalletCards } from "lucide-react";
 import { useAuth } from "./auth-context";
 import { safeReturnPath } from "./auth-utils";
 import { supabase } from "./lib/supabase";
@@ -8,6 +8,10 @@ import { GoogleIcon } from "./components/GoogleIcon";
 import { BillingButton } from "./components/BillingButton";
 import { cancelSubscription } from "./lib/billing";
 import { sendWelcomeEmail } from "./lib/email";
+import { loadState } from "./lib/storage";
+import { deriveLocalLearningSummary } from "./lib/account-summary";
+import { ThemeControl } from "./theme";
+import { MotionControl } from "./preferences";
 
 type AccountData = {
   profile: {
@@ -24,6 +28,7 @@ type AccountData = {
     id: string;
     amount: number;
     type: string;
+    bucket: string;
     feature: string;
     created_at: string;
   }[];
@@ -32,6 +37,15 @@ type AccountData = {
     current_period_end: string | null;
     cancel_at_period_end: boolean;
   } | null;
+  payments: {
+    id: string;
+    product_type: string;
+    amount_minor: number;
+    currency: string;
+    credits: number;
+    status: string;
+    created_at: string;
+  }[];
 };
 
 export function LoginPage() {
@@ -181,10 +195,13 @@ export function AccountPage() {
   const [data, setData] = useState<AccountData>();
   const [error, setError] = useState<string>();
   const [cancelling, setCancelling] = useState(false);
+  const [cancellationNotice, setCancellationNotice] = useState<string>();
+  const [localSummary] = useState(() => deriveLocalLearningSummary(loadState()));
 
   async function cancelCurrentSubscription() {
     setCancelling(true);
     setError(undefined);
+    setCancellationNotice(undefined);
     try {
       await cancelSubscription();
       setData((current) =>
@@ -197,6 +214,7 @@ export function AccountPage() {
             }
           : current,
       );
+      setCancellationNotice("Cancellation is scheduled for the end of the current billing period.");
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -212,7 +230,7 @@ export function AccountPage() {
     if (!user || !supabase) return;
     let active = true;
     async function loadAccount() {
-      const [profile, wallet, transactions, subscription] = await Promise.all([
+      const [profile, wallet, transactions, subscription, payments] = await Promise.all([
         supabase!
           .from("profiles")
           .select("display_name,email,avatar_url")
@@ -225,7 +243,7 @@ export function AccountPage() {
           .maybeSingle(),
         supabase!
           .from("credit_transactions")
-          .select("id,amount,type,feature,created_at")
+          .select("id,amount,type,bucket,feature,created_at")
           .eq("user_id", user!.id)
           .order("created_at", { ascending: false })
           .limit(10),
@@ -236,21 +254,23 @@ export function AccountPage() {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase!
+          .from("payment_intents")
+          .select("id,product_type,amount_minor,currency,credits,status,created_at")
+          .eq("user_id", user!.id)
+          .order("created_at", { ascending: false })
+          .limit(10),
       ]);
       if (!active) return;
-      const firstError =
-        profile.error ||
-        wallet.error ||
-        transactions.error ||
-        subscription.error;
-      if (firstError) setError(firstError.message);
-      else
-        setData({
-          profile: profile.data,
-          wallet: wallet.data,
-          transactions: transactions.data ?? [],
-          subscription: subscription.data,
-        });
+      setData({
+        profile: profile.data,
+        wallet: wallet.data,
+        transactions: transactions.data ?? [],
+        subscription: subscription.data,
+        payments: payments.data ?? [],
+      });
+      const firstError = profile.error || wallet.error || transactions.error || subscription.error || payments.error;
+      if (firstError) setError(`Some account information could not be loaded. ${firstError.message}`);
     }
     void loadAccount();
     return () => {
@@ -260,7 +280,7 @@ export function AccountPage() {
 
   if (authLoading)
     return (
-      <Page>
+      <Page themed>
         <main className="status-page">
           <div>
             <span className="status-mark" />
@@ -271,7 +291,7 @@ export function AccountPage() {
     );
   if (!user)
     return (
-      <Page>
+      <Page themed>
         <main className="status-page">
           <div>
             <span className="eyebrow">Authentication required</span>
@@ -290,20 +310,22 @@ export function AccountPage() {
     );
 
   const wallet = data?.wallet;
-  const total = wallet
-    ? wallet.free_balance +
-      wallet.subscription_balance +
-      wallet.purchased_balance
-    : 0;
+  const total = wallet ? wallet.free_balance + wallet.subscription_balance + wallet.purchased_balance : undefined;
   const name =
     data?.profile?.display_name ||
     user.user_metadata.full_name ||
     user.email ||
     "Stranerd learner";
   const avatar = data?.profile?.avatar_url || user.user_metadata.avatar_url;
+  const subscription = data?.subscription;
+  const subscriptionLabels: Record<string, string> = { pending: "Plus activation pending", active: "Stranerd Plus", past_due: "Plus payment past due", cancelled: "Plus cancelled", completed: "Previous Plus plan completed" };
+  const subscriptionTitle = subscription ? subscriptionLabels[subscription.status] || `Plan status: ${subscription.status}` : "Free account";
+  const canCancel = Boolean(subscription && ["active", "past_due"].includes(subscription.status) && !subscription.cancel_at_period_end);
+  const showSubscribe = !subscription || ["cancelled", "completed"].includes(subscription.status);
+  const formatMoney = (amountMinor: number, currency: string) => new Intl.NumberFormat("en-NG", { style: "currency", currency }).format(amountMinor / 100);
 
   return (
-    <Page>
+    <Page themed>
       <main className="account-page">
         <header className="account-heading">
           {avatar && <img src={avatar} alt="" referrerPolicy="no-referrer" />}
@@ -312,111 +334,25 @@ export function AccountPage() {
             <h1>{name}</h1>
             <p>{data?.profile?.email || user.email}</p>
           </div>
-          <button onClick={() => void signOut()}>
-            <LogOut size={16} />
-            Sign out
-          </button>
+          <div className="account-heading-actions"><a href="/app">Open app<ArrowRight size={15} /></a><button onClick={() => void signOut()}><LogOut size={16} />Sign out</button></div>
         </header>
         {error && (
-          <p className="auth-error">
+          <p className="auth-error" role="alert">
             <CircleAlert size={16} />
             {error}
           </p>
         )}
-        <section className="balance-panel">
-          <div>
-            <WalletCards size={20} />
-            <span>Available balance</span>
-            <strong>{total}</strong>
-            <small>credits</small>
-          </div>
-          <dl>
-            <div>
-              <dt>Free</dt>
-              <dd>{wallet?.free_balance ?? 0}</dd>
-            </div>
-            <div>
-              <dt>Subscription</dt>
-              <dd>{wallet?.subscription_balance ?? 0}</dd>
-            </div>
-            <div>
-              <dt>Purchased</dt>
-              <dd>{wallet?.purchased_balance ?? 0}</dd>
-            </div>
-          </dl>
-        </section>
-        <section className="account-grid">
-          <article>
-            <span className="eyebrow">Plan</span>
-            <h2>
-              {data?.subscription?.status === "active"
-                ? "Stranerd Plus"
-                : "Free account"}
-            </h2>
-            <p>
-              {data?.subscription?.current_period_end
-                ? `Current period ends ${new Date(data.subscription.current_period_end).toLocaleDateString()}.${data.subscription.cancel_at_period_end ? " Cancellation requested." : ""}`
-                : "Subscribe when you need a larger monthly AI allowance."}
-            </p>
-            <div className="billing-actions">
-              {data?.subscription?.status === "active" ? (
-                data.subscription.cancel_at_period_end ? (
-                  <button disabled>Cancellation scheduled</button>
-                ) : (
-                  <button
-                    onClick={cancelCurrentSubscription}
-                    disabled={cancelling}
-                  >
-                    {cancelling ? "Cancelling..." : "Cancel at period end"}
-                  </button>
-                )
-              ) : (
-                <BillingButton productId="subscription">
-                  Subscribe to Plus
-                </BillingButton>
-              )}
-              <BillingButton productId="payg_100">
-                Buy 100 credits
-              </BillingButton>
-            </div>
-            <a href="/pricing">
-              View pricing
-              <ArrowRight size={14} />
-            </a>
-          </article>
-          <article>
-            <span className="eyebrow">Account controls</span>
-            <h2>Your data</h2>
-            <p>
-              Request account deletion through support. Identity and learning
-              data will be handled under the Privacy Policy.
-            </p>
-            <a href="mailto:officialstranerd@gmail.com?subject=Stranerd%20account%20deletion%20request">
-              Request deletion
-              <ArrowRight size={14} />
-            </a>
-          </article>
-        </section>
-        <section className="transaction-list">
-          <header>
-            <span className="eyebrow">Recent credit activity</span>
-            <h2>Transactions</h2>
-          </header>
-          {!data && !error && <p>Loading your balance...</p>}
-          {data?.transactions.length === 0 && <p>No credit activity yet.</p>}
-          {data?.transactions.map((transaction) => (
-            <div key={transaction.id}>
-              <span>{transaction.feature.replace("_", " ")}</span>
-              <b className={transaction.amount > 0 ? "positive" : ""}>
-                {transaction.amount > 0 ? "+" : ""}
-                {transaction.amount}
-              </b>
-              <time>
-                {new Date(transaction.created_at).toLocaleDateString()}
-              </time>
-            </div>
-          ))}
-        </section>
+        <aside className="local-data-notice"><span>On this device</span><p>Learning progress, favorites, and saved structures below are stored in this browser and are not yet synced to your signed-in account.</p></aside>
+
+        <section className="account-section learning-summary" aria-labelledby="learning-summary-title"><header><div><span className="eyebrow">Learning on this device</span><h2 id="learning-summary-title">Your current study state</h2></div><a href="/app">Continue learning<ArrowRight size={14} /></a></header><div className="learning-overview"><article><BookOpenCheck size={19} /><span>Correct default questions</span><strong>{localSummary.completedQuestions}<small>/ {localSummary.totalQuestions}</small></strong></article><article><GalleryVerticalEnd size={19} /><span>Flashcards reviewed</span><strong>{localSummary.reviewedFlashcards}<small>/ {localSummary.totalFlashcards}</small></strong></article><article><Heart size={19} /><span>Favorite models</span><strong>{localSummary.favorites.length}</strong></article><article><Bookmark size={19} /><span>Saved structures</span><strong>{localSummary.savedStructures.length}</strong></article></div><div className="account-progress-list">{localSummary.assessmentProgress.map((progress) => <a key={progress.model.id} href={`/app?model=${progress.model.id}`}><div><strong>{progress.model.name}</strong><span>{progress.status.replace("-", " ")}</span></div><i><b style={{ width: `${(progress.completed / progress.total) * 100}%` }} /></i><small>{progress.completed} / {progress.total}</small></a>)}</div><div className="account-saved-grid"><article><header><Heart size={17} /><h3>Favorite models</h3></header>{localSummary.favorites.length === 0 ? <p>No favorite models on this device.</p> : localSummary.favorites.map((model) => <a key={model.id} href={`/app?model=${model.id}`}><span>{model.system}</span>{model.name}<ArrowRight size={13} /></a>)}</article><article><header><Bookmark size={17} /><h3>Saved structures</h3></header>{localSummary.savedStructures.length === 0 ? <p>No saved structures are available on this device.</p> : localSummary.savedStructures.map(({ reference, model, hotspot }) => <a key={reference} href={`/app?model=${model.id}`}><span>{model.name}</span>{hotspot.label}<ArrowRight size={13} /></a>)}</article></div></section>
+
+        <section className="account-section" aria-labelledby="billing-title"><header><div><span className="eyebrow">Credits and plan</span><h2 id="billing-title">Billing</h2></div><a href="/pricing">View pricing<ArrowRight size={14} /></a></header><div className="account-billing-grid"><div className="balance-panel"><div><WalletCards size={20} /><span>Available balance</span><strong>{total ?? "--"}</strong><small>{data ? "credits" : "loading credits"}</small></div><dl><div><dt>Free</dt><dd>{wallet?.free_balance ?? "--"}</dd></div><div><dt>Subscription</dt><dd>{wallet?.subscription_balance ?? "--"}</dd></div><div><dt>Purchased</dt><dd>{wallet?.purchased_balance ?? "--"}</dd></div></dl></div><article className="plan-card"><span className={`account-status ${subscription?.status || "free"}`}>{subscription?.cancel_at_period_end ? "cancellation scheduled" : subscription?.status || "free"}</span><h3>{subscriptionTitle}</h3><p>{subscription?.current_period_end ? `Current period ends ${new Date(subscription.current_period_end).toLocaleDateString()}.` : "Subscribe when you need a larger monthly AI allowance."}</p><div className="billing-actions">{subscription?.cancel_at_period_end && <button disabled>Cancellation scheduled</button>}{canCancel && <button onClick={cancelCurrentSubscription} disabled={cancelling}>{cancelling ? "Cancelling..." : "Cancel at period end"}</button>}{showSubscribe && <BillingButton productId="subscription">Subscribe to Plus</BillingButton>}<BillingButton productId="payg_100">Buy 100 credits</BillingButton></div>{cancellationNotice && <small className="account-notice" aria-live="polite">{cancellationNotice}</small>}</article></div></section>
+
+        <section className="account-section" aria-labelledby="preferences-title"><header><div><span className="eyebrow">Preferences</span><h2 id="preferences-title">Appearance and accessibility</h2></div></header><div className="preferences-grid"><article><h3>Theme</h3><p>Use your device appearance or choose an explicit theme across App and Account.</p><ThemeControl /></article><article><h3>Motion</h3><p>System follows your device. Reduce motion also disables smooth scrolling and automatic model rotation.</p><MotionControl /></article><article><Volume2 size={19} /><h3>Audio</h3><p>Voice sessions use microphone permission only when started. Captions are shown during the session, and raw audio or transcripts are not stored by Stranerd.</p><span className="unavailable-tag">Captions on · transcripts ephemeral</span></article></div></section>
+
+        <section className="account-section" aria-labelledby="activity-title"><header><div><span className="eyebrow">Account activity</span><h2 id="activity-title">Recent activity</h2></div></header><div className="account-activity-grid"><div className="transaction-list"><header><CreditCard size={17} /><h3>Credit activity</h3></header>{!data && <p>Loading credit activity...</p>}{data?.transactions.length === 0 && <p>No credit activity yet.</p>}{data?.transactions.map((transaction) => <div key={transaction.id}><span><b>{transaction.feature.replaceAll("_", " ")}</b><small>{transaction.type} · {transaction.bucket}</small></span><strong className={transaction.amount > 0 ? "positive" : ""}>{transaction.amount > 0 ? "+" : ""}{transaction.amount}</strong><time dateTime={transaction.created_at}>{new Date(transaction.created_at).toLocaleDateString()}</time></div>)}</div><div className="transaction-list payment-list"><header><WalletCards size={17} /><h3>Payments</h3></header>{!data && <p>Loading payments...</p>}{data?.payments.length === 0 && <p>No payment activity yet.</p>}{data?.payments.map((payment) => <div key={payment.id}><span><b>{payment.product_type === "subscription" ? "Stranerd Plus" : "100-credit pack"}</b><small>{payment.status} · {payment.credits} credits</small></span><strong>{formatMoney(payment.amount_minor, payment.currency)}</strong><time dateTime={payment.created_at}>{new Date(payment.created_at).toLocaleDateString()}</time></div>)}</div></div></section>
+
+        <section className="account-section data-controls"><header><div><span className="eyebrow">Account controls</span><h2>Your data</h2></div></header><p>Request account deletion through support. Device-local learning data remains in this browser unless its local settings are reset.</p><a href="mailto:officialstranerd@gmail.com?subject=Stranerd%20account%20deletion%20request">Request account deletion<ExternalLink size={14} /></a></section>
       </main>
     </Page>
   );

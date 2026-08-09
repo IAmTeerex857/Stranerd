@@ -22,7 +22,7 @@ const stages = [
   {
     eyebrow: 'Turn action into recall',
     title: 'Understand anatomy',
-    copy: 'Guided activities, authored quizzes, notes, and optional AI connect what changed on the model to what the learner can explain.',
+    copy: 'Guided Labs, verified assessments, progress, and optional AI connect what changed on the model to what the learner can explain.',
     events: ['Recall', 'Explain', 'Persist'],
   },
 ] as const

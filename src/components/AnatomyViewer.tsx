@@ -8,6 +8,9 @@ import { anatomyLayers } from '../data/anatomyGraph'
 import { ProgressiveBodyModel } from './ProgressiveBodyModel'
 import { SegmentedSpecimenModel } from './SegmentedSpecimenModel'
 import { createDissectionState, digestiveStructureGroup, dissectionReducer, type DissectionActionContext, type DissectionActionType, type DissectionSnapshot } from '../data/dissection'
+import { useTheme } from '../theme-context'
+import type { ResolvedTheme } from '../theme-utils'
+import { usePreferences } from '../preferences-context'
 
 type ViewerProps = {
   model: ModelEntry
@@ -101,16 +104,17 @@ function ModelGeometry({ url, settings, hotspots, onSelect, interactive = true }
   return <primitive object={prepared} onClick={selectSurface} onPointerOver={interactive ? () => { document.body.style.cursor = 'pointer' } : undefined} onPointerOut={interactive ? () => { document.body.style.cursor = '' } : undefined} />
 }
 
-function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled }: ViewerProps & { controlsRef: RefObject<{ reset: () => void } | null>; loadedLayers: string[]; visibleLayers: string[]; dissection?: DissectionSnapshot; onStructures: (structures: Hotspot[]) => void; onMoveStart: () => void; onMove: (nodeId: string, offset: [number, number, number]) => void; onMoveEnd: (nodeId: string) => void; touchMoveEnabled: boolean }) {
+function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled, theme, reducedMotion }: ViewerProps & { controlsRef: RefObject<{ reset: () => void } | null>; loadedLayers: string[]; visibleLayers: string[]; dissection?: DissectionSnapshot; onStructures: (structures: Hotspot[]) => void; onMoveStart: () => void; onMove: (nodeId: string, offset: [number, number, number]) => void; onMoveEnd: (nodeId: string) => void; touchMoveEnabled: boolean; theme: ResolvedTheme; reducedMotion: boolean }) {
   const variant = model.variants.find((entry) => entry.id === selectedVariantId) ?? model.variants[0]
   const hotspots = variant.hotspots ?? model.hotspots
+  const light = theme === 'light'
   return (
     <>
-      <ambientLight intensity={1.6} />
-      <hemisphereLight args={['#dff3ff', '#1a1020', 1.4]} />
-      <directionalLight position={[3, 4, 5]} intensity={2.2} color="#dff3ff" />
-      <directionalLight position={[-4, -2, -3]} intensity={1.1} color="#e26bd6" />
-      <pointLight position={[0, -2, 3]} intensity={1.2} color="#4db6ff" distance={8} />
+      <ambientLight intensity={light ? 1.2 : 1.6} />
+      <hemisphereLight args={light ? ['#ffffff', '#9aadc0', 1.15] : ['#dff3ff', '#1a1020', 1.4]} />
+      <directionalLight position={[3, 4, 5]} intensity={light ? 1.8 : 2.2} color={light ? '#ffffff' : '#dff3ff'} />
+      <directionalLight position={[-4, -2, -3]} intensity={light ? 0.75 : 1.1} color={light ? '#b6a1d9' : '#e26bd6'} />
+      <pointLight position={[0, -2, 3]} intensity={light ? 0.8 : 1.2} color={light ? '#6ca8c9' : '#4db6ff'} distance={8} />
       <group>
         <Suspense fallback={<LoadingModel />}>
           <ModelBoundary key={variant.file} name={`${model.name} · ${variant.label}`}>{model.viewer === 'segmented-body'
@@ -143,12 +147,14 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
           )
         })}
       </group>
-      <OrbitControls ref={controlsRef as never} makeDefault autoRotate={settings.autoRotate} autoRotateSpeed={0.8} enableDamping minDistance={2.2} maxDistance={8} />
+      <OrbitControls ref={controlsRef as never} makeDefault autoRotate={settings.autoRotate && !reducedMotion} autoRotateSpeed={0.8} enableDamping minDistance={2.2} maxDistance={8} />
     </>
   )
 }
 
 export function AnatomyViewer(props: ViewerProps) {
+  const { resolvedTheme } = useTheme()
+  const { reducedMotion } = usePreferences()
   const controlsRef = useRef<{ reset: () => void } | null>(null)
   const onDissectionStateRef = useRef(props.onDissectionState)
   const defaults = anatomyLayers.filter((layer) => layer.defaultVisible).map((layer) => layer.id)
@@ -255,7 +261,6 @@ export function AnatomyViewer(props: ViewerProps) {
 
   function selectStructure(hotspot: Hotspot, multi: boolean) {
     props.onSelect(hotspot, multi, !dissectMode)
-    if (dissectMode) recordAction('select', [hotspot.id])
   }
 
   function resetDissection() {
@@ -285,8 +290,8 @@ export function AnatomyViewer(props: ViewerProps) {
         </div>
       </div>
       <div className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
-        <Canvas frameloop={props.settings.autoRotate ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, props.activityLayout ? 6.3 : 4.7], fov: 42 }} gl={{ antialias: true, alpha: true }}>
-          <Scene {...props} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={setStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} touchMoveEnabled={touchMoveEnabled} />
+        <Canvas frameloop={props.settings.autoRotate && !reducedMotion ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, props.activityLayout ? 6.3 : 4.7], fov: 42 }} gl={{ antialias: true, alpha: true }}>
+          <Scene {...props} theme={resolvedTheme} reducedMotion={reducedMotion} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={setStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} touchMoveEnabled={touchMoveEnabled} />
         </Canvas>
         {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
         <div className="axis"><span>Y</span><i /><b>X</b></div>

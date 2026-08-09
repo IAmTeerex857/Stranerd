@@ -67,6 +67,20 @@ export function quizzesForModel(modelId: string, seed = 0): Quiz[] {
 
 export const allQuizzes = Object.keys(quizzesByModel).flatMap(quizzesForModel)
 
+export function defaultQuizIdsForModel(modelId: string) {
+  return quizzesForModel(modelId).map((quiz) => quiz.id)
+}
+
+export function assessmentProgressForModel(modelId: string, completedQuizIds: string[]) {
+  const ids = new Set(defaultQuizIdsForModel(modelId))
+  const completed = new Set(completedQuizIds.filter((id) => ids.has(id))).size
+  return {
+    completed,
+    total: ids.size,
+    status: completed === 0 ? 'not-started' as const : completed === ids.size ? 'complete' as const : 'in-progress' as const,
+  }
+}
+
 export function evaluateQuiz(quiz: Quiz, selectedIndex: number | undefined): Evaluation {
   const pass = selectedIndex === quiz.correctIndex
   return {

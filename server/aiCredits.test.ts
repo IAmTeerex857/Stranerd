@@ -53,6 +53,13 @@ describe('runCreditProtected', () => {
     expect(fake.rpc).toHaveBeenCalledWith('reserve_credits', expect.objectContaining({ p_amount: 5 }))
   })
 
+  it('uses the dedicated fixed-price flashcard reservation RPC', async () => {
+    const fake = fakeClient()
+    setAiCreditClientForTests(fake.client)
+    await runCreditProtected({ authorization: 'Bearer token', requestId, feature: 'ai_flashcards', amount: 5, reservationRpc: 'reserve_flashcard_credits', provider: 'openai' }, async () => ({ value: 'deck', source: 'openai', successful: true }))
+    expect(fake.rpc).toHaveBeenCalledWith('reserve_flashcard_credits', expect.objectContaining({ p_feature: 'ai_flashcards', p_amount: 5 }))
+  })
+
   it('refunds an invalid provider response', async () => {
     const fake = fakeClient()
     setAiCreditClientForTests(fake.client)

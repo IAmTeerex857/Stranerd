@@ -1,4 +1,4 @@
-export type ViewId = 'explore' | 'systems' | 'lessons' | 'library' | 'notes'
+export type ViewId = 'explore' | 'library' | 'lab'
 
 export type Hotspot = {
   id: string
@@ -68,6 +68,42 @@ export type Quiz = {
   explanation: string
 }
 
+export type FlashcardGrade = 'again' | 'hard' | 'good' | 'easy'
+
+export type FlashcardDiagram = {
+  modelId: string
+  variantId: string
+  selectedStructureIds: string[]
+}
+
+export type Flashcard = {
+  id: string
+  kind: 'identify-structure' | 'structure-to-function' | 'fact-recall'
+  front: { heading: string; body: string; diagram?: FlashcardDiagram }
+  back: { heading: string; body: string }
+}
+
+export type FlashcardDeck = {
+  id: string
+  modelId: string
+  contentVersion: string
+  title: string
+  description: string
+  cards: Flashcard[]
+  source?: 'default' | 'ai'
+  visibility?: 'private' | 'public'
+  owner?: boolean
+  unlocked?: boolean
+  unlockCost?: number
+}
+
+export type GeneratedDeckSummary = Omit<FlashcardDeck, 'cards'> & { cards?: Flashcard[]; createdAt: string }
+
+export type FlashcardDeckProgress = {
+  contentVersion: string
+  cards: Record<string, { grade: FlashcardGrade; reviewCount: number; updatedAt: string }>
+}
+
 export type Note = {
   id: string
   modelId: string
@@ -96,6 +132,7 @@ export type PersistedState = {
   selectedHotspotIds: Record<string, string>
   dissectionActionsByModel: Record<string, DissectionHistoryItem[]>
   dissectionByModel: Record<string, PersistedDissectionSession>
+  flashcardProgressByDeck: Record<string, FlashcardDeckProgress>
   settings: Settings
 }
 

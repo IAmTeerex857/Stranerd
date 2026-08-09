@@ -16,7 +16,8 @@
     "test": "vitest run",
     "assets:heart": "node scripts/import-hubmap-heart.mjs",
     "assets:heart:download": "node scripts/import-hubmap-heart.mjs --download",
-    "validate:assets": "node scripts/import-hubmap-heart.mjs --validate-only"
+    "validate:assets": "node scripts/import-hubmap-heart.mjs --validate-only",
+    "assets:manifest": "node scripts/generate-anatomy-manifest.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.7",

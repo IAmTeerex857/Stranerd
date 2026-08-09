@@ -6,6 +6,7 @@ import { anatomyNodeId, createMeshSelection, normalizeStructureName } from '../d
 import { segmentedMaterialProfile } from '../data/anatomyMaterials'
 import { anatomyMovementId, type DissectionSnapshot } from '../data/dissection'
 import type { AnatomySystemId, Hotspot, Settings } from '../types'
+import { DissectionStructureLabel } from './DissectionStructureLabel'
 
 function structureName(object: Object3D, root: Object3D) {
   if (typeof object.userData.label === 'string' && object.userData.label.trim()) return normalizeStructureName(object.userData.label)
@@ -134,7 +135,16 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
       id: entry.nodeId,
       nodeId: entry.nodeId,
     }))
-    return { root, meshes, proxies, structures }
+    const labelMeshes = [...new Map(meshes
+      .sort((left, right) => {
+        left.mesh.geometry.computeBoundingBox()
+        right.mesh.geometry.computeBoundingBox()
+        const leftSize = left.mesh.geometry.boundingBox?.getSize(new Vector3()).lengthSq() ?? 0
+        const rightSize = right.mesh.geometry.boundingBox?.getSize(new Vector3()).lengthSq() ?? 0
+        return rightSize - leftSize
+      })
+      .map((entry) => [entry.nodeId, entry])).values()]
+    return { root, meshes, proxies, structures, labelMeshes }
   }, [scene, systemId])
 
   useEffect(() => {
@@ -267,5 +277,8 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
   return <group>
     <primitive object={prepared.root} />
     {prepared.proxies.map(({ proxy }) => <primitive key={proxy.uuid} object={proxy} />)}
+    {dissection && prepared.labelMeshes
+      .filter((entry) => selectedIds.includes(entry.nodeId) && !dissection.hiddenIds.includes(entry.nodeId))
+      .map((entry) => <DissectionStructureLabel key={entry.nodeId} mesh={entry.mesh} label={entry.rawName} />)}
   </group>
 }

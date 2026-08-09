@@ -7,22 +7,23 @@ export type CreditBalance = {
   purchasedBalance: number
 }
 
-type ReservationResult = CreditBalance & {
+export type ReservationResult = CreditBalance & {
   reservationId: string
   requestId: string
   status: string
 }
 
-type ProtectedOperation<T> = () => Promise<{ value: T; source: string; successful: boolean }>
+type ProtectedOperation<T> = (context: { client: SupabaseClient; userId: string; reservation: ReservationResult }) => Promise<{ value: T; source: string; successful: boolean }>
 
 type ProtectedInput = {
   authorization?: string
   requestId?: string
-  feature: 'mentor' | 'ai_quiz'
+  feature: 'mentor' | 'ai_quiz' | 'ai_flashcards'
   amount?: number
   provider: string
   model?: string
   clientIp?: string
+  reservationRpc?: 'reserve_credits' | 'reserve_flashcard_credits'
 }
 
 export class AiRequestError extends Error {
@@ -37,7 +38,7 @@ export function setAiCreditClientForTests(client?: SupabaseClient) {
   serviceClient = client
 }
 
-function getServiceClient() {
+export function getAiServiceClient() {
   if (serviceClient) return serviceClient
   const url = process.env.SUPABASE_URL
   const key = process.env.SUPABASE_SECRET_KEY
@@ -58,8 +59,16 @@ function bearerToken(authorization?: string) {
   return match[1]
 }
 
-function validRequestId(value?: string) {
+export function validRequestId(value?: string) {
   return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
+}
+
+export async function requireAiUser(authorization?: string) {
+  const token = bearerToken(authorization)
+  const client = getAiServiceClient()
+  const { data: auth, error } = await client.auth.getUser(token)
+  if (error || !auth.user) throw new AiRequestError(401, 'invalid_session', 'Your session is invalid or expired.')
+  return { client, userId: auth.user.id }
 }
 
 async function refund(client: SupabaseClient, userId: string, requestId: string) {
@@ -85,16 +94,13 @@ export async function runCreditProtected<T>(input: ProtectedInput, operation: Pr
   if (!validRequestId(input.requestId)) throw new AiRequestError(400, 'invalid_request_id', 'A valid request ID is required.')
   const amount = input.amount ?? 1
   if (!Number.isInteger(amount) || amount < 1 || amount > 100) throw new AiRequestError(400, 'invalid_credit_amount', 'A valid credit amount is required.')
-  const token = bearerToken(input.authorization)
-  const client = getServiceClient()
-  const { data: auth, error: authError } = await client.auth.getUser(token)
-  if (authError || !auth.user) throw new AiRequestError(401, 'invalid_session', 'Your session is invalid or expired.')
+  const { client, userId } = await requireAiUser(input.authorization)
 
   const ipHash = input.clientIp
     ? createHmac('sha256', process.env.RATE_LIMIT_HASH_SECRET || process.env.SUPABASE_SECRET_KEY!).update(input.clientIp).digest('hex')
     : null
   const { data: allowed, error: limitError } = await client.rpc('check_ai_rate_limits', {
-    p_user_key: `ai:user:${auth.user.id}`,
+    p_user_key: `ai:user:${userId}`,
     p_user_limit: 10,
     p_ip_key: ipHash ? `ai:ip:${ipHash}` : null,
     p_ip_limit: 30,
@@ -112,12 +118,12 @@ export async function runCreditProtected<T>(input: ProtectedInput, operation: Pr
   if (existingUsage) {
     const metadata = existingUsage.metadata as { source?: string; response?: T; pendingResponse?: T } | null
     if (existingUsage.status === 'successful' && metadata?.response !== undefined) {
-      const { data: replayBalance, error: replayError } = await client.rpc('reserve_credits', { p_user_id: auth.user.id, p_feature: input.feature, p_amount: amount, p_request_id: input.requestId })
+      const { data: replayBalance, error: replayError } = await client.rpc(input.reservationRpc ?? 'reserve_credits', { p_user_id: userId, p_feature: input.feature, p_amount: amount, p_request_id: input.requestId })
       if (replayError) throw new AiRequestError(500, 'replay_failed', 'The completed AI request could not be replayed.')
       return { value: metadata.response, source: metadata.source || input.provider, balance: replayBalance as ReservationResult }
     }
     if (existingUsage.status === 'requested' && metadata?.pendingResponse !== undefined) {
-      const replayBalance = await finalize(client, auth.user.id, input.requestId!)
+      const replayBalance = await finalize(client, userId, input.requestId!)
       const updateError = await updateUsage(client, input.requestId!, { status: 'successful', completed_at: new Date().toISOString(), metadata: { source: metadata.source || input.provider, response: metadata.pendingResponse } })
       if (updateError) console.error('AI usage replay update failed:', updateError.message)
       return { value: metadata.pendingResponse, source: metadata.source || input.provider, balance: replayBalance }
@@ -125,8 +131,8 @@ export async function runCreditProtected<T>(input: ProtectedInput, operation: Pr
     throw new AiRequestError(409, 'request_in_progress', `This AI request is already ${existingUsage.status}.`)
   }
 
-  const { data: reserved, error: reserveError } = await client.rpc('reserve_credits', {
-    p_user_id: auth.user.id,
+  const { data: reserved, error: reserveError } = await client.rpc(input.reservationRpc ?? 'reserve_credits', {
+    p_user_id: userId,
     p_feature: input.feature,
     p_amount: amount,
     p_request_id: input.requestId,
@@ -138,7 +144,7 @@ export async function runCreditProtected<T>(input: ProtectedInput, operation: Pr
   const reservation = reserved as ReservationResult
 
   const { error: usageError } = await client.from('ai_usage').insert({
-    user_id: auth.user.id,
+      user_id: userId,
     feature: input.feature,
     request_id: input.requestId,
     reservation_id: reservation.reservationId,
@@ -147,22 +153,22 @@ export async function runCreditProtected<T>(input: ProtectedInput, operation: Pr
     status: 'requested',
   })
   if (usageError) {
-    if (usageError.code !== '23505') await refund(client, auth.user.id, input.requestId!)
+    if (usageError.code !== '23505') await refund(client, userId, input.requestId!)
     throw new AiRequestError(usageError.code === '23505' ? 409 : 500, usageError.code === '23505' ? 'duplicate_request' : 'usage_record_failed', 'The AI request could not be started.')
   }
 
   let result: Awaited<ReturnType<ProtectedOperation<T>>>
   try {
-    result = await operation()
+    result = await operation({ client, userId, reservation })
   } catch (error) {
-    const refunded = await refund(client, auth.user.id, input.requestId!)
+    const refunded = await refund(client, userId, input.requestId!)
     const updateError = await updateUsage(client, input.requestId!, { status: 'failed', completed_at: new Date().toISOString(), metadata: { reason: error instanceof Error ? error.name : 'provider_error' } })
     if (updateError) console.error('AI usage failure update failed:', updateError.message)
     throw new AiRequestError(502, 'ai_failed', 'The AI provider could not complete this request. No credit was charged.', refunded)
   }
 
   if (!result.successful) {
-    const refunded = await refund(client, auth.user.id, input.requestId!)
+    const refunded = await refund(client, userId, input.requestId!)
     const updateError = await updateUsage(client, input.requestId!, { status: 'failed', completed_at: new Date().toISOString(), metadata: { reason: result.source } })
     if (updateError) console.error('AI usage invalid-response update failed:', updateError.message)
     throw new AiRequestError(503, 'ai_unavailable', 'The AI provider did not return a valid response. No credit was charged.', refunded)
@@ -170,10 +176,10 @@ export async function runCreditProtected<T>(input: ProtectedInput, operation: Pr
 
   const pendingError = await updateUsage(client, input.requestId!, { metadata: { source: result.source, pendingResponse: result.value } })
   if (pendingError) {
-    const refunded = await refund(client, auth.user.id, input.requestId!)
+    const refunded = await refund(client, userId, input.requestId!)
     throw new AiRequestError(500, 'usage_record_failed', 'The AI result could not be recorded. No credit was charged.', refunded)
   }
-  const finalized = await finalize(client, auth.user.id, input.requestId!)
+  const finalized = await finalize(client, userId, input.requestId!)
   const completionError = await updateUsage(client, input.requestId!, { status: 'successful', completed_at: new Date().toISOString(), metadata: { source: result.source, response: result.value } })
   if (completionError) console.error('AI usage completion update failed:', completionError.message)
   return { value: result.value, source: result.source, balance: finalized }

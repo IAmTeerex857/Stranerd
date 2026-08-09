@@ -13,6 +13,7 @@ describe('persistence parsing', () => {
     expect(state.chatByModel).toEqual({})
     expect(state.dissectionActionsByModel).toEqual({})
     expect(state.dissectionByModel).toEqual({})
+    expect(state.flashcardProgressByDeck).toEqual({})
   })
 
   it('keeps valid persisted dissection sessions', () => {
@@ -40,5 +41,17 @@ describe('persistence parsing', () => {
     expect(state.notes).toEqual([])
     expect(state.settings.autoRotate).toBe(true)
     expect(state.settings.layers).toBe(true)
+  })
+
+  it('preserves notes and bookmarks when their navigation is unavailable', () => {
+    const note = { id: 'note-1', modelId: 'heart', hotspotId: 'left-ventricle', text: 'Review wall thickness.', updatedAt: '2026-08-08T10:00:00.000Z' }
+    const state = parsePersistedState(JSON.stringify({ notes: [note], bookmarkedHotspotRefs: ['heart:left-ventricle'] }))
+    expect(state.notes).toEqual([note])
+    expect(state.bookmarkedHotspotRefs).toEqual(['heart:left-ventricle'])
+  })
+
+  it('keeps valid flashcard grades and filters malformed reviews', () => {
+    const state = parsePersistedState(JSON.stringify({ flashcardProgressByDeck: { 'heart-foundations': { contentVersion: '1', cards: { one: { grade: 'good', reviewCount: 2, updatedAt: '2026-08-08T10:00:00.000Z' }, bad: { grade: 'perfect', reviewCount: -1 } } } } }))
+    expect(state.flashcardProgressByDeck['heart-foundations']).toEqual({ contentVersion: '1', cards: { one: { grade: 'good', reviewCount: 2, updatedAt: '2026-08-08T10:00:00.000Z' } } })
   })
 })

@@ -5,6 +5,7 @@ import { Mesh, MeshStandardMaterial, Object3D, Plane, Vector3, type Material } f
 import { anatomyNodeId, createMeshSelection } from '../data/anatomyGraph'
 import type { AnatomyLayer, Hotspot, Settings } from '../types'
 import { anatomyMovementId, type DissectionSnapshot } from '../data/dissection'
+import { DissectionStructureLabel } from './DissectionStructureLabel'
 
 type Props = {
   layers: AnatomyLayer[]
@@ -99,7 +100,16 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
       const selection = createMeshSelection(layer.id, entry.rawName)
       return [selection.id, selection]
     })).values()]
-    return { root, meshes, structures, baseMaterials: [...baseMaterials.values()], selectedMaterials, transparentMaterials, selectedTransparentMaterials }
+    const labelMeshes = [...new Map(meshes
+      .sort((left, right) => {
+        left.mesh.geometry.computeBoundingBox()
+        right.mesh.geometry.computeBoundingBox()
+        const leftSize = left.mesh.geometry.boundingBox?.getSize(new Vector3()).lengthSq() ?? 0
+        const rightSize = right.mesh.geometry.boundingBox?.getSize(new Vector3()).lengthSq() ?? 0
+        return rightSize - leftSize
+      })
+      .map((entry) => [entry.nodeId, entry])).values()]
+    return { root, meshes, structures, labelMeshes, baseMaterials: [...baseMaterials.values()], selectedMaterials, transparentMaterials, selectedTransparentMaterials }
   }, [layer.color, layer.id, scene])
 
   useEffect(() => {
@@ -188,7 +198,7 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
     if (controlsRef.current) controlsRef.current.enabled = true
   }
 
-  return (
+  return <group>
     <primitive
       object={prepared.root}
       visible={visible}
@@ -206,7 +216,10 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
       onPointerOver={interactive ? (event: { stopPropagation: () => void }) => { event.stopPropagation(); document.body.style.cursor = 'pointer' } : undefined}
       onPointerOut={interactive ? () => { document.body.style.cursor = '' } : undefined}
     />
-  )
+    {dissection && prepared.labelMeshes
+      .filter((entry) => selectedIds.includes(entry.nodeId) && !dissection.hiddenIds.includes(entry.nodeId))
+      .map((entry) => <DissectionStructureLabel key={entry.nodeId} mesh={entry.mesh} label={entry.rawName} />)}
+  </group>
 }
 
 export function ProgressiveBodyModel({ layers, visibleLayerIds, selectedIds, settings, onSelect, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled }: Props) {
