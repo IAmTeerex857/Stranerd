@@ -11,12 +11,12 @@ describe('local account learning summary', () => {
   })
 
   it('uses the current authored deck version', () => {
-    expect(deriveLocalLearningSummary(defaultPersistedState).flashcards.every(({ deck }) => deck.contentVersion === '2')).toBe(true)
+    expect(deriveLocalLearningSummary(defaultPersistedState).flashcards.every(({ deck }) => deck.contentVersion === '3')).toBe(true)
   })
 
   it('counts unique reviewed default flashcards', () => {
-    const summary = deriveLocalLearningSummary({ ...defaultPersistedState, flashcardProgressByDeck: { 'heart-foundations': { contentVersion: '2', cards: { 'heart-exam-core': { grade: 'good', reviewCount: 2, updatedAt: '2026-08-08T10:00:00.000Z' } } } } })
+    const summary = deriveLocalLearningSummary({ ...defaultPersistedState, flashcardProgressByDeck: { 'heart-foundations': { contentVersion: '3', cards: { 'heart-aorta-description-0': { grade: 'good', reviewCount: 2, updatedAt: '2026-08-08T10:00:00.000Z' } } } } })
     expect(summary.reviewedFlashcards).toBe(1)
-    expect(summary.totalFlashcards).toBeGreaterThanOrEqual(30)
+    expect(summary.totalFlashcards).toBe(150)
   })
 })

@@ -2,7 +2,7 @@ import { Component, Suspense, useEffect, useMemo, useReducer, useRef, useState, 
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
 import { Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three'
-import { Box, ChevronDown, ChevronUp, Eye, EyeOff, Focus, Layers3, LoaderCircle, RotateCcw, ScanLine, Scissors, Search, Star, Tags, Undo2, X } from 'lucide-react'
+import { Box, ChevronDown, ChevronUp, Eye, EyeOff, Grid3X3, Layers3, LoaderCircle, RotateCcw, ScanLine, Scissors, Search, Tags, Undo2, X } from 'lucide-react'
 import type { Hotspot, ModelEntry, PersistedDissectionSession, Settings } from '../types'
 import { anatomyLayers } from '../data/anatomyGraph'
 import { ProgressiveBodyModel } from './ProgressiveBodyModel'
@@ -280,13 +280,11 @@ export function AnatomyViewer(props: ViewerProps) {
       <div className="viewer-head">
         <div><span className="eyebrow">{dissectMode ? 'Virtual dissection' : props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p>{props.model.viewer !== 'segmented-body' && <div className="variant-control"><label htmlFor={`variant-${props.model.id}`}>Specimen</label><select id={`variant-${props.model.id}`} value={variant.id} onChange={(event) => changeVariant(event.target.value)}>{props.model.variants.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>{variant.note && <small>{variant.note}</small>}</div>}</div>
         <div className="viewer-tools" aria-label="Viewer controls">
-          <Button variant="ghost" size="sm" className={props.favorite ? 'active' : ''} onClick={props.onFavorite} title={props.favorite ? 'Remove favorite' : 'Add favorite'} aria-pressed={props.favorite}><Star size={17} fill={props.favorite ? 'currentColor' : 'none'} /><span>Favorite</span></Button>
           <Button variant="ghost" size="sm" className={props.settings.autoRotate ? 'active' : ''} onClick={() => toggle('autoRotate')} title="Toggle auto rotate"><ScanLine size={17} /><span>Rotate</span></Button>
           <Button variant="ghost" size="sm" onClick={() => controlsRef.current?.reset()} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></Button>
           {props.model.viewer !== 'segmented-body' && <Button variant="ghost" size="sm" className={props.settings.labels ? 'active' : ''} onClick={() => toggle('labels')} title="Toggle labels"><Tags size={17} /><span>Labels</span></Button>}
-          <Button variant="ghost" size="sm" className={props.settings.wireframe ? 'active' : ''} onClick={() => toggle('wireframe')} title="Toggle wireframe"><Focus size={17} /><span>Wire</span></Button>
+          <Button variant="ghost" size="sm" className={props.settings.wireframe ? 'active' : ''} onClick={() => toggle('wireframe')} title="Toggle wireframe"><Grid3X3 size={17} /><span>Wire</span></Button>
           <Button variant="ghost" size="sm" className={props.settings.layers ? 'active' : ''} onClick={() => toggle('layers')} title="Toggle reference layers"><Layers3 size={17} /><span>Layers</span></Button>
-          <Button variant="ghost" size="sm" className={props.settings.isolate ? 'active' : ''} onClick={() => toggle('isolate')} title="Reduce reference overlays"><Box size={17} /><span>Focus</span></Button>
           {canDissect && <Button variant="ghost" size="sm" className={dissectMode ? 'active' : ''} onClick={toggleDissectMode} title="Toggle Dissect Mode" aria-pressed={dissectMode}><Scissors size={17} /><span>Dissect</span></Button>}
         </div>
       </div>

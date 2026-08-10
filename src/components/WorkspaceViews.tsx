@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpenCheck, Check, ChevronDown, ClipboardList, GalleryVerticalEnd, Lightbulb, Search, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpenCheck, Check, ClipboardList, GalleryVerticalEnd, Lightbulb, Search, Sparkles } from 'lucide-react'
 import { models } from '../data/models'
 import { assessmentProgressForModel } from '../data/quizzes'
 import { flashcardDeckForModel, flashcardProgress } from '../data/flashcards'
@@ -17,8 +17,8 @@ type LibraryProps = { onAssessment: (model: ModelEntry) => void; onFlashcards: (
 
 export function LibraryView({ onAssessment, onFlashcards, onGenerate, onGeneratedDeck, onUnlockDeck, onReportDeck, generatedDecks, generatedError, completedQuizIds, flashcardProgressByDeck }: LibraryProps) {
   const [query, setQuery] = useState('')
-  const [contentFilter, setContentFilter] = useState<ContentFilter>('flashcards')
-  const [systemFilter, setSystemFilter] = useState('all')
+  const [contentFilter, setContentFilter] = useState<ContentFilter>(() => new URLSearchParams(window.location.search).get('content') === 'tests' ? 'assessments' : 'flashcards')
+  const [modelFilter, setModelFilter] = useState('all')
   const [progressFilter, setProgressFilter] = useState<ProgressFilter>('all')
   const filtered = useMemo(() => models.filter((model) => {
     const assessment = assessmentProgressForModel(model.id, completedQuizIds)
@@ -27,41 +27,36 @@ export function LibraryView({ onAssessment, onFlashcards, onGenerate, onGenerate
     const matchesProgress = progressFilter === 'all'
       || (contentFilter === 'assessments' && assessment.status === progressFilter)
       || (contentFilter === 'flashcards' && cards.status === progressFilter)
-    return (systemFilter === 'all' || model.system === systemFilter)
+    return (modelFilter === 'all' || model.id === modelFilter)
       && matchesProgress
       && `${model.name} ${model.system} ${model.description} assessment flashcards foundations`.toLowerCase().includes(query.trim().toLowerCase())
-  }), [completedQuizIds, contentFilter, flashcardProgressByDeck, progressFilter, query, systemFilter])
-  const grouped = filtered.reduce<Record<string, ModelEntry[]>>((result, model) => {
-    result[model.system] = [...(result[model.system] ?? []), model]
-    return result
-  }, {})
+  }), [completedQuizIds, contentFilter, flashcardProgressByDeck, modelFilter, progressFilter, query])
   const generatedVisible = generatedDecks.filter((deck) => {
     const model = models.find((entry) => entry.id === deck.modelId)
-    return contentFilter === 'flashcards' && Boolean(model) && (systemFilter === 'all' || model?.system === systemFilter) && `${deck.title} ${deck.description} ${model?.name}`.toLowerCase().includes(query.trim().toLowerCase())
+    return contentFilter === 'flashcards' && Boolean(model) && (modelFilter === 'all' || deck.modelId === modelFilter) && `${deck.title} ${model?.name}`.toLowerCase().includes(query.trim().toLowerCase())
   })
   const renderGenerated = (deck: GeneratedDeckSummary) => {
     const progress = deck.cards ? flashcardProgress({ ...deck, cards: deck.cards }, flashcardProgressByDeck[deck.id]?.cards) : undefined
-    return <Card key={deck.id} className="library-resource-card generated-deck-card"><header><span className="resource-icon ai"><Sparkles /></span><Badge variant="secondary">AI deck</Badge><span className={`resource-status ${progress?.status ?? 'locked'}`}>{deck.owner ? 'Yours' : deck.unlocked ? progress?.status.replace('-', ' ') : 'Locked'}</span></header><div className="resource-card-copy"><span>{models.find((entry) => entry.id === deck.modelId)?.system}</span><h3>{deck.title}</h3><p>{deck.description}</p></div>{progress && <Progress value={(progress.reviewed / progress.total) * 100} />}<footer><span>{deck.owner ? deck.visibility : deck.unlocked ? `${progress?.reviewed ?? 0} of 12 reviewed` : 'Unlock once'}</span><div>{!deck.owner && <Button variant="ghost" size="sm" onClick={() => onReportDeck(deck)}>Report</Button>}{deck.owner || deck.unlocked ? <Button size="sm" onClick={() => onGeneratedDeck(deck)}>Study<ArrowRight /></Button> : <Button size="sm" onClick={() => onUnlockDeck(deck)}>Unlock · 5 credits</Button>}</div></footer></Card>
+    return <Card key={deck.id} className="library-resource-card generated-deck-card"><header><span className="resource-icon ai"><Sparkles /></span><Badge variant="secondary">AI deck</Badge><span className={`resource-status ${progress?.status ?? 'locked'}`}>{deck.owner ? 'Yours' : deck.unlocked ? progress?.status.replace('-', ' ') : 'Locked'}</span></header><div className="resource-card-copy"><h3>{deck.title}</h3></div>{progress && <Progress value={(progress.reviewed / progress.total) * 100} />}<footer><span>{deck.owner ? deck.visibility : deck.unlocked ? `${progress?.reviewed ?? 0} of ${progress?.total ?? 15} reviewed` : 'Unlock once'}</span><div>{!deck.owner && <Button variant="ghost" size="sm" onClick={() => onReportDeck(deck)}>Report</Button>}{deck.owner || deck.unlocked ? <Button size="sm" onClick={() => onGeneratedDeck(deck)}>Study<ArrowRight /></Button> : <Button size="sm" onClick={() => onUnlockDeck(deck)}>Unlock · 5 credits</Button>}</div></footer></Card>
   }
 
   return <section className="content-view library-view anim">
     <header className="library-hero"><div><span className="page-kicker">Study collection</span><h1>Your library</h1><p>Build recall with focused anatomy flashcards or sit a verified practice test.</p></div><Tabs value={contentFilter} onValueChange={(value) => setContentFilter(value as ContentFilter)}><TabsList className="library-primary-tabs"><TabsTrigger value="flashcards"><GalleryVerticalEnd />Flashcard sets</TabsTrigger><TabsTrigger value="assessments"><ClipboardList />Practice tests</TabsTrigger></TabsList></Tabs></header>
     <div className="library-toolbar"><label className="library-search"><Search /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${contentFilter === 'flashcards' ? 'flashcards' : 'practice tests'}`} /></label><div><label>Progress<select value={progressFilter} onChange={(event) => setProgressFilter(event.target.value as ProgressFilter)}><option value="all">All progress</option><option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="complete">Complete</option></select></label></div></div>
-    <section className="library-systems"><header><div><h2>Browse anatomy</h2><p>Filter your collection by model or body system.</p></div><Button variant="ghost" size="sm" onClick={() => setSystemFilter('all')}>Show all<ChevronDown /></Button></header><div className="system-discovery-grid">{models.map((model, index) => <button key={model.id} className={`system-discovery-card tone-${index % 5} ${systemFilter === model.system ? 'active' : ''}`} onClick={() => setSystemFilter(systemFilter === model.system ? 'all' : model.system)}><span>{String(index + 1).padStart(2, '0')}</span><strong>{model.name}</strong><small>{model.system}</small><i /></button>)}</div></section>
+    <section className="library-systems"><header><div><h2>Browse anatomy</h2></div><Button variant="ghost" size="sm" onClick={() => setModelFilter('all')}>All models</Button></header><div className="model-filter-list">{models.map((model) => <button key={model.id} className={modelFilter === model.id ? 'active' : ''} onClick={() => setModelFilter(modelFilter === model.id ? 'all' : model.id)}>{model.name}</button>)}</div></section>
     {generatedError && <p className="auth-error" role="alert">{generatedError}</p>}
     {filtered.length === 0 && generatedVisible.length === 0 && <div className="empty-state">No Library content matches these filters.</div>}
     {generatedVisible.some((deck) => deck.owner) && <div className="library-group generated-library-group"><h2>My generated decks<span>{generatedVisible.filter((deck) => deck.owner).length}</span></h2><div className="library-resource-grid">{generatedVisible.filter((deck) => deck.owner).map(renderGenerated)}</div></div>}
     {generatedVisible.some((deck) => !deck.owner) && <div className="library-group generated-library-group"><h2>Community decks<span>{generatedVisible.filter((deck) => !deck.owner).length}</span></h2><div className="library-resource-grid">{generatedVisible.filter((deck) => !deck.owner).map(renderGenerated)}</div></div>}
-    <div className="library-collection-heading"><div><h2>{contentFilter === 'flashcards' ? 'Flashcard sets' : 'Practice tests'}</h2><p>{filtered.length} anatomy subjects available</p></div></div>
-    {Object.entries(grouped).map(([system, entries]) => entries && <div className="library-group" key={system}><h2>{system}<span>{entries.length} {entries.length === 1 ? 'subject' : 'subjects'}</span></h2><div className="library-resource-grid">{entries.flatMap((model) => {
-      const progress = assessmentProgressForModel(model.id, completedQuizIds)
+    <div className="library-collection-heading"><div><h2>{contentFilter === 'flashcards' ? 'Flashcard sets' : 'Practice tests'}</h2><p>{filtered.length} models available</p></div></div>
+    {contentFilter === 'flashcards' ? <div className="library-resource-grid">{filtered.map((model) => {
       const deck = flashcardDeckForModel(model.id)!
       const deckProgress = flashcardProgress(deck, flashcardProgressByDeck[deck.id]?.cards)
-      const cards = []
-      if (contentFilter === 'assessments') cards.push(<Card key={`${model.id}-assessment`} className="library-resource-card assessment-card"><header><span className="resource-icon test"><ClipboardList /></span><Badge variant="outline">20 questions</Badge><span className={`resource-status ${progress.status}`}>{progress.status.replace('-', ' ')}</span></header><div className="resource-card-copy"><span>{model.system}</span><h3>{model.name} practice test</h3><p>Structure, function, and anatomical relationships in one verified assessment.</p></div><Progress value={(progress.completed / progress.total) * 100} /><footer><span>{progress.completed} of {progress.total} correct</span><Button size="sm" onClick={() => onAssessment(model)}>{progress.completed > 0 ? 'Resume test' : 'Start test'}<ArrowRight /></Button></footer></Card>)
-      if (contentFilter === 'flashcards') cards.push(<Card key={`${model.id}-flashcards`} className="library-resource-card flashcard-deck-card"><header><span className="resource-icon deck"><GalleryVerticalEnd /></span><Badge variant="outline">{deck.cards.length} cards</Badge><span className={`resource-status ${deckProgress.status}`}>{deckProgress.status.replace('-', ' ')}</span></header><div className="resource-card-copy"><span>{model.system}</span><h3>{deck.title}</h3><p>{deck.description}</p></div><Progress value={(deckProgress.reviewed / deckProgress.total) * 100} /><footer><span>{deckProgress.reviewed} of {deckProgress.total} reviewed</span><div><Button variant="ghost" size="sm" onClick={() => onGenerate(model)}>Generate</Button><Button size="sm" onClick={() => onFlashcards(deck)}>{deckProgress.reviewed > 0 ? 'Continue' : 'Study'}<ArrowRight /></Button></div></footer></Card>)
-      return cards
-    })}</div></div>)}
+      return <Card key={`${model.id}-flashcards`} className="library-resource-card flashcard-deck-card"><header><span className="resource-icon deck"><GalleryVerticalEnd /></span><Badge variant="outline">{deck.cards.length} cards</Badge><span className={`resource-status ${deckProgress.status}`}>{deckProgress.status.replace('-', ' ')}</span></header><div className="resource-card-copy"><h3>{deck.title}</h3></div><Progress value={(deckProgress.reviewed / deckProgress.total) * 100} /><footer><span>{deckProgress.reviewed} of {deckProgress.total} reviewed</span><div><Button variant="ghost" size="sm" onClick={() => onGenerate(model)}>Generate</Button><Button size="sm" onClick={() => onFlashcards(deck)}>{deckProgress.reviewed > 0 ? 'Continue' : 'Study'}<ArrowRight /></Button></div></footer></Card>
+    })}</div> : <div className="practice-test-list">{filtered.map((model) => {
+      const progress = assessmentProgressForModel(model.id, completedQuizIds)
+      return <article key={`${model.id}-assessment`}><span className="resource-icon test"><ClipboardList /></span><div><h3>{model.name} practice test</h3><p>20 verified questions</p></div><div className="practice-test-progress"><Progress value={(progress.completed / progress.total) * 100} /><span>{progress.completed}/{progress.total} complete</span></div><Button variant="outline" onClick={() => onAssessment(model)}>{progress.completed > 0 ? 'Resume' : 'Start'}<ArrowRight /></Button></article>
+    })}</div>}
   </section>
 }
 

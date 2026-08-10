@@ -409,7 +409,7 @@ export default function App() {
       const previous = existing?.cards[cardId]
       const updatedAt = new Date().toISOString()
       const reviewCount = (previous?.reviewCount ?? 0) + 1
-      void saveFlashcardReview(deck.id, cardId, grade, reviewCount, updatedAt)
+      void saveFlashcardReview(deck.id, cardId, grade, reviewCount, updatedAt).catch(() => setDeckError('Your review could not sync. Check your connection and try again.'))
       return {
         ...current,
         flashcardProgressByDeck: {
@@ -440,7 +440,7 @@ export default function App() {
       setLibraryMode('flashcards')
     } catch (error) {
       if (error instanceof AIActionError && error.balance) setBalance(error.balance)
-      if (error instanceof AIActionError && error.code === 'insufficient_credits') setCreditPrompt({ action: 'A new 12-card flashcard deck', required: 5 })
+      if (error instanceof AIActionError && error.code === 'insufficient_credits') setCreditPrompt({ action: 'A new 15-card flashcard deck', required: 5 })
       setDeckError(error instanceof Error ? error.message : 'The deck could not be generated. No credit was charged.')
     } finally {
       setGeneratingDeck(false)

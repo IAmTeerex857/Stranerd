@@ -6,7 +6,7 @@ type GeneratedCard = { id: string; kind: 'identify-structure' | 'structure-to-fu
 export type GeneratedDeck = { id: string; modelId: string; contentVersion: string; title: string; description: string; cards: GeneratedCard[]; source: 'ai' }
 
 export const GENERATED_DECK_COST = 5
-export const GENERATED_DECK_SIZE = 12
+export const GENERATED_DECK_SIZE = 15
 
 export type FlashcardGenerationRequest = {
   modelId?: string
@@ -75,7 +75,7 @@ export async function generateFlashcardDeck(body: FlashcardGenerationRequest) {
   const hasAzure = Boolean(process.env.AZURE_OPENAI_API_KEY && process.env.AZURE_OPENAI_ENDPOINT && process.env.AZURE_OPENAI_DEPLOYMENT)
   if (!process.env.OPENAI_API_KEY && !hasAzure) return { deck: null, source: 'offline' }
   const variants = [{ id: input.model.diagramVariantId, structures: input.model.structures }]
-  const prompt = `Create exactly 12 challenging, conventional university anatomy exam questions grounded only in the supplied model context. Every front must ask one direct, answerable question with one expected answer. Test structure, function, spatial relationships, pathways, or clinically relevant anatomy at the requested difficulty. Never use generic prompts such as "identify the highlighted structure," "recall this concept," or "explain this fact." Return JSON with title, description, and cards. Each card needs kind (identify-structure, structure-to-function, or fact-recall), front {heading, body, diagram}, and back {heading, body}. The back must state the answer and a concise anatomical explanation. diagram must be null or {variantId, selectedStructureIds}; use only supplied IDs. Diagrams may support a question but the wording must remain complete without one. Prefer fewer diagrams over uncertain mappings. No diagnosis, treatment, markdown, HTML, geometry, URLs, prices, or IDs outside supplied anatomy identifiers.`
+  const prompt = `Create exactly 15 challenging, conventional university anatomy exam questions grounded only in the supplied model context. Every front must ask one direct, answerable question with one expected answer. Test structure, function, spatial relationships, pathways, or clinically relevant anatomy at the requested difficulty. Never use generic prompts such as "identify the highlighted structure," "recall this concept," or "explain this fact." Return JSON with title, description, and cards. Each card needs kind (identify-structure, structure-to-function, or fact-recall), front {heading, body, diagram}, and back {heading, body}. The back must state the answer and a concise anatomical explanation. diagram must be null or {variantId, selectedStructureIds}; use only supplied IDs. Diagrams may support a question but the wording must remain complete without one. Prefer fewer diagrams over uncertain mappings. No diagnosis, treatment, markdown, HTML, geometry, URLs, prices, or IDs outside supplied anatomy identifiers.`
   try {
     const client = hasAzure ? new OpenAI({ apiKey: process.env.AZURE_OPENAI_API_KEY, baseURL: `${process.env.AZURE_OPENAI_ENDPOINT!.replace(/\/$/, '')}/openai/v1` }) : new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const completion = await client.chat.completions.create({

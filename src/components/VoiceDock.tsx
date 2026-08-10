@@ -29,7 +29,7 @@ export function VoiceDock({ mode, modelId, context, onInsufficientCredits, onStu
     setStatus('connecting'); setError(undefined); setCaptions([])
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
-      const next = await startRealtimeSession({ mode, modelId, context, stream, onStatus: setStatus, onCaption: (role, text) => { setCaptions((current) => [...current, { role, text }].slice(-20)); if (role === 'student') studentCaption.current?.(text) } })
+      const next = await startRealtimeSession({ mode, modelId, context, stream, onStatus: setStatus, onError: setError, onCaption: (role, text) => { setCaptions((current) => [...current, { role, text }].slice(-20)); if (role === 'student') studentCaption.current?.(text) } })
       controller.current = next; setBalance(next.balance); setNow(Date.now()); setEndsAt(next.endsAt)
     } catch (cause) {
       if (cause instanceof AIActionError && cause.balance) setBalance(cause.balance)

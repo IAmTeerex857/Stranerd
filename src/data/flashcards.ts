@@ -1,29 +1,39 @@
 import { models } from './models'
-import { lessonsForModel } from './lessons'
-import { quizForModel } from './quizzes'
 import type { FlashcardDeck, FlashcardDiagram } from '../types'
 
 export const defaultFlashcardDecks: FlashcardDeck[] = models.map((model) => {
-  const quiz = quizForModel(model.id)
-  const quizCard = quiz && {
-    id: `${model.id}-exam-core`,
-    kind: 'fact-recall' as const,
-    front: { heading: quiz.question, body: 'Answer before revealing the explanation.' },
-    back: { heading: quiz.options[quiz.correctIndex], body: quiz.explanation },
-  }
-  const lessonCards = lessonsForModel(model.id).map((lesson) => ({
-    id: `${model.id}-exam-${lesson.id}`,
-    kind: 'structure-to-function' as const,
-    front: { heading: lesson.prompt, body: 'Give the structure and explain the anatomical reasoning.' },
-    back: { heading: lesson.title, body: lesson.fallback },
-  }))
+  const variant = model.variants.find((entry) => entry.hotspots?.length) ?? model.variants.find((entry) => entry.segmentedSystem) ?? model.variants[0]
+  const structures = variant.hotspots?.length ? variant.hotspots : model.hotspots
+  const selected = Array.from({ length: 5 }, (_, index) => structures[index % structures.length])
+  const describe = (value: string) => value.replace(/\.$/, '').replace(/^./, (letter) => letter.toLowerCase())
+  const diagram = (structureId: string): FlashcardDiagram => ({ modelId: model.id, variantId: variant.id, selectedStructureIds: [structureId] })
+  const cards = selected.flatMap((structure, index) => [
+    {
+      id: `${model.id}-${structure.id}-description-${index}`,
+      kind: 'identify-structure' as const,
+      front: { heading: `Which structure is described as ${describe(structure.detail)}?`, body: `Name the structure and state its anatomical context.`, diagram: diagram(structure.id) },
+      back: { heading: structure.label, body: structure.detail },
+    },
+    {
+      id: `${model.id}-${structure.id}-function-${index}`,
+      kind: 'structure-to-function' as const,
+      front: { heading: `What is the principal anatomical role of the ${structure.label}?`, body: `Relate its structure to its function or pathway.`, diagram: diagram(structure.id) },
+      back: { heading: structure.label, body: structure.detail },
+    },
+    {
+      id: `${model.id}-${structure.id}-relationship-${index}`,
+      kind: 'fact-recall' as const,
+      front: { heading: `Why is the ${structure.label} important when studying ${model.metadata.focus.toLowerCase()}?`, body: `State the key anatomical relationship shown in the model.`, diagram: diagram(structure.id) },
+      back: { heading: structure.label, body: structure.detail },
+    },
+  ])
   return {
     id: `${model.id}-foundations`,
     modelId: model.id,
-    contentVersion: '2',
+    contentVersion: '3',
     title: `${model.name} foundations`,
-    description: `Authored anatomy questions covering structure, function, and clinical relationships in ${model.name.toLowerCase()}.`,
-    cards: [...(quizCard ? [quizCard] : []), ...lessonCards],
+    description: '',
+    cards,
   }
 })
 

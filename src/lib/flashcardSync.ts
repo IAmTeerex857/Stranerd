@@ -1,10 +1,11 @@
 import { supabase } from './supabase'
 import type { FlashcardDeckProgress, FlashcardGrade } from '../types'
+import { flashcardDeckById } from '../data/flashcards'
 
 export function mergeFlashcardProgress(local: Record<string, FlashcardDeckProgress>, rows: { deck_id: string; card_id: string; grade: FlashcardGrade; review_count: number; updated_at: string }[]) {
   const merged = structuredClone(local)
   for (const row of rows) {
-    const deck = merged[row.deck_id] ?? { contentVersion: '1', cards: {} }
+    const deck = merged[row.deck_id] ?? { contentVersion: flashcardDeckById(row.deck_id)?.contentVersion ?? '1', cards: {} }
     const existing = deck.cards[row.card_id]
     if (!existing || new Date(row.updated_at).getTime() >= new Date(existing.updatedAt).getTime()) deck.cards[row.card_id] = { grade: row.grade, reviewCount: Math.max(row.review_count, existing?.reviewCount ?? 0), updatedAt: row.updated_at }
     merged[row.deck_id] = deck
@@ -31,5 +32,6 @@ export async function saveFlashcardReview(deckId: string, cardId: string, grade:
   if (!supabase) return
   const { data } = await supabase.auth.getSession()
   if (!data.session) return
-  await supabase.from('flashcard_progress').upsert({ user_id: data.session.user.id, deck_id: deckId, card_id: cardId, grade, review_count: reviewCount, updated_at: updatedAt }, { onConflict: 'user_id,deck_id,card_id' })
+  const result = await supabase.from('flashcard_progress').upsert({ user_id: data.session.user.id, deck_id: deckId, card_id: cardId, grade, review_count: reviewCount, updated_at: updatedAt }, { onConflict: 'user_id,deck_id,card_id' })
+  if (result.error) throw result.error
 }
