@@ -65,6 +65,7 @@ export function HeartCandidateTestView() {
         selectedVariantId={variantId}
         favorite={false}
         onSelect={select}
+        onClearSelection={() => { setSelectedIds([]); setSelectedHotspot(undefined) }}
         onSettings={setSettings}
         onVariant={changeVariant}
         onFavorite={() => {}}

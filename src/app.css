@@ -434,13 +434,13 @@
 .app-shell .dissection-structure-label {
   display: block;
   width: max-content;
-  max-width: 170px;
-  padding: 4px 8px;
+  max-width: 130px;
+  padding: 3px 6px;
   border: 1px solid color-mix(in srgb, var(--magenta) 52%, var(--line));
   border-radius: 999px;
   color: var(--ink);
   background: var(--app-violet-soft);
-  font: 600 9px/1.15 "DM Sans", system-ui, sans-serif;
+  font: 600 7px/1.1 "Geist Variable", "DM Sans", system-ui, sans-serif;
   box-shadow: 0 4px 14px var(--app-shadow);
   pointer-events: none;
 }

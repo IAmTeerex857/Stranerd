@@ -17,7 +17,7 @@ export function DissectionStructureLabel({ mesh, label }: { mesh: Mesh; label: s
   })
 
   return <group ref={anchor}>
-    <Html center distanceFactor={7} zIndexRange={[12, 1]}>
+    <Html center distanceFactor={9} zIndexRange={[12, 1]}>
       <span className="dissection-structure-label">{label}</span>
     </Html>
   </group>

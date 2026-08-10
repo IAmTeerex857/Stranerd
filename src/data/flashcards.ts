@@ -11,7 +11,7 @@ export const defaultFlashcardDecks: FlashcardDeck[] = models.map((model) => {
     {
       id: `${model.id}-${structure.id}-description-${index}`,
       kind: 'identify-structure' as const,
-      front: { heading: `Which structure is described as ${describe(structure.detail)}?`, body: `Name the structure and state its anatomical context.`, diagram: diagram(structure.id) },
+      front: { heading: `Which structure is described as ${describe(structure.detail)}?`, body: `Consider its location and relationship to nearby anatomy.`, diagram: diagram(structure.id) },
       back: { heading: structure.label, body: structure.detail },
     },
     {
@@ -31,7 +31,7 @@ export const defaultFlashcardDecks: FlashcardDeck[] = models.map((model) => {
     id: `${model.id}-foundations`,
     modelId: model.id,
     contentVersion: '3',
-    title: `${model.name} foundations`,
+    title: model.name,
     description: '',
     cards,
   }

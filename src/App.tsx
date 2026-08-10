@@ -4,7 +4,7 @@ import { MentorPanel } from './components/MentorPanel'
 import { anatomyModels, modelById, models } from './data/models'
 import logoUrl from '../Logo Stranerd.png'
 import iconUrl from '../Icon Logo Stranerd.png'
-import { allQuizzes, quizzesForModel } from './data/quizzes'
+import { quizzesForModel } from './data/quizzes'
 import { loadState, saveState } from './lib/storage'
 import type { ChatItem, FlashcardDeck, FlashcardGrade, GeneratedDeckSummary, Hotspot, ModelEntry, PersistedState, Quiz, ViewId } from './types'
 import type { DissectionActionContext } from './data/dissection'
@@ -122,10 +122,6 @@ export default function App() {
   const savedVariantId = persisted.selectedVariantIds[model.id]
   const selectedVariantId = model.variants.some((variant) => variant.id === savedVariantId) ? savedVariantId! : model.variants[0].id
   const favorite = persisted.favoriteModelIds.includes(model.id)
-  const quizIds = new Set(allQuizzes.map((item) => item.id))
-  const completedCount = new Set(persisted.completedQuizIds.filter((id) => quizIds.has(id))).size
-  const activityCount = allQuizzes.length
-  const completion = Math.round((completedCount / activityCount) * 100)
   const sideModels = anatomyModels
   const effectiveSidebarCollapsed = sidebarCollapsed || (view === 'lab' && labMode !== 'catalog')
   const mentorAvailable = view === 'explore' || (view === 'lab' && labMode !== 'catalog')
@@ -184,7 +180,19 @@ export default function App() {
     setActiveActivityId(undefined)
     setLabMode('catalog')
     setGuidedActivityStep(null)
+    setLibraryMode('catalog')
+    setView('explore')
     setMenuOpen(false)
+  }
+
+  function clearSelection() {
+    setSelectedIds([])
+    setSelectedHotspot(undefined)
+    setPersisted((current) => {
+      const selectedHotspotIds = { ...current.selectedHotspotIds }
+      delete selectedHotspotIds[current.selectedModelId]
+      return { ...current, selectedHotspotIds }
+    })
   }
 
   function selectVariant(variantId: string) {
@@ -514,7 +522,7 @@ export default function App() {
     if (choice !== undefined && choice >= 0 && choice < 4) setQuizAnswers((current) => ({ ...current, [quizIndex]: choice }))
   }
 
-  const viewer = <AnatomyViewer key={`${model.id}:${view === 'lab' ? `${labMode}:${activeActivityId || ''}` : 'explore'}`} model={model} selectedIds={selectedIds} selectedHotspot={selectedHotspot} settings={persisted.settings} selectedVariantId={selectedVariantId} favorite={favorite} onSelect={selectHotspot} onSettings={(settings) => updatePersisted({ settings })} onVariant={selectVariant} onFavorite={() => toggleFavorite(model.id)} onDissectionAction={explainDissectionAction} dissectionSession={persisted.dissectionByModel[model.id]} onDissectionState={saveDissectionSession} initialDissect={view === 'lab' && labMode !== 'catalog'} activityLayout={view === 'lab' && labMode !== 'catalog'} guidedStep={guidedActivityStep} onGuidedStep={setGuidedActivityStep} />
+  const viewer = <AnatomyViewer key={`${model.id}:${view === 'lab' ? `${labMode}:${activeActivityId || ''}` : 'explore'}`} model={model} selectedIds={selectedIds} selectedHotspot={selectedHotspot} settings={persisted.settings} selectedVariantId={selectedVariantId} favorite={favorite} onSelect={selectHotspot} onClearSelection={clearSelection} onSettings={(settings) => updatePersisted({ settings })} onVariant={selectVariant} onFavorite={() => toggleFavorite(model.id)} onDissectionAction={explainDissectionAction} dissectionSession={persisted.dissectionByModel[model.id]} onDissectionState={saveDissectionSession} initialDissect={view === 'lab' && labMode !== 'catalog'} activityLayout={view === 'lab' && labMode !== 'catalog'} guidedStep={guidedActivityStep} onGuidedStep={setGuidedActivityStep} />
   const quizView = <QuizzesView model={model} quizzes={modelQuizzes} quizIndex={quizIndex} answers={quizAnswers} submitted={assessmentSubmitted} hints={assessmentHints} corrections={assessmentCorrections} loadingHintIndex={loadingHintIndex} loadingCorrections={loadingCorrections} onQuiz={chooseQuiz} onAnswer={(index) => setQuizAnswers((current) => ({ ...current, [quizIndex]: index }))} onSubmit={submitAssessment} onHint={requestAssessmentHint} onNewAssessment={takeNewAIQuiz} onCorrections={requestAssessmentCorrections} generatingAssessment={generatingQuiz} aiError={quizGenerationError} aiNeedsCredits={quizNeedsCredits} signedIn={Boolean(user)} creditBalance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : undefined} onBack={() => setLibraryMode('catalog')} />
   const generatedActiveDeck = generatedDecks.find((deck) => deck.id === activeDeckId && deck.cards)
   const activeDeck = activeDeckId ? flashcardDeckById(activeDeckId) ?? (generatedActiveDeck?.cards ? { ...generatedActiveDeck, cards: generatedActiveDeck.cards } : undefined) : undefined
@@ -536,7 +544,7 @@ export default function App() {
     if (view === 'library') {
       if (libraryMode === 'assessment') return quizView
       if (libraryMode === 'flashcards' && activeDeck) return <FlashcardsView deck={activeDeck} progress={persisted.flashcardProgressByDeck[activeDeck.id]} onGrade={gradeFlashcard} onBack={() => setLibraryMode('catalog')} />
-      return <LibraryView onAssessment={openAssessment} onFlashcards={openFlashcards} onGenerate={(next) => { if (!user) window.location.assign('/login?next=/app'); else { setGenerateModel(next); setDeckError(undefined) } }} onGeneratedDeck={openGeneratedDeck} onUnlockDeck={unlockGeneratedDeck} onReportDeck={reportDeck} generatedDecks={generatedDecks} generatedError={deckError} completedQuizIds={persisted.completedQuizIds} flashcardProgressByDeck={persisted.flashcardProgressByDeck} />
+      return <LibraryView onAssessment={openAssessment} onFlashcards={openFlashcards} onGeneratedDeck={openGeneratedDeck} onUnlockDeck={unlockGeneratedDeck} onReportDeck={reportDeck} generatedDecks={generatedDecks} generatedError={deckError} completedQuizIds={persisted.completedQuizIds} flashcardProgressByDeck={persisted.flashcardProgressByDeck} />
     }
     if (view === 'lab') {
       const lab = <DissectionActivitiesView mode={labMode} activeActivityId={activeActivityId} onGuided={launchDissectionActivity} onCatalog={returnToLabCatalog} guidedStep={guidedActivityStep} quizChoice={activityQuizChoice} quizPassed={activityQuizPassed} onStartGuide={() => { setGuidedActivityStep(0); setActivityQuizChoice(undefined); setActivityQuizPassed(undefined) }} onQuizChoice={(choice) => { setActivityQuizChoice(choice); setActivityQuizPassed(undefined) }} onQuizCheck={checkActivityQuestion} onStepContinue={continueActivity} />
@@ -551,7 +559,6 @@ export default function App() {
       <div className="side-brand"><Brand /><button onClick={() => setSidebarCollapsed((value) => !value)} aria-label={effectiveSidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>{effectiveSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div>
       <nav>{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined} title={effectiveSidebarCollapsed ? item.label : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
       <div className="side-section"><header><span>Anatomy models</span></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}<ChevronRight size={14} /></Button>)}</div></div>
-      <div className="progress-card"><div><span>Quiz progress</span><b>{completion}%</b></div><i><b style={{ width: `${completion}%` }} /></i><small>{completedCount} of {activityCount} questions completed</small></div>
     </aside>
     <main className="workspace">
       <header className="topbar"><div><span>{view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions"><Button variant="outline" asChild><a href="/account"><CircleUserRound size={16} />Account</a></Button>{view !== 'lab' && <Button onClick={() => chooseView('lab')}><FlaskConical size={16} />Open Lab</Button>}</div></header>

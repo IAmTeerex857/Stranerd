@@ -547,3 +547,37 @@ button, input, textarea, select { font-family: inherit; }
   .topbar > div:first-child { min-width: 0; }
   .topbar > div:first-child b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+/* Compact study polish */
+.library-toolbar { padding: 0; border: 0; background: transparent; }
+.library-search { box-shadow: 0 2px 10px rgb(35 52 78 / 5%); }
+.library-resource-card > [data-slot="progress"] { width: min(68%, 250px); height: 7px; margin-top: 4px; }
+.library-resource-card [data-slot="progress-indicator"] { background: var(--primary); }
+.library-resource-card > header svg { stroke-width: 2.35; }
+.flashcard-study-header { align-items: start; }
+.flashcard-study-header > aside { width: 190px; justify-self: end; }
+.flashcard-study-header > aside [data-slot="progress"] { height: 7px; }
+.flashcard-toolbar { width: min(520px, 100%); margin: 0 auto; align-items: center; justify-content: space-between; }
+.flashcard-toolbar > div { display: flex; align-items: center; gap: 10px; }
+.flashcard-toolbar > div > span { color: var(--muted-foreground); font-size: 11px; font-weight: 600; }
+.flashcard-reveal button, .library-resource-card footer > button { background: var(--primary); color: var(--primary-foreground); }
+.view-loading { justify-content: center; }
+.app-shell .sidebar nav > button.active svg,
+.app-shell .mobile-tabs button.active svg,
+.app-shell .viewer-tools button.active svg { color: var(--primary); stroke-width: 2.6; opacity: 1; }
+:root[data-theme="light"] .app-shell .sidebar nav > button:not(.active),
+:root[data-theme="light"] .app-shell .mobile-tabs button:not(.active) { color: #64748b; }
+.app-shell .dissect-dock,
+.app-shell .dissect-dock button,
+.app-shell .dissect-dock input { color: var(--foreground); }
+.app-shell .dissect-dock > header span,
+.app-shell .dissect-dock > header b,
+.app-shell .dissect-structures h3,
+.app-shell .dissect-structures button { color: var(--foreground); opacity: 1; }
+.app-shell .dissect-structures button.hidden { color: var(--muted-foreground); }
+
+@media (max-width: 760px) {
+  .flashcard-study-header > aside { width: 100%; justify-self: stretch; }
+  .flashcard-toolbar { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .flashcard-toolbar > div { justify-content: center; }
+}
