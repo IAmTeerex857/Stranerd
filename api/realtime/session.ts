@@ -49,7 +49,7 @@ export default async function handler(request: Request, response: Response) {
     }
     const instructions = `You are Stranerd Voice Mentor, a concise university-level anatomy educator. This is an educational tool, not medical advice. Never diagnose, prescribe, or give patient-specific guidance. Use the supplied learning context. Ask recall questions and allow interruption. In assessment mode, read questions and options but never reveal or infer correct answers before submission. In Lab mode, guide the learner but never claim an objective is complete; only Stranerd validates model actions. Session context: ${JSON.stringify({ model, focus: body.context })}`
     const inputAudio = { turn_detection: { type: 'semantic_vad', create_response: true, interrupt_response: true }, ...(provider.transcriptionModel ? { transcription: { model: provider.transcriptionModel, language: 'en' } } : {}) }
-    const providerResponse = await fetch(provider.secretUrl, { method: 'POST', headers: { ...provider.headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ expires_after: { anchor: 'created_at', seconds: 30 }, session: { type: 'realtime', model: provider.model, output_modalities: ['audio'], instructions, max_output_tokens: 1200, audio: { input: inputAudio, output: { voice: 'marin' } } } }), signal: AbortSignal.timeout(15_000) })
+    const providerResponse = await fetch(provider.secretUrl, { method: 'POST', headers: { ...provider.headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ expires_after: { anchor: 'created_at', seconds: 30 }, session: { type: 'realtime', model: provider.model, output_modalities: ['audio'], instructions, max_output_tokens: 4096, audio: { input: inputAudio, output: { voice: 'marin' } } } }), signal: AbortSignal.timeout(15_000) })
     const secret = await providerResponse.json() as { value?: string; expires_at?: number; session?: { id?: string } }
     if (!providerResponse.ok || !secret.value) throw new Error('Realtime credential request failed')
     const answerResponse = await fetch(provider.callsUrl, { method: 'POST', headers: { Authorization: `Bearer ${secret.value}`, 'Content-Type': 'application/sdp' }, body: body.sdp, signal: AbortSignal.timeout(20_000) })
@@ -57,11 +57,11 @@ export default async function handler(request: Request, response: Response) {
     if (!answerResponse.ok || !answerSdp.startsWith('v=0')) throw new Error('Realtime connection negotiation failed')
     const now = Date.now()
     const endsAt = now + 5 * 60_000
-    const { error: sessionError } = await client.from('voice_sessions').insert({ user_id: userId, request_id: requestId, reservation_id: reserved.reservationId, provider_session_id: secret.session?.id, mode: body.mode, started_at: new Date(now).toISOString(), ends_at: new Date(endsAt).toISOString() })
-    if (sessionError) throw new Error('Voice session record failed')
+    const { data: session, error: sessionError } = await client.from('voice_sessions').insert({ user_id: userId, request_id: requestId, reservation_id: reserved.reservationId, provider_session_id: secret.session?.id, mode: body.mode, started_at: new Date(now).toISOString(), ends_at: new Date(endsAt).toISOString() }).select('id').single()
+    if (sessionError || !session) throw new Error('Voice session record failed')
     const { data: balance, error: finalError } = await client.rpc('finalize_credit_reservation', { p_user_id: userId, p_request_id: requestId })
     if (finalError) throw new AiRequestError(503, 'credit_finalization_pending', 'Voice session authorization is pending. Retry shortly.')
-    response.json({ answerSdp, startedAt: now, endsAt, sessionId: secret.session?.id, balance })
+    response.json({ answerSdp, startedAt: now, endsAt, sessionId: session.id, balance })
   } catch (error) {
     if (creditContext && !(error instanceof AiRequestError && error.code === 'credit_finalization_pending')) await creditContext.client.rpc('refund_credit_reservation', { p_user_id: creditContext.userId, p_request_id: creditContext.requestId })
     const result = aiErrorResponse(error)

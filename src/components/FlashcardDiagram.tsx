@@ -59,7 +59,7 @@ export function FlashcardDiagram({ diagram }: { diagram: Diagram }) {
   if (!resolved) return <div className="flashcard-diagram-fallback"><Box size={22} /><span>Text-only card</span></div>
   const light = resolvedTheme === 'light'
   return <DiagramBoundary><div className="flashcard-diagram" aria-label="Rotatable anatomy model with the target highlighted">
-    <Canvas frameloop="demand" dpr={[1, 1.25]} camera={{ position: [0, 0.1, 4.8], fov: 42 }} gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}>
+    <Canvas frameloop="demand" resize={{ offsetSize: true }} dpr={[1, 1.25]} camera={{ position: [0, 0.1, 4.8], fov: 42 }} gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}>
       <ambientLight intensity={light ? 1.15 : 1.5} />
       <hemisphereLight args={light ? ['#ffffff', '#9aadc0', 1.1] : ['#dff3ff', '#1a1020', 1.35]} />
       <directionalLight position={[3, 4, 5]} intensity={light ? 1.7 : 2.1} color={light ? '#ffffff' : '#dff3ff'} />

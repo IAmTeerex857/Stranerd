@@ -13,6 +13,7 @@ import welcomeEmailHandler from '../api/email/welcome.js'
 import generateFlashcardsHandler from '../api/flashcards/generate.js'
 import unlockFlashcardsHandler from '../api/flashcards/unlock.js'
 import realtimeSessionHandler from '../api/realtime/session.js'
+import extendRealtimeSessionHandler from '../api/realtime/extend.js'
 
 const app = express()
 const port = Number(process.env.PORT) || 8787
@@ -27,6 +28,7 @@ app.post('/api/quiz', quizHandler)
 app.post('/api/flashcards/generate', generateFlashcardsHandler)
 app.post('/api/flashcards/unlock', unlockFlashcardsHandler)
 app.post('/api/realtime/session', realtimeSessionHandler)
+app.post('/api/realtime/extend', extendRealtimeSessionHandler)
 app.post('/api/email/welcome', welcomeEmailHandler)
 app.post('/api/billing/checkout', billingCheckoutHandler)
 app.get('/api/billing/status', billingStatusHandler)
