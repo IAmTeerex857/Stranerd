@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Captions, Mic, MicOff, PhoneOff, Volume2 } from 'lucide-react'
+import { Captions, Mic, MicOff, PhoneOff } from 'lucide-react'
 import { startRealtimeSession, type VoiceStatus } from '../lib/realtime'
 import { useAuth } from '../auth-context'
 import { AIActionError } from '../lib/ai'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
-type Props = { mode: 'mentor' | 'lab' | 'assessment'; modelId: string; context: unknown; onInsufficientCredits: () => void; onStudentCaption?: (text: string) => void }
+type Props = { mode: 'mentor' | 'lab' | 'assessment'; modelId: string; context: unknown; onInsufficientCredits: () => void; onStudentCaption?: (text: string) => void; embedded?: boolean }
 
-export function VoiceDock({ mode, modelId, context, onInsufficientCredits, onStudentCaption }: Props) {
+export function VoiceDock({ mode, modelId, context, onInsufficientCredits, onStudentCaption, embedded = false }: Props) {
   const { user, setBalance } = useAuth()
   const [status, setStatus] = useState<VoiceStatus>()
   const [muted, setMuted] = useState(false)
@@ -36,7 +38,7 @@ export function VoiceDock({ mode, modelId, context, onInsufficientCredits, onStu
     }
   }
 
-  if (!status || status === 'ended' || status === 'error') return <div className="voice-entry"><button onClick={start}><Mic size={15} />Voice · 10 credits / 5 min</button>{error && <span role="alert">{error}</span>}</div>
+  if (!status || status === 'ended' || status === 'error') return <section className={`voice-entry ${embedded ? 'embedded' : ''}`}><div className={`voice-orb ${status === 'error' ? 'error' : 'idle'}`} aria-hidden="true"><i /><i /><i /><span><Mic /></span></div><div className="voice-intro"><Badge variant="secondary">10 credits for 5 minutes</Badge><h2>Talk through the anatomy.</h2><p>Ask questions naturally, interrupt explanations, or work through the current Lab and assessment context.</p></div><Button size="lg" onClick={start}><Mic />Start Voice</Button>{error && <span className="voice-error" role="alert">{error}</span>}</section>
   const seconds = Math.max(0, Math.ceil(((endsAt ?? now) - now) / 1000))
-  return <aside className="voice-dock" aria-label="Stranerd Voice"><header><Volume2 size={15} /><strong>{status}</strong><time>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</time></header><div className="voice-captions" aria-live="polite">{captions.slice(-2).map((caption, index) => <p key={`${caption.role}-${index}`}><span>{caption.role}</span>{caption.text}</p>)}</div><footer><button onClick={() => { const next = !muted; setMuted(next); controller.current?.mute(next) }} aria-label={muted ? 'Unmute microphone' : 'Mute microphone'}>{muted ? <MicOff /> : <Mic />}</button><button title="Captions are on"><Captions /></button><button onClick={() => controller.current?.stop()} aria-label="End voice session"><PhoneOff /></button></footer></aside>
+  return <section className={`voice-dock ${embedded ? 'embedded' : ''}`} aria-label="Stranerd Voice"><header><Badge variant="outline">{status}</Badge><time>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</time></header><div className={`voice-orb ${status}`} aria-hidden="true"><i /><i /><i /><span>{muted ? <MicOff /> : <Mic />}</span></div><div className="voice-state"><h2>{status === 'speaking' ? 'Mentor is explaining' : status === 'connecting' ? 'Connecting securely' : muted ? 'Microphone muted' : 'Listening'}</h2><p>{status === 'speaking' ? 'Interrupt at any point to ask a follow-up.' : 'Speak naturally about the current anatomy context.'}</p></div><div className="voice-captions" aria-live="polite">{captions.slice(-2).map((caption, index) => <p key={`${caption.role}-${index}`}><span>{caption.role}</span>{caption.text}</p>)}</div><footer><Button variant="outline" size="icon" onClick={() => { const next = !muted; setMuted(next); controller.current?.mute(next) }} aria-label={muted ? 'Unmute microphone' : 'Mute microphone'}>{muted ? <MicOff /> : <Mic />}</Button><Button variant="outline" size="icon" title="Captions are on"><Captions /></Button><Button variant="destructive" size="icon" onClick={() => controller.current?.stop()} aria-label="End voice session"><PhoneOff /></Button></footer></section>
 }

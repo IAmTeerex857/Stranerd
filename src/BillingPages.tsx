@@ -3,6 +3,8 @@ import { ArrowRight, CircleAlert } from 'lucide-react'
 import { Page } from './PublicLayout'
 import { getBillingStatus } from './lib/billing'
 import { useAuth } from './auth-context'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 export function BillingSuccessPage() {
   const { user, loading } = useAuth()
@@ -42,6 +44,6 @@ export function BillingSuccessPage() {
     return () => { active = false }
   }, [intentId, user])
 
-  if (!loading && !user) return <Page><main className="status-page"><div><span className="eyebrow">Payment return</span><h1>Sign in to confirm payment.</h1><a className="public-cta" href={`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`}>Continue with Google</a></div></main></Page>
-  return <Page><main className="status-page"><div>{status === 'failed' ? <CircleAlert size={24} /> : <span className={status === 'successful' ? 'status-complete' : 'status-mark'} />}<span className="eyebrow">Secure Spotflow checkout</span><h1>{status === 'successful' ? 'Payment confirmed. Redirecting...' : 'Confirming payment.'}</h1><p>{message}</p>{status !== 'successful' && <a className="public-cta" href="/account">View account<ArrowRight size={15} /></a>}</div></main></Page>
+  if (!loading && !user) return <Page><main className="status-page"><Card><h1>Sign in to confirm payment.</h1><Button asChild><a className="public-cta" href={`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`}>Continue with Google</a></Button></Card></main></Page>
+  return <Page><main className="status-page"><Card>{status === 'failed' ? <CircleAlert size={24} /> : <span className={status === 'successful' ? 'status-complete' : 'status-mark'} />}<h1>{status === 'successful' ? 'Payment confirmed. Redirecting...' : 'Confirming payment.'}</h1><p>{message}</p>{status !== 'successful' && <Button asChild><a className="public-cta" href="/account">View account<ArrowRight size={15} /></a></Button>}</Card></main></Page>
 }

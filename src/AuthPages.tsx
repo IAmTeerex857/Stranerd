@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Bookmark, BookOpenCheck, CircleAlert, CreditCard, ExternalLink, GalleryVerticalEnd, Heart, LogOut, Volume2, WalletCards } from "lucide-react";
+import { ArrowRight, CircleAlert, CreditCard, ExternalLink, GalleryVerticalEnd, LogOut, Volume2, WalletCards } from "lucide-react";
 import { useAuth } from "./auth-context";
 import { safeReturnPath } from "./auth-utils";
 import { supabase } from "./lib/supabase";
@@ -12,6 +12,8 @@ import { loadState } from "./lib/storage";
 import { deriveLocalLearningSummary } from "./lib/account-summary";
 import { ThemeControl } from "./theme";
 import { MotionControl } from "./preferences";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type AccountData = {
   profile: {
@@ -282,10 +284,10 @@ export function AccountPage() {
     return (
       <Page themed>
         <main className="status-page">
-          <div>
+          <Card>
             <span className="status-mark" />
             <h1>Loading account.</h1>
-          </div>
+          </Card>
         </main>
       </Page>
     );
@@ -293,18 +295,18 @@ export function AccountPage() {
     return (
       <Page themed>
         <main className="status-page">
-          <div>
+          <Card>
             <span className="eyebrow">Authentication required</span>
             <h1>Sign in to view your account.</h1>
             <p>
               Your balance and billing records are private to your Stranerd
               account.
             </p>
-            <a className="public-cta" href="/login?next=/account">
+            <Button asChild><a className="public-cta" href="/login?next=/account">
               Continue with Google
               <ArrowRight size={15} />
-            </a>
-          </div>
+            </a></Button>
+          </Card>
         </main>
       </Page>
     );
@@ -330,11 +332,10 @@ export function AccountPage() {
         <header className="account-heading">
           {avatar && <img src={avatar} alt="" referrerPolicy="no-referrer" />}
           <div>
-            <span className="eyebrow">Your account</span>
             <h1>{name}</h1>
             <p>{data?.profile?.email || user.email}</p>
           </div>
-          <div className="account-heading-actions"><a href="/app">Open app<ArrowRight size={15} /></a><button onClick={() => void signOut()}><LogOut size={16} />Sign out</button></div>
+          <div className="account-heading-actions"><Button variant="outline" onClick={() => void signOut()}><LogOut size={16} />Sign out</Button></div>
         </header>
         {error && (
           <p className="auth-error" role="alert">
@@ -342,17 +343,17 @@ export function AccountPage() {
             {error}
           </p>
         )}
-        <aside className="local-data-notice"><span>On this device</span><p>Learning progress, favorites, and saved structures below are stored in this browser and are not yet synced to your signed-in account.</p></aside>
+        <aside className="local-data-notice"><span>On this device</span><p>Flashcard progress is stored in this browser and synced when available.</p></aside>
 
-        <section className="account-section learning-summary" aria-labelledby="learning-summary-title"><header><div><span className="eyebrow">Learning on this device</span><h2 id="learning-summary-title">Your current study state</h2></div><a href="/app">Continue learning<ArrowRight size={14} /></a></header><div className="learning-overview"><article><BookOpenCheck size={19} /><span>Correct default questions</span><strong>{localSummary.completedQuestions}<small>/ {localSummary.totalQuestions}</small></strong></article><article><GalleryVerticalEnd size={19} /><span>Flashcards reviewed</span><strong>{localSummary.reviewedFlashcards}<small>/ {localSummary.totalFlashcards}</small></strong></article><article><Heart size={19} /><span>Favorite models</span><strong>{localSummary.favorites.length}</strong></article><article><Bookmark size={19} /><span>Saved structures</span><strong>{localSummary.savedStructures.length}</strong></article></div><div className="account-progress-list">{localSummary.assessmentProgress.map((progress) => <a key={progress.model.id} href={`/app?model=${progress.model.id}`}><div><strong>{progress.model.name}</strong><span>{progress.status.replace("-", " ")}</span></div><i><b style={{ width: `${(progress.completed / progress.total) * 100}%` }} /></i><small>{progress.completed} / {progress.total}</small></a>)}</div><div className="account-saved-grid"><article><header><Heart size={17} /><h3>Favorite models</h3></header>{localSummary.favorites.length === 0 ? <p>No favorite models on this device.</p> : localSummary.favorites.map((model) => <a key={model.id} href={`/app?model=${model.id}`}><span>{model.system}</span>{model.name}<ArrowRight size={13} /></a>)}</article><article><header><Bookmark size={17} /><h3>Saved structures</h3></header>{localSummary.savedStructures.length === 0 ? <p>No saved structures are available on this device.</p> : localSummary.savedStructures.map(({ reference, model, hotspot }) => <a key={reference} href={`/app?model=${model.id}`}><span>{model.name}</span>{hotspot.label}<ArrowRight size={13} /></a>)}</article></div></section>
+        <Card className="account-section learning-summary" aria-labelledby="learning-summary-title"><header><div><h2 id="learning-summary-title">Flashcard progress</h2></div></header><div className="learning-overview"><article><GalleryVerticalEnd size={19} /><span>Cards reviewed</span><strong>{localSummary.reviewedFlashcards}<small>/ {localSummary.totalFlashcards}</small></strong></article></div></Card>
 
-        <section className="account-section" aria-labelledby="billing-title"><header><div><span className="eyebrow">Credits and plan</span><h2 id="billing-title">Billing</h2></div><a href="/pricing">View pricing<ArrowRight size={14} /></a></header><div className="account-billing-grid"><div className="balance-panel"><div><WalletCards size={20} /><span>Available balance</span><strong>{total ?? "--"}</strong><small>{data ? "credits" : "loading credits"}</small></div><dl><div><dt>Free</dt><dd>{wallet?.free_balance ?? "--"}</dd></div><div><dt>Subscription</dt><dd>{wallet?.subscription_balance ?? "--"}</dd></div><div><dt>Purchased</dt><dd>{wallet?.purchased_balance ?? "--"}</dd></div></dl></div><article className="plan-card"><span className={`account-status ${subscription?.status || "free"}`}>{subscription?.cancel_at_period_end ? "cancellation scheduled" : subscription?.status || "free"}</span><h3>{subscriptionTitle}</h3><p>{subscription?.current_period_end ? `Current period ends ${new Date(subscription.current_period_end).toLocaleDateString()}.` : "Subscribe when you need a larger monthly AI allowance."}</p><div className="billing-actions">{subscription?.cancel_at_period_end && <button disabled>Cancellation scheduled</button>}{canCancel && <button onClick={cancelCurrentSubscription} disabled={cancelling}>{cancelling ? "Cancelling..." : "Cancel at period end"}</button>}{showSubscribe && <BillingButton productId="subscription">Subscribe to Plus</BillingButton>}<BillingButton productId="payg_100">Buy 100 credits</BillingButton></div>{cancellationNotice && <small className="account-notice" aria-live="polite">{cancellationNotice}</small>}</article></div></section>
+        <Card className="account-section" aria-labelledby="billing-title"><header><div><h2 id="billing-title">Billing</h2></div><Button variant="ghost" asChild><a href="/pricing">View pricing<ArrowRight size={14} /></a></Button></header><div className="account-billing-grid"><div className="balance-panel"><div><WalletCards size={20} /><span>Available balance</span><strong>{total ?? "--"}</strong><small>{data ? "credits" : "loading credits"}</small></div><dl><div><dt>Free</dt><dd>{wallet?.free_balance ?? "--"}</dd></div><div><dt>Subscription</dt><dd>{wallet?.subscription_balance ?? "--"}</dd></div><div><dt>Purchased</dt><dd>{wallet?.purchased_balance ?? "--"}</dd></div></dl></div><article className="plan-card"><span className={`account-status ${subscription?.status || "free"}`}>{subscription?.cancel_at_period_end ? "cancellation scheduled" : subscription?.status || "free"}</span><h3>{subscriptionTitle}</h3><p>{subscription?.current_period_end ? `Current period ends ${new Date(subscription.current_period_end).toLocaleDateString()}.` : "Subscribe when you need a larger monthly AI allowance."}</p><div className="billing-actions">{subscription?.cancel_at_period_end && <Button disabled>Cancellation scheduled</Button>}{canCancel && <Button variant="outline" onClick={cancelCurrentSubscription} disabled={cancelling}>{cancelling ? "Cancelling..." : "Cancel at period end"}</Button>}{showSubscribe && <BillingButton productId="subscription">Subscribe to Plus</BillingButton>}<BillingButton productId="payg_100">Buy 100 credits</BillingButton></div>{cancellationNotice && <small className="account-notice" aria-live="polite">{cancellationNotice}</small>}</article></div></Card>
 
-        <section className="account-section" aria-labelledby="preferences-title"><header><div><span className="eyebrow">Preferences</span><h2 id="preferences-title">Appearance and accessibility</h2></div></header><div className="preferences-grid"><article><h3>Theme</h3><p>Use your device appearance or choose an explicit theme across App and Account.</p><ThemeControl /></article><article><h3>Motion</h3><p>System follows your device. Reduce motion also disables smooth scrolling and automatic model rotation.</p><MotionControl /></article><article><Volume2 size={19} /><h3>Audio</h3><p>Voice sessions use microphone permission only when started. Captions are shown during the session, and raw audio or transcripts are not stored by Stranerd.</p><span className="unavailable-tag">Captions on · transcripts ephemeral</span></article></div></section>
+        <Card className="account-section" aria-labelledby="preferences-title"><header><div><h2 id="preferences-title">Appearance and accessibility</h2></div></header><div className="preferences-grid"><article><h3>Theme</h3><p>Use your device appearance or choose an explicit theme across App and Account.</p><ThemeControl /></article><article><h3>Motion</h3><p>System follows your device. Reduce motion also disables smooth scrolling and automatic model rotation.</p><MotionControl /></article><article><Volume2 size={19} /><h3>Audio</h3><p>Voice sessions use microphone permission only when started. Captions are shown during the session, and raw audio or transcripts are not stored by Stranerd.</p><span className="unavailable-tag">Captions on · transcripts ephemeral</span></article></div></Card>
 
-        <section className="account-section" aria-labelledby="activity-title"><header><div><span className="eyebrow">Account activity</span><h2 id="activity-title">Recent activity</h2></div></header><div className="account-activity-grid"><div className="transaction-list"><header><CreditCard size={17} /><h3>Credit activity</h3></header>{!data && <p>Loading credit activity...</p>}{data?.transactions.length === 0 && <p>No credit activity yet.</p>}{data?.transactions.map((transaction) => <div key={transaction.id}><span><b>{transaction.feature.replaceAll("_", " ")}</b><small>{transaction.type} · {transaction.bucket}</small></span><strong className={transaction.amount > 0 ? "positive" : ""}>{transaction.amount > 0 ? "+" : ""}{transaction.amount}</strong><time dateTime={transaction.created_at}>{new Date(transaction.created_at).toLocaleDateString()}</time></div>)}</div><div className="transaction-list payment-list"><header><WalletCards size={17} /><h3>Payments</h3></header>{!data && <p>Loading payments...</p>}{data?.payments.length === 0 && <p>No payment activity yet.</p>}{data?.payments.map((payment) => <div key={payment.id}><span><b>{payment.product_type === "subscription" ? "Stranerd Plus" : "100-credit pack"}</b><small>{payment.status} · {payment.credits} credits</small></span><strong>{formatMoney(payment.amount_minor, payment.currency)}</strong><time dateTime={payment.created_at}>{new Date(payment.created_at).toLocaleDateString()}</time></div>)}</div></div></section>
+        <Card className="account-section" aria-labelledby="activity-title"><header><div><h2 id="activity-title">Recent activity</h2></div></header><div className="account-activity-grid"><div className="transaction-list"><header><CreditCard size={17} /><h3>Credit activity</h3></header>{!data && <p>Loading credit activity...</p>}{data?.transactions.length === 0 && <p>No credit activity yet.</p>}{data?.transactions.map((transaction) => <div key={transaction.id}><span><b>{transaction.feature.replaceAll("_", " ")}</b><small>{transaction.type} · {transaction.bucket}</small></span><strong className={transaction.amount > 0 ? "positive" : ""}>{transaction.amount > 0 ? "+" : ""}{transaction.amount}</strong><time dateTime={transaction.created_at}>{new Date(transaction.created_at).toLocaleDateString()}</time></div>)}</div><div className="transaction-list payment-list"><header><WalletCards size={17} /><h3>Payments</h3></header>{!data && <p>Loading payments...</p>}{data?.payments.length === 0 && <p>No payment activity yet.</p>}{data?.payments.map((payment) => <div key={payment.id}><span><b>{payment.product_type === "subscription" ? "Stranerd Plus" : "100-credit pack"}</b><small>{payment.status} · {payment.credits} credits</small></span><strong>{formatMoney(payment.amount_minor, payment.currency)}</strong><time dateTime={payment.created_at}>{new Date(payment.created_at).toLocaleDateString()}</time></div>)}</div></div></Card>
 
-        <section className="account-section data-controls"><header><div><span className="eyebrow">Account controls</span><h2>Your data</h2></div></header><p>Request account deletion through support. Device-local learning data remains in this browser unless its local settings are reset.</p><a href="mailto:officialstranerd@gmail.com?subject=Stranerd%20account%20deletion%20request">Request account deletion<ExternalLink size={14} /></a></section>
+        <Card className="account-section data-controls"><header><div><h2>Your data</h2></div></header><p>Request account deletion through support. Device-local learning data remains in this browser unless its local settings are reset.</p><Button variant="outline" asChild><a href="mailto:officialstranerd@gmail.com?subject=Stranerd%20account%20deletion%20request">Request account deletion<ExternalLink size={14} /></a></Button></Card>
       </main>
     </Page>
   );

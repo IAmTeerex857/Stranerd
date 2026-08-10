@@ -216,9 +216,9 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
       onPointerOver={interactive ? (event: { stopPropagation: () => void }) => { event.stopPropagation(); document.body.style.cursor = 'pointer' } : undefined}
       onPointerOut={interactive ? () => { document.body.style.cursor = '' } : undefined}
     />
-    {dissection && prepared.labelMeshes
-      .filter((entry) => selectedIds.includes(entry.nodeId) && !dissection.hiddenIds.includes(entry.nodeId))
-      .map((entry) => <DissectionStructureLabel key={entry.nodeId} mesh={entry.mesh} label={entry.rawName} />)}
+    {prepared.labelMeshes
+      .filter((entry) => selectedIds.includes(entry.nodeId) && !dissection?.hiddenIds.includes(entry.nodeId))
+      .map((entry) => <DissectionStructureLabel key={entry.nodeId} mesh={entry.mesh} label={createMeshSelection(layer.id, entry.rawName).label} />)}
   </group>
 }
 

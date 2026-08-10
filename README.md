@@ -26,7 +26,7 @@ npm run build
 npm start
 ```
 
-`npm start` serves the API and a built `dist/` directory on `http://localhost:8787`. The mentor supports standard OpenAI credentials or Azure OpenAI through `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, and `AZURE_OPENAI_DEPLOYMENT`.
+`npm start` serves the API and a built `dist/` directory on `http://localhost:8787`. The mentor supports standard OpenAI credentials or Azure OpenAI through `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, and `AZURE_OPENAI_DEPLOYMENT`. Azure Voice and input transcription use `gpt-realtime-2.1` by default; either deployment can be overridden with `AZURE_OPENAI_REALTIME_DEPLOYMENT` or `AZURE_OPENAI_TRANSCRIPTION_DEPLOYMENT`.
 
 ## Deploy
 

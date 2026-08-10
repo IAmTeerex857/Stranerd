@@ -11,6 +11,7 @@ import { createDissectionState, digestiveStructureGroup, dissectionReducer, type
 import { useTheme } from '../theme-context'
 import type { ResolvedTheme } from '../theme-utils'
 import { usePreferences } from '../preferences-context'
+import { Button } from '@/components/ui/button'
 
 type ViewerProps = {
   model: ModelEntry
@@ -279,14 +280,14 @@ export function AnatomyViewer(props: ViewerProps) {
       <div className="viewer-head">
         <div><span className="eyebrow">{dissectMode ? 'Virtual dissection' : props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p>{props.model.viewer !== 'segmented-body' && <div className="variant-control"><label htmlFor={`variant-${props.model.id}`}>Specimen</label><select id={`variant-${props.model.id}`} value={variant.id} onChange={(event) => changeVariant(event.target.value)}>{props.model.variants.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>{variant.note && <small>{variant.note}</small>}</div>}</div>
         <div className="viewer-tools" aria-label="Viewer controls">
-          <button className={props.favorite ? 'active' : ''} onClick={props.onFavorite} title={props.favorite ? 'Remove favorite' : 'Add favorite'} aria-pressed={props.favorite}><Star size={17} fill={props.favorite ? 'currentColor' : 'none'} /><span>Favorite</span></button>
-          <button className={props.settings.autoRotate ? 'active' : ''} onClick={() => toggle('autoRotate')} title="Toggle auto rotate"><ScanLine size={17} /><span>Rotate</span></button>
-          <button onClick={() => controlsRef.current?.reset()} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></button>
-          {props.model.viewer !== 'segmented-body' && <button className={props.settings.labels ? 'active' : ''} onClick={() => toggle('labels')} title="Toggle labels"><Tags size={17} /><span>Labels</span></button>}
-          <button className={props.settings.wireframe ? 'active' : ''} onClick={() => toggle('wireframe')} title="Toggle wireframe"><Focus size={17} /><span>Wire</span></button>
-          <button className={props.settings.layers ? 'active' : ''} onClick={() => toggle('layers')} title="Toggle reference layers"><Layers3 size={17} /><span>Layers</span></button>
-          <button className={props.settings.isolate ? 'active' : ''} onClick={() => toggle('isolate')} title="Reduce reference overlays"><Box size={17} /><span>Focus</span></button>
-          {canDissect && <button className={dissectMode ? 'active' : ''} onClick={toggleDissectMode} title="Toggle Dissect Mode" aria-pressed={dissectMode}><Scissors size={17} /><span>Dissect</span></button>}
+          <Button variant="ghost" size="sm" className={props.favorite ? 'active' : ''} onClick={props.onFavorite} title={props.favorite ? 'Remove favorite' : 'Add favorite'} aria-pressed={props.favorite}><Star size={17} fill={props.favorite ? 'currentColor' : 'none'} /><span>Favorite</span></Button>
+          <Button variant="ghost" size="sm" className={props.settings.autoRotate ? 'active' : ''} onClick={() => toggle('autoRotate')} title="Toggle auto rotate"><ScanLine size={17} /><span>Rotate</span></Button>
+          <Button variant="ghost" size="sm" onClick={() => controlsRef.current?.reset()} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></Button>
+          {props.model.viewer !== 'segmented-body' && <Button variant="ghost" size="sm" className={props.settings.labels ? 'active' : ''} onClick={() => toggle('labels')} title="Toggle labels"><Tags size={17} /><span>Labels</span></Button>}
+          <Button variant="ghost" size="sm" className={props.settings.wireframe ? 'active' : ''} onClick={() => toggle('wireframe')} title="Toggle wireframe"><Focus size={17} /><span>Wire</span></Button>
+          <Button variant="ghost" size="sm" className={props.settings.layers ? 'active' : ''} onClick={() => toggle('layers')} title="Toggle reference layers"><Layers3 size={17} /><span>Layers</span></Button>
+          <Button variant="ghost" size="sm" className={props.settings.isolate ? 'active' : ''} onClick={() => toggle('isolate')} title="Reduce reference overlays"><Box size={17} /><span>Focus</span></Button>
+          {canDissect && <Button variant="ghost" size="sm" className={dissectMode ? 'active' : ''} onClick={toggleDissectMode} title="Toggle Dissect Mode" aria-pressed={dissectMode}><Scissors size={17} /><span>Dissect</span></Button>}
         </div>
       </div>
       <div className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
@@ -295,7 +296,7 @@ export function AnatomyViewer(props: ViewerProps) {
         </Canvas>
         {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
         <div className="axis"><span>Y</span><i /><b>X</b></div>
-        <p className="viewer-help">{dissectMode ? 'Drag a structure to pull it out · drag empty space to orbit' : 'Click the model to inspect · shift-click to multi-select · drag to orbit'}</p>
+        <p className="viewer-help">{dissectMode ? 'Drag a structure to pull it out · drag empty space to orbit' : 'Select a structure to inspect · drag to orbit'}</p>
       </div>
       {dissectMode && (variant.segmentedSystem || props.model.viewer === 'segmented-body') && <aside className={`dissect-dock ${dissectPanelOpen ? 'sheet-open' : 'sheet-collapsed'}`}>
           <header><button className="mobile-sheet-toggle" onClick={() => setDissectPanelOpen((value) => !value)} aria-expanded={dissectPanelOpen}>{dissectPanelOpen ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button><div><span>Dissect Mode</span><b>{structures.length} structures · tap to {dissectPanelOpen ? 'collapse' : 'open'}</b></div><button onClick={toggleDissectMode} title="Exit Dissect Mode"><X size={14} /></button></header>
@@ -308,7 +309,7 @@ export function AnatomyViewer(props: ViewerProps) {
             <button className={dissection.isolate ? 'active' : ''} disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'toggle-isolate' }); recordAction('isolate', selectedStructureIds) }}>Isolate</button>
             <button className={`touch-move-action ${touchMoveEnabled ? 'active' : ''}`} onClick={() => setTouchMoveEnabled((value) => !value)}>Move</button>
           </div>
-          <div className="dissect-structures">{structureGroups.map(([group, entries]) => <section key={group}><h3>{group}<span>{entries.length}</span></h3>{entries.map((structure) => <button key={structure.id} className={`${props.selectedIds.includes(structure.id) ? 'selected' : ''} ${dissection.hiddenIds.includes(structure.id) ? 'hidden' : ''}`} onClick={(event) => selectStructure(structure, event.shiftKey)}><i />{structure.label}{dissection.hiddenIds.includes(structure.id) && <EyeOff size={11} />}</button>)}</section>)}</div>
+          <div className="dissect-structures">{structureGroups.map(([group, entries]) => <section key={group}><h3>{group}<span>{entries.length}</span></h3>{entries.map((structure) => <button key={structure.id} className={`${props.selectedIds.includes(structure.id) ? 'selected' : ''} ${dissection.hiddenIds.includes(structure.id) ? 'hidden' : ''}`} onClick={(event) => selectStructure(structure, event.shiftKey || window.matchMedia('(pointer: coarse)').matches)}><i />{structure.label}{dissection.hiddenIds.includes(structure.id) && <EyeOff size={11} />}</button>)}</section>)}</div>
           <footer><button disabled={dissection.history.length === 0} onClick={() => dispatchDissection({ type: 'undo' })}><Undo2 size={13} />Undo</button><button disabled={dissection.hiddenIds.length === 0} onClick={() => { const ids = dissection.hiddenIds; dispatchDissection({ type: 'show-all' }); recordAction('show', ids) }}>Show all</button><button onClick={resetDissection}>Reset</button></footer>
           </div>
         </aside>}

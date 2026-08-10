@@ -130,11 +130,10 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
       proxy.name = `hit:${entry.rawName}`
       return { proxy, rawName: entry.rawName, nodeId: entry.nodeId, movementId: entry.movementId }
     })
-    const structures = meshes.map((entry) => ({
-      ...createMeshSelection(systemId, entry.rawName),
-      id: entry.nodeId,
-      nodeId: entry.nodeId,
-    }))
+    const structures = [...new Map(meshes.map((entry) => {
+      const structure = { ...createMeshSelection(systemId, entry.rawName), id: entry.nodeId, nodeId: entry.nodeId }
+      return [entry.nodeId, structure]
+    })).values()]
     const labelMeshes = [...new Map(meshes
       .sort((left, right) => {
         left.mesh.geometry.computeBoundingBox()
@@ -277,8 +276,8 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
   return <group>
     <primitive object={prepared.root} />
     {prepared.proxies.map(({ proxy }) => <primitive key={proxy.uuid} object={proxy} />)}
-    {dissection && prepared.labelMeshes
-      .filter((entry) => selectedIds.includes(entry.nodeId) && !dissection.hiddenIds.includes(entry.nodeId))
-      .map((entry) => <DissectionStructureLabel key={entry.nodeId} mesh={entry.mesh} label={entry.rawName} />)}
+    {prepared.labelMeshes
+      .filter((entry) => selectedIds.includes(entry.nodeId) && !dissection?.hiddenIds.includes(entry.nodeId))
+      .map((entry) => <DissectionStructureLabel key={entry.nodeId} mesh={entry.mesh} label={prepared.structures.find((structure) => structure.id === entry.nodeId)?.label ?? entry.rawName} />)}
   </group>
 }

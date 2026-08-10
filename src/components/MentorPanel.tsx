@@ -1,10 +1,14 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { Bot, CornerDownRight, Send, X } from 'lucide-react'
+import { ArrowRight, BookOpenCheck, Bot, CornerDownRight, GalleryVerticalEnd, GitCompareArrows, Mic, Send, X } from 'lucide-react'
 import type { ChatItem, DissectionHistoryItem, Hotspot, ModelEntry } from '../types'
 import { askMentor } from '../lib/mentor'
 import { anatomyGraph, anatomyLayers } from '../data/anatomyGraph'
 import { useAuth } from '../auth-context'
 import { AIActionError } from '../lib/ai'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { VoiceDock } from './VoiceDock'
 
 type Props = {
   model: ModelEntry
@@ -17,10 +21,14 @@ type Props = {
   mobileOpen?: boolean
   onMobileClose?: () => void
   onInsufficientCredits?: () => void
+  voiceMode: 'mentor' | 'lab' | 'assessment'
+  voiceContext: unknown
+  onStudentCaption?: (text: string) => void
+  onVoiceInsufficientCredits: () => void
 }
 
 function MentorText({ text }: { text: string }) {
-  const blocks = text.replace(/\*\*|__/g, '').split(/\n{2,}/).filter(Boolean)
+  const blocks = text.replace(/[\u2013\u2014]/g, '-').replace(/\*\*|__/g, '').split(/\n{2,}/).filter(Boolean)
   return <div className="mentor-copy">{blocks.map((block, index) => {
     const lines = block.split('\n').map((line) => line.trim()).filter(Boolean)
     if (lines.every((line) => /^[-•*]\s+/.test(line))) {
@@ -30,12 +38,19 @@ function MentorText({ text }: { text: string }) {
   })}</div>
 }
 
-export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose, onInsufficientCredits }: Props) {
+export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose, onInsufficientCredits, voiceMode, voiceContext, onStudentCaption, onVoiceInsufficientCredits }: Props) {
   const { user, balance, setBalance } = useAuth()
   const [input, setInput] = useState('')
   const [actionError, setActionError] = useState<{ message: string; needsCredits: boolean }>()
   const transcript = useRef<HTMLDivElement>(null)
   const transcriptEnd = useRef<HTMLDivElement>(null)
+  const visibleMessages = messages.filter((message) => !message.text.startsWith('Authored context') && !message.text.startsWith('SELECTED'))
+  const showSuggestions = visibleMessages.length <= 1 && !selectedHotspot
+  const suggestions = [
+    { Icon: BookOpenCheck, label: `Quiz me on ${model.name.toLowerCase()} structure and function` },
+    { Icon: GalleryVerticalEnd, label: `Build a quick recall plan for ${model.name.toLowerCase()}` },
+    { Icon: GitCompareArrows, label: `Compare the most important structures in ${model.name.toLowerCase()}` },
+  ]
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const nextFrame = window.requestAnimationFrame(() => {
@@ -45,6 +60,12 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
     })
     return () => window.cancelAnimationFrame(frame)
   }, [messages, mobileOpen, typing])
+  useEffect(() => {
+    if (!mobileOpen || window.innerWidth > 760) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previous }
+  }, [mobileOpen])
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -82,8 +103,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
       if (error instanceof AIActionError && error.code === 'insufficient_credits') onInsufficientCredits?.()
       const message = error instanceof Error ? error.message : 'The AI request failed. No credit was charged.'
       setActionError({ message, needsCredits: error instanceof AIActionError && error.code === 'insufficient_credits' })
-      const fallback = `Focus on ${model.name} structure-function relationships: ${model.facts[0]}`
-      onMessages((current) => current.map((item) => item.id === replyId ? { ...item, text: `Authored fallback · ${fallback}`, pending: false } : item))
+      onMessages((current) => current.filter((item) => item.id !== replyId))
     } finally {
       onTyping(false)
     }
@@ -95,27 +115,31 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
     event.currentTarget.form?.requestSubmit()
   }
 
-  return (
-    <aside id="stranerd-mentor" className={`mentor ${mobileOpen ? 'mobile-open' : ''} panel anim3`} aria-label="Stranerd Mentor">
-      <header className="mentor-head"><span className="mentor-avatar"><Bot size={17} /></span><div><strong>Stranerd Mentor</strong><small><i /> explicit AI · 1 credit</small></div>{onMobileClose && <button className="mentor-mobile-close" onClick={onMobileClose} aria-label="Close mentor"><X size={17} /></button>}</header>
-      {selectedHotspot && <div className="mentor-context"><header><span>Selected context</span><b>{selectedHotspot.source === 'mesh' ? `KG ${anatomyGraph.contentVersion}` : model.name}</b></header><strong>{selectedHotspot.label}</strong><small>{anatomyLayers.find((layer) => layer.id === selectedHotspot.systemId)?.label || model.system} system</small><button onClick={() => setInput(`Explain the structure and function of ${selectedHotspot.label}.`)}>Ask about this<CornerDownRight size={13} /></button></div>}
-      <div className="transcript" ref={transcript} aria-live="polite">
-        {messages.map((message) => message.role === 'engine' ? (
-          <div key={message.id} className={`engine-chip ${message.status}`}>{message.text}</div>
-        ) : (
-          <div key={message.id} className={`chat-row ${message.role} ${message.pending ? 'pending' : ''}`}>
-            <span>{message.role === 'mentor' ? <Bot size={15} /> : 'YOU'}</span><MentorText text={message.text} />
+  return <>
+    {mobileOpen && <button className="mentor-backdrop" onClick={onMobileClose} aria-label="Close Mentor" />}
+    <aside id="stranerd-mentor" className={`mentor assistant-panel ${mobileOpen ? 'mobile-open' : ''} panel anim3`} aria-label="Stranerd Mentor" role={mobileOpen ? 'dialog' : undefined} aria-modal={mobileOpen || undefined}>
+      <header className="mentor-head"><span className="mentor-avatar"><Bot size={17} /></span><div><strong>Stranerd Mentor</strong><small><i /> anatomy learning assistant</small></div>{onMobileClose && <Button variant="ghost" size="icon-sm" className="mentor-mobile-close" onClick={onMobileClose} aria-label="Close mentor"><X size={17} /></Button>}</header>
+      <Tabs defaultValue={new URLSearchParams(window.location.search).get('assistant') === 'voice' ? 'voice' : 'text'} className="assistant-tabs">
+        <TabsList className="assistant-tabs-list"><TabsTrigger value="text"><Bot />Text</TabsTrigger><TabsTrigger value="voice"><Mic />Voice</TabsTrigger></TabsList>
+        <TabsContent value="text" className="assistant-tab-content assistant-text-tab">
+          {selectedHotspot && <div className="mentor-context"><header><span>Selected context</span><b>{selectedHotspot.source === 'mesh' ? `KG ${anatomyGraph.contentVersion}` : model.name}</b></header><strong>{selectedHotspot.label}</strong><small>{anatomyLayers.find((layer) => layer.id === selectedHotspot.systemId)?.label || model.system} system</small><Button variant="ghost" size="sm" onClick={() => setInput(`Explain the structure and function of ${selectedHotspot.label}.`)}>Ask about this<CornerDownRight size={13} /></Button></div>}
+          <div className={`transcript ${showSuggestions ? 'suggestion-state' : ''}`} ref={transcript} aria-live="polite">
+            {showSuggestions ? <div className="mentor-welcome"><span className="mentor-welcome-mark"><Bot /></span><h2>Learn with Stranerd Mentor</h2><p>Ask about the current model, test your recall, or compare anatomical relationships.</p><div>{suggestions.map(({ Icon, label }) => <button key={label} onClick={() => setInput(label)}><span><Icon /></span>{label}<ArrowRight /></button>)}</div><small>Text Mentor uses 1 credit per response.</small></div> : visibleMessages.map((message) => message.role === 'engine' ? (
+              <div key={message.id} className={`engine-chip ${message.status}`}>{message.text}</div>
+            ) : (
+              <div key={message.id} className={`chat-row ${message.role} ${message.pending ? 'pending' : ''}`}><span>{message.role === 'mentor' ? <Bot size={15} /> : 'YOU'}</span><MentorText text={message.text} /></div>
+            ))}
+            {typing && <div className="typing"><i /><i /><i /><span>Mentor is responding</span></div>}
+            <div ref={transcriptEnd} aria-hidden="true" />
           </div>
-        ))}
-        {typing && <div className="typing"><i /><i /><i /><span>Mentor is responding</span></div>}
-        <div ref={transcriptEnd} aria-hidden="true" />
-      </div>
-      {actionError && !actionError.needsCredits && <div className="mentor-action-error"><span>{actionError.message}</span></div>}
-      <form className="mentor-input" onSubmit={submit}>
-        <label htmlFor="mentor-question">Ask about {selectedHotspot?.label || 'this model'}</label>
-        <div><textarea id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder="Why is this structure important?" maxLength={500} rows={2} /><button aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><Send size={15} /><span>{user ? 'Ask AI · 1 credit' : 'Sign in to ask'}</span></button></div>
-        <small>{user ? `${balance ? `${balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance} credits available` : 'Loading credits'} · ` : ''}Enter to send · Shift+Enter for a new line.</small>
-      </form>
+          {actionError && !actionError.needsCredits && <div className="mentor-action-error"><span>{actionError.message}</span></div>}
+          <form className="mentor-input" onSubmit={submit}>
+            <div><Textarea id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button size="icon" aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><Send size={16} /></Button></div>
+            <small>{user ? `${balance ? `${balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance} credits` : 'Loading credits'} | ` : ''}Enter to send</small>
+          </form>
+        </TabsContent>
+        <TabsContent value="voice" className="assistant-tab-content assistant-voice-tab"><VoiceDock embedded mode={voiceMode} modelId={model.id} context={voiceContext} onStudentCaption={onStudentCaption} onInsufficientCredits={onVoiceInsufficientCredits} /></TabsContent>
+      </Tabs>
     </aside>
-  )
+  </>
 }

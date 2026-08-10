@@ -25,4 +25,9 @@ describe('generated flashcards', () => {
     expect(parseGeneratedDeck(JSON.stringify({ title: 'Short', description: 'No.', cards: validCards.slice(0, 11) }), 'heart', false)).toBeUndefined()
     expect(parseGeneratedDeck(JSON.stringify({ title: 'Duplicate', description: 'No.', cards: Array(12).fill(validCards[0]) }), 'heart', false)).toBeUndefined()
   })
+
+  it('rejects generic highlighted-structure prompts', () => {
+    const cards = validCards.map((card, index) => index === 0 ? { ...card, front: { ...card.front, heading: 'Identify the highlighted structure' } } : card)
+    expect(parseGeneratedDeck(JSON.stringify({ title: 'Weak deck', description: 'Generic prompts.', cards }), 'heart', false)).toBeUndefined()
+  })
 })

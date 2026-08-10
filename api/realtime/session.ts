@@ -4,6 +4,33 @@ import { serverAnatomyCatalog } from '../../server/anatomyCatalog.js'
 
 type SessionBody = { mode?: 'mentor' | 'lab' | 'assessment'; modelId?: string; context?: unknown }
 
+function realtimeProvider() {
+  const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '')
+  const azureModel = process.env.AZURE_OPENAI_REALTIME_DEPLOYMENT || 'gpt-realtime-2.1'
+  if (process.env.AZURE_OPENAI_API_KEY && azureEndpoint && azureModel) {
+    const headers: Record<string, string> = { 'api-key': process.env.AZURE_OPENAI_API_KEY }
+    return {
+      model: azureModel,
+      secretUrl: `${azureEndpoint}/openai/v1/realtime/client_secrets`,
+      callsUrl: `${azureEndpoint}/openai/v1/realtime/calls?webrtcfilter=on`,
+      headers,
+      transcriptionModel: process.env.AZURE_OPENAI_TRANSCRIPTION_DEPLOYMENT || azureModel,
+    }
+  }
+  if (process.env.OPENAI_API_KEY) {
+    const model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime'
+    const headers: Record<string, string> = { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }
+    return {
+      model,
+      secretUrl: 'https://api.openai.com/v1/realtime/client_secrets',
+      callsUrl: `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(model)}`,
+      headers,
+      transcriptionModel: 'gpt-4o-mini-transcribe',
+    }
+  }
+  throw new AiRequestError(503, 'voice_unavailable', 'Realtime Voice is not configured.')
+}
+
 export default async function handler(request: Request, response: Response) {
   if (request.method !== 'POST') return void response.status(405).json({ message: 'Method not allowed' })
   let creditContext: { client: Awaited<ReturnType<typeof requireAiUser>>['client']; userId: string; requestId: string } | undefined
@@ -12,7 +39,7 @@ export default async function handler(request: Request, response: Response) {
     const requestId = request.headers['x-request-id'] as string | undefined
     const model = serverAnatomyCatalog.find((entry) => entry.id === body.modelId)
     if (!validRequestId(requestId) || !model || !['mentor', 'lab', 'assessment'].includes(body.mode ?? '') || JSON.stringify(body.context ?? {}).length > 12_000) throw new AiRequestError(400, 'invalid_request', 'A valid voice learning context is required.')
-    if (!process.env.OPENAI_API_KEY) throw new AiRequestError(503, 'voice_unavailable', 'OpenAI Realtime is not configured.')
+    const provider = realtimeProvider()
     const { client, userId } = await requireAiUser(request.headers.authorization)
     creditContext = { client, userId, requestId: requestId! }
     const { data: reserved, error: reserveError } = await client.rpc('reserve_voice_session_credits', { p_user_id: userId, p_amount: 10, p_request_id: requestId })
@@ -21,8 +48,8 @@ export default async function handler(request: Request, response: Response) {
       throw new AiRequestError(500, 'credit_reservation_failed', 'Voice credits could not be reserved.')
     }
     const instructions = `You are Stranerd Voice Mentor, a concise university-level anatomy educator. This is an educational tool, not medical advice. Never diagnose, prescribe, or give patient-specific guidance. Use the supplied learning context. Ask recall questions and allow interruption. In assessment mode, read questions and options but never reveal or infer correct answers before submission. In Lab mode, guide the learner but never claim an objective is complete; only Stranerd validates model actions. Session context: ${JSON.stringify({ model, focus: body.context })}`
-    const realtimeModel = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime'
-    const providerResponse = await fetch('https://api.openai.com/v1/realtime/client_secrets', { method: 'POST', headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ expires_after: { anchor: 'created_at', seconds: 30 }, session: { type: 'realtime', model: realtimeModel, output_modalities: ['audio'], instructions, max_output_tokens: 300, audio: { input: { transcription: { model: 'gpt-4o-mini-transcribe', language: 'en' }, turn_detection: { type: 'semantic_vad', create_response: true, interrupt_response: true } }, output: { voice: 'marin' } } } }), signal: AbortSignal.timeout(15_000) })
+    const inputAudio = { turn_detection: { type: 'semantic_vad', create_response: true, interrupt_response: true }, ...(provider.transcriptionModel ? { transcription: { model: provider.transcriptionModel, language: 'en' } } : {}) }
+    const providerResponse = await fetch(provider.secretUrl, { method: 'POST', headers: { ...provider.headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ expires_after: { anchor: 'created_at', seconds: 30 }, session: { type: 'realtime', model: provider.model, output_modalities: ['audio'], instructions, max_output_tokens: 300, audio: { input: inputAudio, output: { voice: 'marin' } } } }), signal: AbortSignal.timeout(15_000) })
     const secret = await providerResponse.json() as { value?: string; expires_at?: number; session?: { id?: string } }
     if (!providerResponse.ok || !secret.value) throw new Error('Realtime credential request failed')
     const now = Date.now()
@@ -31,7 +58,7 @@ export default async function handler(request: Request, response: Response) {
     if (sessionError) throw new Error('Voice session record failed')
     const { data: balance, error: finalError } = await client.rpc('finalize_credit_reservation', { p_user_id: userId, p_request_id: requestId })
     if (finalError) throw new AiRequestError(503, 'credit_finalization_pending', 'Voice session authorization is pending. Retry shortly.')
-    response.json({ value: secret.value, model: realtimeModel, expiresAt: secret.expires_at, startedAt: now, endsAt, sessionId: secret.session?.id, balance })
+    response.json({ value: secret.value, webrtcUrl: provider.callsUrl, expiresAt: secret.expires_at, startedAt: now, endsAt, sessionId: secret.session?.id, balance })
   } catch (error) {
     if (creditContext && !(error instanceof AiRequestError && error.code === 'credit_finalization_pending')) await creditContext.client.rpc('refund_credit_reservation', { p_user_id: creditContext.userId, p_request_id: creditContext.requestId })
     const result = aiErrorResponse(error)

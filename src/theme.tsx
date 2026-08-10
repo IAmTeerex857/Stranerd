@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { ThemeContext, useTheme } from './theme-context'
 import { applyTheme, persistThemePreference, readThemePreference, resolveTheme, THEME_QUERY, type ThemePreference } from './theme-utils'
+import { Button } from '@/components/ui/button'
 
 export function ThemeProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>(() => enabled ? readThemePreference() : 'dark')
@@ -39,6 +40,6 @@ export function ThemeControl({ compact = false }: { compact?: boolean }) {
   const { preference, setPreference } = useTheme()
   return <fieldset className={`theme-control ${compact ? 'compact' : ''}`} aria-label="Appearance">
     <legend>Appearance</legend>
-    {options.map(({ value, label, Icon }) => <button key={value} type="button" className={preference === value ? 'active' : ''} aria-pressed={preference === value} title={`${label} theme`} onClick={() => setPreference(value)}><Icon size={14} /><span>{label}</span></button>)}
+    {options.map(({ value, label, Icon }) => <Button variant={preference === value ? 'default' : 'ghost'} size="sm" key={value} type="button" className={preference === value ? 'active' : ''} aria-pressed={preference === value} title={`${label} theme`} onClick={() => setPreference(value)}><Icon size={14} /><span>{label}</span></Button>)}
   </fieldset>
 }

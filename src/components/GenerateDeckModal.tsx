@@ -1,7 +1,12 @@
 import { useState } from 'react'
-import { GalleryVerticalEnd, X } from 'lucide-react'
+import { GalleryVerticalEnd } from 'lucide-react'
 import type { ModelEntry } from '../types'
 import type { GenerateDeckInput } from '../lib/generatedFlashcards'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 type Props = { model: ModelEntry; balance: number; generating: boolean; error?: string; onClose: () => void; onGenerate: (input: GenerateDeckInput) => void }
 
@@ -11,5 +16,19 @@ export function GenerateDeckModal({ model, balance, generating, error, onClose, 
   const [visibility, setVisibility] = useState<GenerateDeckInput['visibility']>('private')
   const [includeDiagrams, setIncludeDiagrams] = useState(true)
   const [topic, setTopic] = useState('')
-  return <div className="credit-modal-backdrop generated-deck-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="generated-deck-modal" role="dialog" aria-modal="true" aria-labelledby="generate-deck-title"><header><span><GalleryVerticalEnd size={16} />Generate flashcards</span><button onClick={onClose} aria-label="Close"><X size={16} /></button></header><div className="generated-deck-copy"><span>12 cards · 5 credits</span><h2 id="generate-deck-title">Create a {model.name} deck</h2><p>AI creates grounded study cards from Stranerd’s trusted model context. Unsupported diagrams become complete text-only cards.</p></div><div className="generated-deck-fields"><label>Difficulty<select value={difficulty} onChange={(event) => setDifficulty(event.target.value as GenerateDeckInput['difficulty'])}><option value="introductory">Introductory</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></label><label>Focus<select value={focus} onChange={(event) => setFocus(event.target.value as GenerateDeckInput['focus'])}><option value="mixed">Mixed</option><option value="structures">Structures</option><option value="functions">Functions</option><option value="relationships">Relationships</option></select></label><label>Visibility<select value={visibility} onChange={(event) => setVisibility(event.target.value as GenerateDeckInput['visibility'])}><option value="private">Private</option><option value="public">Public · others pay 5 credits</option></select></label><label>Optional topic<input value={topic} maxLength={120} onChange={(event) => setTopic(event.target.value)} placeholder={model.metadata.focus} /></label><label className="generated-deck-check"><input type="checkbox" checked={includeDiagrams} onChange={(event) => setIncludeDiagrams(event.target.checked)} />Include validated 3D cards where supported</label></div>{error && <p className="auth-error" role="alert">{error}</p>}<footer><span>{balance} credits available</span><button className="primary" disabled={generating || balance < 5} onClick={() => onGenerate({ modelId: model.id, difficulty, focus, visibility, includeDiagrams, ...(topic.trim() ? { topic: topic.trim() } : {}) })}>{generating ? 'Generating...' : 'Generate deck · 5 credits'}</button></footer></section></div>
+
+  return <Dialog open onOpenChange={(open) => { if (!open && !generating) onClose() }}>
+    <DialogContent className="generated-deck-modal sm:max-w-xl">
+      <DialogHeader><span className="dialog-icon"><GalleryVerticalEnd size={18} /></span><Badge variant="secondary">12 cards | 5 credits</Badge><DialogTitle>Create a {model.name} deck</DialogTitle><DialogDescription>Generate focused anatomy exam questions grounded in Stranerd's verified model context.</DialogDescription></DialogHeader>
+      <div className="generated-deck-fields">
+        <label>Difficulty<select value={difficulty} onChange={(event) => setDifficulty(event.target.value as GenerateDeckInput['difficulty'])}><option value="introductory">Introductory</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></label>
+        <label>Focus<select value={focus} onChange={(event) => setFocus(event.target.value as GenerateDeckInput['focus'])}><option value="mixed">Mixed</option><option value="structures">Structures</option><option value="functions">Functions</option><option value="relationships">Relationships</option></select></label>
+        <label>Visibility<select value={visibility} onChange={(event) => setVisibility(event.target.value as GenerateDeckInput['visibility'])}><option value="private">Private</option><option value="public">Public | 5-credit unlock</option></select></label>
+        <label>Optional topic<Input value={topic} maxLength={120} onChange={(event) => setTopic(event.target.value)} placeholder={model.metadata.focus} /></label>
+        <label className="generated-deck-check"><Switch checked={includeDiagrams} onCheckedChange={setIncludeDiagrams} />Include validated 3D context where supported</label>
+      </div>
+      {error && <p className="auth-error" role="alert">{error}</p>}
+      <footer><span>{balance} credits available</span><div><Button variant="ghost" onClick={onClose} disabled={generating}>Cancel</Button><Button disabled={generating || balance < 5} onClick={() => onGenerate({ modelId: model.id, difficulty, focus, visibility, includeDiagrams, topic: topic.trim() || undefined })}>{generating ? 'Generating...' : 'Generate deck'}</Button></div></footer>
+    </DialogContent>
+  </Dialog>
 }

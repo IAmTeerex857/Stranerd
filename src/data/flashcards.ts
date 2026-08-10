@@ -1,37 +1,29 @@
 import { models } from './models'
+import { lessonsForModel } from './lessons'
+import { quizForModel } from './quizzes'
 import type { FlashcardDeck, FlashcardDiagram } from '../types'
 
 export const defaultFlashcardDecks: FlashcardDeck[] = models.map((model) => {
-  const variant = model.variants.find((entry) => entry.hotspots?.length) ?? model.variants[0]
-  const structures = (variant.hotspots ?? model.hotspots).slice(0, 3)
-  const diagram = (structureId: string): FlashcardDiagram => ({ modelId: model.id, variantId: variant.id, selectedStructureIds: [structureId] })
-  const structureCards = structures.flatMap((structure) => [
-    {
-      id: `${model.id}-identify-${structure.id}`,
-      kind: 'identify-structure' as const,
-      front: { heading: 'Identify the structure', body: 'Which anatomical structure is highlighted?', diagram: diagram(structure.id) },
-      back: { heading: structure.label, body: `${structure.detail} Region: ${model.metadata.region}.` },
-    },
-    {
-      id: `${model.id}-function-${structure.id}`,
-      kind: 'structure-to-function' as const,
-      front: { heading: structure.label, body: 'Recall the location or function of this structure.', diagram: diagram(structure.id) },
-      back: { heading: 'Structure in context', body: structure.detail },
-    },
-  ])
-  const factCards = model.facts.slice(0, Math.max(2, 6 - structureCards.length)).map((fact, index) => ({
-    id: `${model.id}-fact-${index + 1}`,
+  const quiz = quizForModel(model.id)
+  const quizCard = quiz && {
+    id: `${model.id}-exam-core`,
     kind: 'fact-recall' as const,
-    front: { heading: `${model.name} recall`, body: `Explain this ${model.metadata.focus.toLowerCase()} concept before revealing the answer.` },
-    back: { heading: `Key fact ${index + 1}`, body: fact },
+    front: { heading: quiz.question, body: 'Answer before revealing the explanation.' },
+    back: { heading: quiz.options[quiz.correctIndex], body: quiz.explanation },
+  }
+  const lessonCards = lessonsForModel(model.id).map((lesson) => ({
+    id: `${model.id}-exam-${lesson.id}`,
+    kind: 'structure-to-function' as const,
+    front: { heading: lesson.prompt, body: 'Give the structure and explain the anatomical reasoning.' },
+    back: { heading: lesson.title, body: lesson.fallback },
   }))
   return {
     id: `${model.id}-foundations`,
     modelId: model.id,
-    contentVersion: '1',
+    contentVersion: '2',
     title: `${model.name} foundations`,
-    description: `Verified structure, function, and context cards for ${model.name.toLowerCase()}.`,
-    cards: [...structureCards, ...factCards],
+    description: `Authored anatomy questions covering structure, function, and clinical relationships in ${model.name.toLowerCase()}.`,
+    cards: [...(quizCard ? [quizCard] : []), ...lessonCards],
   }
 })
 

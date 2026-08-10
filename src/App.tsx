@@ -1,8 +1,6 @@
-import { useEffect, useEffectEvent, useMemo, useState, type SetStateAction } from 'react'
+import { lazy, Suspense, useEffect, useEffectEvent, useMemo, useState, type SetStateAction } from 'react'
 import { Bot, ChevronRight, CircleUserRound, FlaskConical, Library, Menu, PanelLeftClose, PanelLeftOpen, Search, Star, X } from 'lucide-react'
-import { AnatomyViewer } from './components/AnatomyViewer'
 import { MentorPanel } from './components/MentorPanel'
-import { LibraryView, QuizzesView } from './components/WorkspaceViews'
 import { anatomyModels, modelById, models } from './data/models'
 import logoUrl from '../Logo Stranerd.png'
 import iconUrl from '../Icon Logo Stranerd.png'
@@ -10,21 +8,29 @@ import { allQuizzes, quizzesForModel } from './data/quizzes'
 import { loadState, saveState } from './lib/storage'
 import type { ChatItem, FlashcardDeck, FlashcardGrade, GeneratedDeckSummary, Hotspot, ModelEntry, PersistedState, Quiz, ViewId } from './types'
 import type { DissectionActionContext } from './data/dissection'
-import { DissectionActivitiesView } from './components/DissectionActivitiesView'
 import { anatomyActivities, type AnatomyActivity } from './data/activities'
 import { digestiveDissectionQuiz } from './data/dissection'
 import { generateAICorrections, generateAIHint, generateAIQuiz } from './lib/quiz'
 import { useAuth } from './auth-context'
 import { AIActionError } from './lib/ai'
-import { CreditModal, type CreditPrompt } from './components/CreditModal'
-import { ThemeControl } from './theme'
+import type { CreditPrompt } from './components/CreditModal'
 import { usePreferences } from './preferences-context'
-import { FlashcardsView } from './components/FlashcardsView'
 import { flashcardDeckById } from './data/flashcards'
 import { generateDeck, listGeneratedDecks, reportGeneratedDeck, unlockDeck, type GenerateDeckInput } from './lib/generatedFlashcards'
-import { GenerateDeckModal } from './components/GenerateDeckModal'
-import { VoiceDock } from './components/VoiceDock'
 import { saveFlashcardReview, syncFlashcardProgress } from './lib/flashcardSync'
+import { Button } from '@/components/ui/button'
+
+const LibraryView = lazy(() => import('./components/WorkspaceViews').then((module) => ({ default: module.LibraryView })))
+const QuizzesView = lazy(() => import('./components/WorkspaceViews').then((module) => ({ default: module.QuizzesView })))
+const AnatomyViewer = lazy(() => import('./components/AnatomyViewer').then((module) => ({ default: module.AnatomyViewer })))
+const DissectionActivitiesView = lazy(() => import('./components/DissectionActivitiesView').then((module) => ({ default: module.DissectionActivitiesView })))
+const FlashcardsView = lazy(() => import('./components/FlashcardsView').then((module) => ({ default: module.FlashcardsView })))
+const CreditModal = lazy(() => import('./components/CreditModal').then((module) => ({ default: module.CreditModal })))
+const GenerateDeckModal = lazy(() => import('./components/GenerateDeckModal').then((module) => ({ default: module.GenerateDeckModal })))
+
+function ViewLoading() {
+  return <div className="view-loading" aria-label="Loading view"><span /><span /><span /></div>
+}
 
 const navItems: { id: ViewId; label: string; icon: typeof Search }[] = [
   { id: 'explore', label: 'Explore', icon: Search },
@@ -63,17 +69,22 @@ type DetailProps = {
 }
 
 function ModelDetail({ model, hotspot }: DetailProps) {
-  return <section className="model-detail brief-only panel anim2"><span className="eyebrow">Study brief</span><h2>{hotspot?.label || model.metadata.focus}</h2><p>{hotspot?.detail || model.description}</p></section>
+  return <section className="model-detail brief-only panel anim2"><h2>{hotspot?.label || model.metadata.focus}</h2><p>{hotspot?.detail || model.description}</p></section>
 }
 
 export default function App() {
   const { user, balance, setBalance } = useAuth()
   const { reducedMotion } = usePreferences()
+  const requestedDeckId = new URLSearchParams(window.location.search).get('deck') ?? undefined
+  const requestedLibraryMode = new URLSearchParams(window.location.search).get('mode')
   const [persisted, setPersisted] = useState<PersistedState>(loadInitialState)
   const initialModel = modelById(persisted.selectedModelId)
   const initialHotspot = initialModel.hotspots.find((hotspot) => hotspot.id === persisted.selectedHotspotIds[initialModel.id])
   const initialDissection = persisted.dissectionByModel[initialModel.id]
-  const [view, setView] = useState<ViewId>('explore')
+  const [view, setView] = useState<ViewId>(() => {
+    const requested = new URLSearchParams(window.location.search).get('view')
+    return navItems.some((item) => item.id === requested) ? requested as ViewId : 'explore'
+  })
   const [selectedIds, setSelectedIds] = useState<string[]>(initialDissection?.active ? initialDissection.selectedIds : initialHotspot ? [initialHotspot.id] : [])
   const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | undefined>(initialHotspot)
   const [quizIndex, setQuizIndex] = useState(0)
@@ -88,13 +99,13 @@ export default function App() {
   const [generatingQuiz, setGeneratingQuiz] = useState(false)
   const [quizGenerationError, setQuizGenerationError] = useState<string>()
   const [quizNeedsCredits, setQuizNeedsCredits] = useState(false)
-  const [libraryMode, setLibraryMode] = useState<'catalog' | 'assessment' | 'flashcards'>('catalog')
-  const [activeDeckId, setActiveDeckId] = useState<string>()
+  const [libraryMode, setLibraryMode] = useState<'catalog' | 'assessment' | 'flashcards'>(() => requestedDeckId && flashcardDeckById(requestedDeckId) ? 'flashcards' : requestedLibraryMode === 'assessment' ? 'assessment' : 'catalog')
+  const [activeDeckId, setActiveDeckId] = useState<string | undefined>(() => requestedDeckId && flashcardDeckById(requestedDeckId) ? requestedDeckId : undefined)
   const [generatedDecks, setGeneratedDecks] = useState<GeneratedDeckSummary[]>([])
   const [generateModel, setGenerateModel] = useState<ModelEntry>()
   const [generatingDeck, setGeneratingDeck] = useState(false)
   const [deckError, setDeckError] = useState<string>()
-  const [labMode, setLabMode] = useState<'catalog' | 'manual' | 'guided'>('catalog')
+  const [labMode, setLabMode] = useState<'catalog' | 'guided'>('catalog')
   const [activeActivityId, setActiveActivityId] = useState<string>()
   const [guidedActivityStep, setGuidedActivityStep] = useState<number | null>(null)
   const [activityQuizChoice, setActivityQuizChoice] = useState<number>()
@@ -118,7 +129,7 @@ export default function App() {
   const sideModels = anatomyModels
   const effectiveSidebarCollapsed = sidebarCollapsed || (view === 'lab' && labMode !== 'catalog')
   const mentorAvailable = view === 'explore' || (view === 'lab' && labMode !== 'catalog')
-  const voiceAvailable = mentorAvailable || (view === 'library' && libraryMode === 'assessment')
+  const assistantAvailable = mentorAvailable || (view === 'library' && libraryMode === 'assessment')
 
   useEffect(() => {
     saveState(persisted)
@@ -176,11 +187,6 @@ export default function App() {
     setMenuOpen(false)
   }
 
-  function inspectModel(next: ModelEntry) {
-    selectModel(next)
-    setView('explore')
-  }
-
   function selectVariant(variantId: string) {
     updatePersisted({ selectedVariantIds: { ...persisted.selectedVariantIds, [model.id]: variantId } })
     setSelectedIds([])
@@ -202,9 +208,6 @@ export default function App() {
       setActivityQuizPassed(undefined)
     }
     if (multi || !explain) return
-    const contextMessage: ChatItem = { id: crypto.randomUUID(), role: 'engine', text: `SELECTED · ${hotspot.label}`, status: 'neutral' }
-    const authoredContext = `${hotspot.detail}${hotspot.conditions?.[0] ? ` A related study topic is ${hotspot.conditions[0].label}.` : ''}`
-    setMessages((current) => [...current, contextMessage, { id: crypto.randomUUID(), role: 'mentor', text: `Authored context · ${authoredContext}` }])
   }
 
   function explainDissectionAction(context: DissectionActionContext) {
@@ -235,20 +238,12 @@ export default function App() {
     }
     const target = context.structures.join(', ') || `the ${model.name.toLowerCase()} model`
     const completed = Boolean(context.guidedStep)
-    const fallback = context.structures.some((structure) => structure.toLowerCase().includes('stomach')) && context.action === 'hide'
-      ? 'Hiding the stomach exposes the pancreas, which lies posterior to it across much of the upper abdomen.'
-      : context.structures.some((structure) => structure.toLowerCase().includes('pancreas')) && context.action === 'isolate'
-        ? 'The pancreatic head sits within the curve of the duodenum, while the body extends behind the stomach toward the spleen.'
-        : context.structures.some((structure) => structure.toLowerCase().includes('duodenum'))
-          ? 'The duodenum receives pancreatic enzymes and bicarbonate through the pancreatic duct, supporting chemical digestion and neutralizing gastric acid.'
-          : `You ${context.action} ${target}. Compare its position with the remaining visible digestive structures.`
     setMessages((current) => [...current, {
       id: crypto.randomUUID(),
       role: 'engine',
       text: `${completed ? 'STEP COMPLETE' : 'DISSECTION'} · ${context.action.toUpperCase()} · ${target}`,
       status: completed ? 'pass' : 'neutral',
     }])
-    setMessages((current) => [...current, { id: crypto.randomUUID(), role: 'mentor', text: `Authored context · ${fallback}` }])
   }
 
   function chooseView(next: ViewId) {
@@ -389,24 +384,6 @@ export default function App() {
     setView('lab')
     resetAssessment()
     setGeneratedQuizSet(undefined)
-  }
-
-  function launchManualLab(modelId: string) {
-    const nextModel = modelById(modelId)
-    const segmented = nextModel.variants.find((variant) => variant.segmentedSystem)
-    setPersisted((current) => ({
-      ...current,
-      selectedModelId: nextModel.id,
-      selectedVariantIds: segmented ? { ...current.selectedVariantIds, [nextModel.id]: segmented.id } : current.selectedVariantIds,
-    }))
-    setSelectedIds([])
-    setSelectedHotspot(undefined)
-    setActiveActivityId(undefined)
-    setGuidedActivityStep(null)
-    setActivityQuizChoice(undefined)
-    setActivityQuizPassed(undefined)
-    setLabMode('manual')
-    setView('lab')
   }
 
   function openAssessment(next: ModelEntry) {
@@ -559,32 +536,31 @@ export default function App() {
     if (view === 'library') {
       if (libraryMode === 'assessment') return quizView
       if (libraryMode === 'flashcards' && activeDeck) return <FlashcardsView deck={activeDeck} progress={persisted.flashcardProgressByDeck[activeDeck.id]} onGrade={gradeFlashcard} onBack={() => setLibraryMode('catalog')} />
-      return <LibraryView onOpen={inspectModel} onAssessment={openAssessment} onFlashcards={openFlashcards} onGenerate={(next) => { if (!user) window.location.assign('/login?next=/app'); else { setGenerateModel(next); setDeckError(undefined) } }} onGeneratedDeck={openGeneratedDeck} onUnlockDeck={unlockGeneratedDeck} onReportDeck={reportDeck} generatedDecks={generatedDecks} generatedError={deckError} favorites={persisted.favoriteModelIds} onFavorite={toggleFavorite} completedQuizIds={persisted.completedQuizIds} flashcardProgressByDeck={persisted.flashcardProgressByDeck} currentModelId={model.id} />
+      return <LibraryView onAssessment={openAssessment} onFlashcards={openFlashcards} onGenerate={(next) => { if (!user) window.location.assign('/login?next=/app'); else { setGenerateModel(next); setDeckError(undefined) } }} onGeneratedDeck={openGeneratedDeck} onUnlockDeck={unlockGeneratedDeck} onReportDeck={reportDeck} generatedDecks={generatedDecks} generatedError={deckError} completedQuizIds={persisted.completedQuizIds} flashcardProgressByDeck={persisted.flashcardProgressByDeck} />
     }
     if (view === 'lab') {
-      const lab = <DissectionActivitiesView mode={labMode} activeActivityId={activeActivityId} modelId={model.id} onGuided={launchDissectionActivity} onManual={launchManualLab} onCatalog={returnToLabCatalog} guidedStep={guidedActivityStep} quizChoice={activityQuizChoice} quizPassed={activityQuizPassed} onStartGuide={() => { setGuidedActivityStep(0); setActivityQuizChoice(undefined); setActivityQuizPassed(undefined) }} onQuizChoice={(choice) => { setActivityQuizChoice(choice); setActivityQuizPassed(undefined) }} onQuizCheck={checkActivityQuestion} onStepContinue={continueActivity} />
+      const lab = <DissectionActivitiesView mode={labMode} activeActivityId={activeActivityId} onGuided={launchDissectionActivity} onCatalog={returnToLabCatalog} guidedStep={guidedActivityStep} quizChoice={activityQuizChoice} quizPassed={activityQuizPassed} onStartGuide={() => { setGuidedActivityStep(0); setActivityQuizChoice(undefined); setActivityQuizPassed(undefined) }} onQuizChoice={(choice) => { setActivityQuizChoice(choice); setActivityQuizPassed(undefined) }} onQuizCheck={checkActivityQuestion} onStepContinue={continueActivity} />
       return labMode === 'catalog' ? lab : <div className="lesson-workspace activity-workspace">{viewer}<div className="activity-pane">{lab}</div></div>
     }
     return <div className="explore-view">{viewer}{detail}</div>
   }
 
-  return <div className={`app-shell ${effectiveSidebarCollapsed ? 'sidebar-collapsed' : ''} ${!mentorAvailable ? 'mentor-hidden' : ''}`}>
-    <header className="mobile-head"><Brand /><button onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation">{menuOpen ? <X /> : <Menu />}</button></header>
-    <aside className={`sidebar ${menuOpen ? 'open' : ''} ${effectiveSidebarCollapsed ? 'collapsed' : ''}`}>
+  return <div className={`app-shell ${effectiveSidebarCollapsed ? 'sidebar-collapsed' : ''} ${!assistantAvailable ? 'mentor-hidden' : ''}`}>
+    <header className="mobile-head"><Brand /><button onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation" aria-expanded={menuOpen} aria-controls="app-sidebar">{menuOpen ? <X /> : <Menu />}</button></header>
+    <aside id="app-sidebar" className={`sidebar ${menuOpen ? 'open' : ''} ${effectiveSidebarCollapsed ? 'collapsed' : ''}`}>
       <div className="side-brand"><Brand /><button onClick={() => setSidebarCollapsed((value) => !value)} aria-label={effectiveSidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>{effectiveSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div>
-      <nav>{navItems.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined} title={effectiveSidebarCollapsed ? item.label : undefined}><item.icon size={18} /><span>{item.label}</span>{item.id === 'library' && persisted.favoriteModelIds.length > 0 && <b>{persisted.favoriteModelIds.length}</b>}</button>)}</nav>
-      <div className="side-section"><header><span>Anatomy models</span><button onClick={() => chooseView('library')}>All {models.length}</button></header><div className="model-list">{sideModels.map((entry) => <button key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}<ChevronRight size={14} /></button>)}</div></div>
+      <nav>{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined} title={effectiveSidebarCollapsed ? item.label : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
+      <div className="side-section"><header><span>Anatomy models</span></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}<ChevronRight size={14} /></Button>)}</div></div>
       <div className="progress-card"><div><span>Quiz progress</span><b>{completion}%</b></div><i><b style={{ width: `${completion}%` }} /></i><small>{completedCount} of {activityCount} questions completed</small></div>
     </aside>
     <main className="workspace">
-      <header className="topbar"><div><span>{view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions"><ThemeControl compact /><a href="/account"><CircleUserRound size={16} />Account</a>{view !== 'lab' && <button onClick={() => chooseView('lab')}><FlaskConical size={16} />Open Lab</button>}</div></header>
-      <div className="center-pane">{renderCenter()}</div>
+      <header className="topbar"><div><span>{view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions"><Button variant="outline" asChild><a href="/account"><CircleUserRound size={16} />Account</a></Button>{view !== 'lab' && <Button onClick={() => chooseView('lab')}><FlaskConical size={16} />Open Lab</Button>}</div></header>
+      <div className="center-pane"><Suspense fallback={<ViewLoading />}>{renderCenter()}</Suspense></div>
     </main>
-    {mentorAvailable && <MentorPanel model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'An AI Mentor response', required: 1 })} />}
-    <nav className="mobile-tabs" aria-label="Workspace navigation">{navItems.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></button>)}</nav>
-    {mentorAvailable && <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)} aria-expanded={mentorOpen} aria-controls="stranerd-mentor"><Bot size={15} />Mentor{typing && <i />}</button>}
-    {voiceAvailable && <VoiceDock mode={voiceMode} modelId={model.id} context={voiceContext} onStudentCaption={handleSpokenAssessment} onInsufficientCredits={() => setCreditPrompt({ action: 'A five-minute Voice session', required: 10 })} />}
-    <CreditModal prompt={creditPrompt} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} onClose={() => setCreditPrompt(undefined)} />
-    {generateModel && <GenerateDeckModal model={generateModel} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} generating={generatingDeck} error={deckError} onClose={() => setGenerateModel(undefined)} onGenerate={createGeneratedDeck} />}
+    {assistantAvailable && <MentorPanel model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'An AI Mentor response', required: 1 })} voiceMode={voiceMode} voiceContext={voiceContext} onStudentCaption={handleSpokenAssessment} onVoiceInsufficientCredits={() => setCreditPrompt({ action: 'A five-minute Voice session', required: 10 })} />}
+    <nav className="mobile-tabs" aria-label="Workspace navigation">{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
+    {assistantAvailable && <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)} aria-expanded={mentorOpen} aria-controls="stranerd-mentor"><Bot size={15} />Mentor{typing && <i />}</button>}
+    {creditPrompt && <Suspense fallback={null}><CreditModal prompt={creditPrompt} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} onClose={() => setCreditPrompt(undefined)} /></Suspense>}
+    {generateModel && <Suspense fallback={null}><GenerateDeckModal model={generateModel} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} generating={generatingDeck} error={deckError} onClose={() => setGenerateModel(undefined)} onGenerate={createGeneratedDeck} /></Suspense>}
   </div>
 }

@@ -1,17 +1,21 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Analytics } from '@vercel/analytics/react'
-import App from './App'
-import { HeartCandidateTestView } from './components/HeartCandidateTestView'
-import { PublicPages } from './PublicPages'
 import { AuthProvider } from './auth'
 import { ThemeProvider } from './theme'
 import { bootstrapTheme } from './theme-utils'
 import { PreferencesProvider } from './preferences'
 import { bootstrapPreferences } from './preferences-utils'
+import { TooltipProvider } from './components/ui/tooltip'
+import './shadcn.css'
 import './styles.css'
 import './landing.css'
 import './app.css'
+import './design-system.css'
+
+const App = lazy(() => import('./App'))
+const PublicPages = lazy(() => import('./PublicPages').then((module) => ({ default: module.PublicPages })))
+const HeartCandidateTestView = lazy(() => import('./components/HeartCandidateTestView').then((module) => ({ default: module.HeartCandidateTestView })))
 
 class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> {
   state: { error?: Error } = {}
@@ -54,8 +58,12 @@ createRoot(document.getElementById('root')!).render(
     <AuthProvider>
       <ThemeProvider enabled={themeEnabled}>
         <PreferencesProvider enabled={themeEnabled}>
-          {testView === 'heart-candidate' ? <HeartCandidateTestView /> : path === '/app' ? <App /> : <PublicPages path={path} />}
-          <Analytics />
+          <TooltipProvider>
+            <Suspense fallback={<main className="route-loading" aria-label="Loading Stranerd"><span /></main>}>
+              {testView === 'heart-candidate' ? <HeartCandidateTestView /> : path === '/app' ? <App /> : <PublicPages path={path} />}
+            </Suspense>
+            <Analytics />
+          </TooltipProvider>
         </PreferencesProvider>
       </ThemeProvider>
     </AuthProvider>

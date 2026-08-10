@@ -1,9 +1,13 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { ArrowLeft, ArrowRight, RotateCcw, Shuffle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eye, RotateCcw, Shuffle } from 'lucide-react'
 import type { FlashcardDeck, FlashcardDeckProgress, FlashcardGrade } from '../types'
 import { isTapGesture, shuffledIds } from '../lib/flashcards'
 import { FlashcardDiagram } from './FlashcardDiagram'
 import { usePreferences } from '../preferences-context'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 
 type Props = {
   deck: FlashcardDeck
@@ -12,12 +16,10 @@ type Props = {
   onBack: () => void
 }
 
-const grades: { value: FlashcardGrade; key: string }[] = [{ value: 'again', key: '1' }, { value: 'hard', key: '2' }, { value: 'good', key: '3' }, { value: 'easy', key: '4' }]
-
 export function FlashcardsView({ deck, progress, onGrade, onBack }: Props) {
   const [order, setOrder] = useState(() => deck.cards.map((card) => card.id))
   const [index, setIndex] = useState(0)
-  const [flipped, setFlipped] = useState(false)
+  const [flipped, setFlipped] = useState(() => new URLSearchParams(window.location.search).get('side') === 'answer')
   const pointer = useRef<{ id: number; start: [number, number]; end: [number, number] } | undefined>(undefined)
   const { reducedMotion } = usePreferences()
   const cardById = useMemo(() => new Map(deck.cards.map((card) => [card.id, card])), [deck.cards])
@@ -29,10 +31,9 @@ export function FlashcardsView({ deck, progress, onGrade, onBack }: Props) {
     setFlipped(false)
   }
 
-  function grade(value: FlashcardGrade) {
-    if (!flipped) return
-    onGrade(card.id, value)
-    if (index < order.length - 1) navigate(index + 1)
+  function flip() {
+    if (!flipped && !progress?.cards[card.id]) onGrade(card.id, 'good')
+    setFlipped(!flipped)
   }
 
   function shuffle() {
@@ -44,7 +45,7 @@ export function FlashcardsView({ deck, progress, onGrade, onBack }: Props) {
   }
 
   function interactiveTarget(target: EventTarget) {
-    return target instanceof Element && Boolean(target.closest('button, a, input, select, textarea'))
+    return target instanceof Element && Boolean(target.closest('button, a, input, select, textarea, canvas, .flashcard-diagram'))
   }
 
   function onPointerDown(event: PointerEvent<HTMLElement>) {
@@ -61,32 +62,30 @@ export function FlashcardsView({ deck, progress, onGrade, onBack }: Props) {
     pointer.current = undefined
     if (!gesture || gesture.id !== event.pointerId || interactiveTarget(event.target)) return
     gesture.end = [event.clientX, event.clientY]
-    if (isTapGesture(gesture.start, gesture.end)) setFlipped((value) => !value)
+    if (isTapGesture(gesture.start, gesture.end)) flip()
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (interactiveTarget(event.target) && event.target !== event.currentTarget) return
-    if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); setFlipped((value) => !value) }
+    if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); flip() }
     else if (event.key === 'ArrowLeft') navigate(index - 1)
     else if (event.key === 'ArrowRight') navigate(index + 1)
     else if (event.key.toLowerCase() === 's') shuffle()
     else if (event.key === 'Escape') {
       if (flipped) setFlipped(false)
       else onBack()
-    } else {
-      const selectedGrade = grades.find((entry) => entry.key === event.key)
-      if (selectedGrade && flipped) grade(selectedGrade.value)
     }
   }
 
   return <section className="content-view flashcards-view anim">
-    <button className="library-back" onClick={onBack}><ArrowLeft size={14} />Back to Library</button>
-    <header className="flashcard-deck-head"><div><span className="eyebrow">{deck.source === 'ai' ? `AI-generated · ${deck.visibility}` : 'Default flashcards · free'}</span><h1>{deck.title}</h1><p>{deck.description}</p></div><aside><span>Reviewed</span><strong>{reviewed}<small>/ {deck.cards.length}</small></strong><i><b style={{ width: `${(reviewed / deck.cards.length) * 100}%` }} /></i></aside></header>
-    <div className="flashcard-toolbar"><span>Card {index + 1} of {order.length}</span><div><button onClick={() => navigate(index - 1)} disabled={index === 0}><ArrowLeft size={14} />Previous</button><button onClick={shuffle}><Shuffle size={14} />Shuffle</button><button onClick={() => navigate(index + 1)} disabled={index === order.length - 1}>Next<ArrowRight size={14} /></button></div></div>
-    <article className={`flashcard-stage ${flipped ? 'flipped' : ''} ${reducedMotion ? 'reduced-motion' : ''}`} tabIndex={0} role="button" aria-label={`${flipped ? 'Answer' : 'Question'} side. ${flipped ? 'Tap to return to the question.' : 'Tap to reveal the answer.'}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { pointer.current = undefined }} onKeyDown={onKeyDown}>
-      {!flipped ? <div className="flashcard-face flashcard-front"><div className="flashcard-copy"><span>{card.kind.replaceAll('-', ' ')}</span><h2>{card.front.heading}</h2><p>{card.front.body}</p></div>{card.front.diagram ? <FlashcardDiagram key={`${card.id}:${card.front.diagram.variantId}`} diagram={card.front.diagram} /> : <div className="flashcard-text-visual"><RotateCcw size={24} /><span>Recall before revealing</span></div>}<small>{card.front.diagram ? 'Tap or press Space to reveal · drag the model to rotate' : 'Tap or press Space to reveal'}</small></div> : <div className="flashcard-face flashcard-back"><div className="flashcard-answer-mark">Answer</div><h2>{card.back.heading}</h2><p>{card.back.body}</p><small>Tap or press Space to see the question</small></div>}
-    </article>
-    <div className="flashcard-grades" aria-label="Grade this card">{grades.map(({ value, key }) => <button key={value} disabled={!flipped} onClick={() => grade(value)}><span>{key}</span>{value}</button>)}</div>
-    <p className="flashcard-help">Keyboard: Space flip · arrows navigate · S shuffle · 1–4 grade</p>
+    <header className="flashcard-study-header"><Button variant="ghost" className="library-back" onClick={onBack}><ArrowLeft />Library</Button><div><Badge variant="secondary">{deck.source === 'ai' ? 'AI deck' : 'Verified deck'}</Badge><h1>{deck.title}</h1><p>{deck.description}</p></div><aside><div><span>Reviewed</span><strong>{reviewed}/{deck.cards.length}</strong></div><Progress value={(reviewed / deck.cards.length) * 100} /></aside></header>
+    <div className="flashcard-toolbar"><span>Card {index + 1} of {order.length}</span><div><Button variant="ghost" size="sm" onClick={shuffle}><Shuffle />Shuffle</Button><Button variant="outline" size="sm" onClick={() => navigate(index - 1)} disabled={index === 0}><ArrowLeft />Previous</Button><Button variant="outline" size="sm" onClick={() => navigate(index + 1)} disabled={index === order.length - 1}>Next<ArrowRight /></Button></div></div>
+    <Card className={`flashcard-stage ${flipped ? 'flipped' : ''} ${reducedMotion ? 'reduced-motion' : ''}`} tabIndex={0} role="button" aria-label={`${flipped ? 'Answer' : 'Question'} side. ${flipped ? 'Tap to return to the question.' : 'Tap to reveal the answer.'}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { pointer.current = undefined }} onKeyDown={onKeyDown}>
+      <div className="flashcard-inner">
+        <div className={`flashcard-face flashcard-front ${card.front.diagram ? '' : 'text-only'}`} aria-hidden={flipped}><div className="flashcard-copy"><span>Question</span><h2>{card.front.heading}</h2><p>{card.front.body}</p></div>{card.front.diagram ? <FlashcardDiagram key={`${card.id}:${card.front.diagram.variantId}`} diagram={card.front.diagram} /> : <div className="flashcard-text-visual"><RotateCcw size={24} /><span>Think before revealing</span></div>}<small>{card.front.diagram ? 'Drag the model to inspect it.' : 'Answer from memory before revealing.'}</small></div>
+        <div className="flashcard-face flashcard-back" aria-hidden={!flipped}><div className="flashcard-answer-mark">Answer</div><h2>{card.back.heading}</h2><p>{card.back.body}</p><small>Review the explanation, then continue.</small></div>
+      </div>
+    </Card>
+    <div className="flashcard-reveal"><Button size="lg" onClick={flip}>{flipped ? <><RotateCcw />Show question</> : <><Eye />Reveal answer</>}</Button></div>
   </section>
 }

@@ -8,9 +8,12 @@ describe('default flashcard decks', () => {
     expect(new Set(defaultFlashcardDecks.map((deck) => deck.modelId))).toEqual(new Set(models.map((model) => model.id)))
     expect(new Set(defaultFlashcardDecks.map((deck) => deck.id)).size).toBe(defaultFlashcardDecks.length)
     for (const deck of defaultFlashcardDecks) {
-      expect(deck.cards.length).toBeGreaterThanOrEqual(6)
+      expect(deck.cards.length).toBeGreaterThanOrEqual(3)
       expect(new Set(deck.cards.map((card) => card.id)).size).toBe(deck.cards.length)
       for (const card of deck.cards) {
+        expect(card.front.heading).toMatch(/\?|explain|select|identify/i)
+        expect(card.front.heading.toLowerCase()).not.toBe('identify the structure')
+        expect(card.front.body.toLowerCase()).not.toContain('highlighted')
         expect(card.front.body.trim()).not.toBe('')
         expect(card.back.body.trim()).not.toBe('')
         if (card.front.diagram) expect(resolveFlashcardDiagram(card.front.diagram)).toBeDefined()

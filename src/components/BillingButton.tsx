@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth-context'
 import { startCheckout, type BillingProductId } from '../lib/billing'
+import { Button } from '@/components/ui/button'
 
 export function BillingButton({ productId, children, className }: { productId: BillingProductId; children: ReactNode; className?: string }) {
   const { user } = useAuth()
@@ -32,5 +33,5 @@ export function BillingButton({ productId, children, className }: { productId: B
     }
   }
 
-  return <><button className={className} onClick={checkout} disabled={loading}>{loading ? 'Opening checkout...' : children}</button>{error && <small className="billing-inline-error">{error}</small>}</>
+  return <><Button className={className} onClick={checkout} disabled={loading}>{loading ? 'Opening checkout...' : children}</Button>{error && <small className="billing-inline-error">{error}</small>}</>
 }

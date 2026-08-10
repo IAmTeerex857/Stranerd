@@ -24,7 +24,7 @@ function ExploreInterface() {
       </div>
       <aside><span>Visible systems</span><h3>Layered anatomy</h3><p>Compare load-bearing structure, circulation, and neural pathways in the same body reference.</p><dl><div><dt>Layers</dt><dd>3 active</dd></div><div><dt>Reference</dt><dd>Whole body</dd></div></dl></aside>
     </div>
-    <footer><span><ScanSearch size={14} /> Select</span><span><Layers3 size={14} /> Layers</span><span><RotateCcw size={14} /> Rotate</span><span>Authored context · free</span></footer>
+    <footer><span><ScanSearch size={14} /> Select</span><span><Layers3 size={14} /> Layers</span><span><RotateCcw size={14} /> Rotate</span><span>Study context included</span></footer>
   </div>
 }
 
@@ -69,14 +69,14 @@ function OrganShowcase() {
 
 function LandingPricing() {
   return <div className="landing-pricing-grid">
-    <article><span>Free account</span><h3>NGN 0</h3><p>Full anatomy learning workspace, with 20 signup credits.</p><ul><li><Check />All anatomy studies</li><li><Check />Manual and guided Labs</li><li><Check />Verified assessments and flashcards</li></ul><a href="/app">Start learning <ArrowRight /></a></article>
+    <article><span>Free account</span><h3>NGN 0</h3><p>Full anatomy learning workspace, with 20 signup credits.</p><ul><li><Check />All anatomy studies</li><li><Check />Guided Labs and free dissection</li><li><Check />Verified assessments and flashcards</li></ul><a href="/app">Start learning <ArrowRight /></a></article>
     <article className="featured"><span>Stranerd Plus</span><h3>NGN 2,500 <small>/ month</small></h3><p>500 AI credits after every successful billing cycle.</p><ul><li><Check />Explicit AI actions</li><li><Check />Credits reset each cycle</li><li><Check />Cancel at period end</li></ul><a href="/pricing">Choose Plus <ArrowRight /></a></article>
     <article><span>Credit pack</span><h3>NGN 500</h3><p>100 purchased credits that do not expire.</p><ul><li><Check />No subscription required</li><li><Check />Buy repeatedly</li><li><Check />Spent after included credits</li></ul><a href="/pricing">Buy credits <ArrowRight /></a></article>
   </div>
 }
 
 const faqs = [
-  ['Can I explore anatomy without signing in?', 'Yes. Models, manual and guided Labs, verified assessments, default flashcards, and educational context are available without using AI credits.'],
+  ['Can I explore anatomy without signing in?', 'Yes. Models, guided Labs, free dissection, verified assessments, default flashcards, and educational context are available without using AI credits.'],
   ['When does Stranerd use a credit?', 'Only when you explicitly ask AI Mentor or request a new AI-generated quiz. The cost is shown before the action.'],
   ['What happens if an AI request fails?', 'The reserved credit is refunded automatically. Failed or invalid AI responses cost zero net credits.'],
   ['Do purchased credits expire?', 'No. Purchased PAYG credits remain in your account and are spent only after free and subscription credits.'],
@@ -97,7 +97,7 @@ export function LandingPage() {
 
     <section className="landing-thesis"><div className="thesis-sticky"><span>Stranerd’s thesis</span><div className="thesis-lines"><p>Anatomy is more than <strong className="accent-green"><i />names.</strong></p><p>It is shaped by <strong className="accent-blue"><i />space</strong> and relationships.</p><p>With deliberate <strong className="accent-purple"><i />action</strong>, learners turn observation into recall.</p><p>Optional <strong className="accent-pink"><i />AI</strong> explains the full context they created.</p></div><LandingSpecimen url="/models/brain-realistic.glb" label="Rotating brain behind the Stranerd learning thesis" className="thesis-brain-model" fit={3.1} cameraZ={5.6} /><div className="thesis-dot-field" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></div></section>
 
-    <section className="landing-story landing-reveal"><SectionMarker index="02">Explore</SectionMarker><div className="story-heading"><h2>Start with the structure.<br />Keep the context.</h2><p>Select exact anatomy, rotate the specimen, compare layers, and read concise authored context without spending a credit.</p></div><ExploreInterface /></section>
+    <section className="landing-story landing-reveal"><SectionMarker index="02">Explore</SectionMarker><div className="story-heading"><h2>Start with the structure.<br />Keep the context.</h2><p>Select exact anatomy, rotate the specimen, compare layers, and review concise study context without spending a credit.</p></div><ExploreInterface /></section>
 
     <section className="landing-story landing-reveal"><SectionMarker index="03">Dissect</SectionMarker><div className="story-heading split"><h2>Pull relationships apart.<br />Then put the idea together.</h2><p>Hide, fade, isolate, and move structures. Guided activities connect each action to a spatial or functional question.</p></div><DissectInterface /></section>
 
