@@ -1,11 +1,9 @@
 import type { Request, Response } from 'express'
-import { billingErrorResponse, getBillingClient } from '../../server/billing.js'
-import { normalizeBachsEvent, processBachsEvent, safeBachsWebhookPayload, verifyBachsSignature } from '../../server/bachsWebhook.js'
-import { readRawBody } from '../../server/spotflowWebhook.js'
+import { billingErrorResponse, getBillingClient } from './billing.js'
+import { normalizeBachsEvent, processBachsEvent, safeBachsWebhookPayload, verifyBachsSignature } from './bachsWebhook.js'
+import { readRawBody } from './spotflowWebhook.js'
 
-export const config = { api: { bodyParser: false } }
-
-export default async function handler(request: Request, response: Response) {
+export async function bachsWebhookHandler(request: Request, response: Response) {
   if (request.method !== 'POST') {
     response.status(405).json({ message: 'Method not allowed' })
     return
