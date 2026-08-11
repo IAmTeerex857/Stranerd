@@ -105,11 +105,19 @@ describe('Bachs webhooks', () => {
   it('checks PAYG amount and currency before invoking allocation', async () => {
     const rpc = vi.fn(async () => ({ error: null }))
     setBillingClientForTests({ rpc } as never)
-    const base = { eventId: 'evt_1', eventType: 'collection.succeeded', createdAt: '2026-08-11T12:00:00Z', data: { charge_id: 'chr_1', reference: 'intent-1', status: 'SUCCEEDED', amount: '2.00', currency: 'USD', metadata: { paymentIntentId: 'intent-1', productType: 'payg_100' } } }
-    await expect(processBachsEvent(base)).resolves.toBe('processed')
+    const base = { eventId: 'evt_1', eventType: 'collection.succeeded', createdAt: '2026-08-11T12:00:00Z', data: { charge_id: 'chr_1', checkout_id: 'chk_1', reference: 'intent-1', status: 'SUCCEEDED', amount: '2.00', currency: 'USD', metadata: { paymentIntentId: 'intent-1', productType: 'payg_100' } } }
+    const validCheckout = async () => ({ status: 'completed', reference: 'intent-1', currency: 'USD', amount: '2.00' })
+    await expect(processBachsEvent(base, validCheckout)).resolves.toBe('processed')
     expect(rpc).toHaveBeenCalledWith('apply_bachs_payg_success', expect.objectContaining({ p_provider_amount_minor: 200, p_provider_currency: 'USD' }))
-    await expect(processBachsEvent({ ...base, data: { ...base.data, amount: '2.01' } })).rejects.toThrow(/catalog/i)
-    await expect(processBachsEvent({ ...base, data: { ...base.data, currency: 'NGN' } })).rejects.toThrow(/catalog/i)
+    await expect(processBachsEvent(base, async () => ({ status: 'completed', reference: 'intent-1', currency: 'USD', amount: '2.01' }))).rejects.toThrow(/catalog/i)
+    await expect(processBachsEvent(base, async () => ({ status: 'completed', reference: 'other', currency: 'USD', amount: '2.00' }))).rejects.toThrow(/catalog/i)
+  })
+
+  it('accepts a stablecoin collection after verifying its USD checkout', async () => {
+    const rpc = vi.fn(async () => ({ error: null }))
+    setBillingClientForTests({ rpc } as never)
+    const event = { eventId: 'evt_crypto', eventType: 'collection.succeeded', createdAt: '2026-08-11T12:00:00Z', data: { charge_id: 'chr_crypto', checkout_id: 'chk_crypto', reference: 'intent-crypto', status: 'ACCEPTED', amount: '2.00', currency: 'USDT_TRC20', metadata: { paymentIntentId: 'intent-crypto', productType: 'payg_100' } } }
+    await expect(processBachsEvent(event, async () => ({ status: 'COMPLETED', reference: 'intent-crypto', currency: 'USD', amount: '2.00' }))).resolves.toBe('processed')
   })
 
   it('never treats checkout redirects or completion events as fulfillment', () => {

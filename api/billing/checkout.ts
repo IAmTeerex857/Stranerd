@@ -1,7 +1,13 @@
 import type { Request, Response } from 'express'
-import { appBaseUrl, bachsCatalog, bachsRequest, billingCatalog, billingErrorResponse, buildBachsCheckoutPayload, getBillingClient, requireBillingUser, spotflowRequest, validateBachsCheckoutUrl, type BillingProductId, type BillingRail } from '../../server/billing.js'
+import { appBaseUrl, bachsCatalog, bachsRequest, billingCatalog, billingCountry, billingErrorResponse, billingRails, buildBachsCheckoutPayload, getBillingClient, requireBillingUser, spotflowRequest, validateBachsCheckoutUrl, type BillingProductId, type BillingRail } from '../../server/billing.js'
 
 export default async function handler(request: Request, response: Response) {
+  const country = billingCountry(request.headers)
+  if (request.method === 'GET') {
+    response.setHeader('Cache-Control', 'private, no-store')
+    response.json({ country, rails: { subscription: billingRails(country, 'subscription'), payg_100: billingRails(country, 'payg_100') } })
+    return
+  }
   if (request.method !== 'POST') {
     response.status(405).json({ message: 'Method not allowed' })
     return
@@ -17,6 +23,10 @@ export default async function handler(request: Request, response: Response) {
     }
     if (!billingCatalog[productId]) {
       response.status(400).json({ error: 'invalid_product', message: 'Select a valid Stranerd billing product.' })
+      return
+    }
+    if (!billingRails(country, productId).includes(rail)) {
+      response.status(400).json({ error: 'rail_not_available', message: 'This payment method is not available in your region.' })
       return
     }
     if (rail !== 'ngn') {

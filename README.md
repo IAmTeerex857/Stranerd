@@ -10,7 +10,7 @@ Every practice-test question has four A-D options. After question 20, students m
 
 Flashcard decks pair recall prompts with interactive 3D diagrams and four-grade review, and learners may generate their own decks or unlock community decks. A text Mentor and a realtime Voice Agent are available on learning screens.
 
-Accounts use Google sign-in through Supabase. AI features cost credits, tracked in a reserve-then-finalize ledger that refunds automatically when a provider request fails. Billing uses Spotflow for NGN, with a staged Bachs integration for USD-card subscriptions and USD-card or stablecoin credit packs.
+Accounts use Google sign-in through Supabase. AI features cost credits, tracked in a reserve-then-finalize ledger that refunds automatically when a provider request fails. Regional billing uses Spotflow for NGN and Bachs for USD-card subscriptions and USD-card or stablecoin credit packs.
 
 ## Run
 

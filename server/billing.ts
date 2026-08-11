@@ -3,6 +3,17 @@ import { createClient, type SupabaseClient, type User } from '@supabase/supabase
 export type BillingProductId = 'subscription' | 'payg_100'
 export type BillingRail = 'ngn' | 'usd_card' | 'stablecoin'
 
+export function billingCountry(headers: Record<string, string | string[] | undefined>) {
+  const supplied = headers['x-vercel-ip-country']
+  const value = Array.isArray(supplied) ? supplied[0] : supplied
+  return typeof value === 'string' && /^[A-Z]{2}$/i.test(value) ? value.toUpperCase() : 'UNKNOWN'
+}
+
+export function billingRails(country: string, productId: BillingProductId): BillingRail[] {
+  if (country === 'NG') return productId === 'subscription' ? ['ngn'] : ['ngn', 'stablecoin']
+  return productId === 'subscription' ? ['usd_card'] : ['usd_card', 'stablecoin']
+}
+
 export const billingCatalog = {
   subscription: { productType: 'subscription', amountMinor: 250000, providerAmount: undefined, currency: 'NGN', credits: 500 },
   payg_100: { productType: 'payg_100', amountMinor: 50000, providerAmount: 500, currency: 'NGN', credits: 100 },

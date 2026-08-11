@@ -105,7 +105,7 @@ function assertPlus(fields: ReturnType<typeof subscriptionFields>) {
   validDate(fields.periodEnd, 'subscription period end')
 }
 
-export async function processBachsEvent(event: BachsEvent) {
+export async function processBachsEvent(event: BachsEvent, requestBachs = bachsRequest) {
   const client = getBillingClient()
   const data = event.data
 
@@ -115,7 +115,13 @@ export async function processBachsEvent(event: BachsEvent) {
     const intentId = requiredString(metadata.paymentIntentId, 'payment intent metadata')
     const chargeId = requiredString(data.charge_id, 'charge ID')
     const reference = requiredString(data.reference, 'reference')
-    if (data.status !== 'SUCCEEDED' || data.currency !== 'USD' || usdDecimalToMinor(data.amount) !== 200) {
+    const checkoutId = requiredString(data.checkout_id, 'checkout ID')
+    const checkout = await requestBachs(`/v1/checkout-sessions/${encodeURIComponent(checkoutId)}`)
+    if (!['SUCCEEDED', 'ACCEPTED', 'OVERPAID'].includes(String(data.status))
+      || String(checkout.status).toLowerCase() !== 'completed'
+      || checkout.reference !== reference
+      || checkout.currency !== 'USD'
+      || usdDecimalToMinor(checkout.amount) !== 200) {
       throw new BillingError(400, 'amount_mismatch', 'Bachs PAYG collection does not match the catalog.')
     }
     const { error } = await client.rpc('apply_bachs_payg_success', {

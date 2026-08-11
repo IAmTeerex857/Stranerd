@@ -1,8 +1,25 @@
+import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
 export type BillingProductId = 'subscription' | 'payg_100'
 export type BillingRail = 'ngn' | 'usd_card' | 'stablecoin'
-export const bachsCheckoutEnabled = import.meta.env.DEV || import.meta.env.VITE_BACHS_CHECKOUT_ENABLED === 'true'
+export type BillingOptions = { country: string; rails: Record<BillingProductId, BillingRail[]>; unavailable?: boolean }
+
+export function useBillingOptions() {
+  const [options, setOptions] = useState<BillingOptions>()
+  useEffect(() => {
+    let active = true
+    fetch('/api/billing/checkout', { cache: 'no-store' })
+      .then(async (response) => {
+        const body = await response.json() as BillingOptions
+        if (!response.ok || !body.rails) throw new Error('Payment options could not be loaded.')
+        if (active) setOptions(body)
+      })
+      .catch(() => { if (active) setOptions({ country: 'UNKNOWN', rails: { subscription: [], payg_100: [] }, unavailable: true }) })
+    return () => { active = false }
+  }, [])
+  return options
+}
 
 async function billingFetch(path: string, init: RequestInit = {}) {
   if (!supabase) throw new Error('Sign in to manage billing.')
