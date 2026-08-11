@@ -1,5 +1,5 @@
 import { models } from './models'
-import type { FlashcardDeck, FlashcardDiagram } from '../types'
+import type { FlashcardDeck, FlashcardDeckProgress, FlashcardDiagram } from '../types'
 
 export const defaultFlashcardDecks: FlashcardDeck[] = models.map((model) => {
   const variant = model.variants.find((entry) => entry.hotspots?.length) ?? model.variants.find((entry) => entry.segmentedSystem) ?? model.variants[0]
@@ -50,7 +50,8 @@ export function resolveFlashcardDiagram(diagram: FlashcardDiagram) {
   return { model, variant, hotspots, selected: selected.filter((hotspot) => hotspot !== undefined) }
 }
 
-export function flashcardProgress(deck: FlashcardDeck, cards: Record<string, unknown> | undefined) {
-  const reviewed = deck.cards.filter((card) => Boolean(cards?.[card.id])).length
+export function flashcardProgress(deck: FlashcardDeck, progress: FlashcardDeckProgress | undefined) {
+  const cards = progress?.contentVersion === deck.contentVersion ? progress.cards : undefined
+  const reviewed = deck.cards.filter((card) => cards?.[card.id]?.grade !== undefined && cards[card.id].grade !== 'again').length
   return { reviewed, total: deck.cards.length, status: reviewed === 0 ? 'not-started' as const : reviewed === deck.cards.length ? 'complete' as const : 'in-progress' as const }
 }

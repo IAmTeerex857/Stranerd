@@ -1,4 +1,4 @@
-import type { PersistedState, Settings } from '../types'
+import type { PendingFlashcardReview, PersistedState, Settings } from '../types'
 
 export const STORAGE_KEY = 'stranerd.anatomy.v1'
 
@@ -17,7 +17,25 @@ export const defaultPersistedState: PersistedState = {
   dissectionActionsByModel: {},
   dissectionByModel: {},
   flashcardProgressByDeck: {},
+  pendingFlashcardReviews: [],
   settings: defaultSettings,
+}
+
+const grades = ['again', 'hard', 'good', 'easy'] as const
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const validDate = (value: unknown): value is string => typeof value === 'string' && Number.isFinite(Date.parse(value))
+const validText = (value: unknown, max: number): value is string => typeof value === 'string' && value.length > 0 && value.length <= max
+
+function parsePendingReviews(value: unknown): PendingFlashcardReview[] {
+  if (!Array.isArray(value)) return []
+  const unique = new Map<string, PendingFlashcardReview>()
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+    const review = item as Partial<PendingFlashcardReview>
+    if (!review.id || !uuidPattern.test(review.id) || !validText(review.deckId, 200) || !validText(review.contentVersion, 200) || !validText(review.cardId, 300) || !grades.includes(review.grade as typeof grades[number]) || !validDate(review.reviewedAt)) continue
+    unique.set(review.id, review as PendingFlashcardReview)
+  }
+  return [...unique.values()]
 }
 
 export function parsePersistedState(raw: string | null): PersistedState {
@@ -64,20 +82,21 @@ export function parsePersistedState(raw: string | null): PersistedState {
         }))
         : {},
       flashcardProgressByDeck: value.flashcardProgressByDeck && typeof value.flashcardProgressByDeck === 'object' && !Array.isArray(value.flashcardProgressByDeck)
-        ? Object.fromEntries(Object.entries(value.flashcardProgressByDeck).slice(0, 50).flatMap(([deckId, progress]) => {
+        ? Object.fromEntries(Object.entries(value.flashcardProgressByDeck).flatMap(([deckId, progress]) => {
           if (!progress || typeof progress !== 'object' || Array.isArray(progress)) return []
           const entry = progress as Partial<PersistedState['flashcardProgressByDeck'][string]>
-          if (typeof entry.contentVersion !== 'string' || !entry.cards || typeof entry.cards !== 'object' || Array.isArray(entry.cards)) return []
-          const cards = Object.fromEntries(Object.entries(entry.cards).slice(0, 2000).flatMap(([cardId, card]) => {
+          if (!validText(deckId, 200) || !validText(entry.contentVersion, 200) || !entry.cards || typeof entry.cards !== 'object' || Array.isArray(entry.cards)) return []
+          const cards = Object.fromEntries(Object.entries(entry.cards).flatMap(([cardId, card]) => {
             if (!card || typeof card !== 'object' || Array.isArray(card)) return []
             const review = card as Partial<PersistedState['flashcardProgressByDeck'][string]['cards'][string]>
-            return ['again', 'hard', 'good', 'easy'].includes(review.grade ?? '') && Number.isInteger(review.reviewCount) && (review.reviewCount ?? -1) >= 0 && typeof review.updatedAt === 'string'
-              ? [[cardId, { grade: review.grade!, reviewCount: review.reviewCount!, updatedAt: review.updatedAt }]]
+            return validText(cardId, 300) && grades.includes(review.grade as typeof grades[number]) && Number.isSafeInteger(review.reviewCount) && (review.reviewCount ?? 0) > 0 && validDate(review.updatedAt) && (review.reviewId === undefined || uuidPattern.test(review.reviewId))
+              ? [[cardId, { grade: review.grade!, reviewCount: review.reviewCount!, updatedAt: review.updatedAt, ...(review.reviewId ? { reviewId: review.reviewId } : {}) }]]
               : []
           }))
           return [[deckId, { contentVersion: entry.contentVersion, cards }]]
         }))
         : {},
+      pendingFlashcardReviews: parsePendingReviews(value.pendingFlashcardReviews),
       settings: Object.fromEntries(Object.entries(defaultSettings).map(([key, fallback]) => [
         key,
         value.settings && typeof value.settings === 'object' && typeof value.settings[key as keyof Settings] === 'boolean'

@@ -14,6 +14,7 @@ describe('persistence parsing', () => {
     expect(state.dissectionActionsByModel).toEqual({})
     expect(state.dissectionByModel).toEqual({})
     expect(state.flashcardProgressByDeck).toEqual({})
+    expect(state.pendingFlashcardReviews).toEqual([])
   })
 
   it('keeps valid persisted dissection sessions', () => {
@@ -51,7 +52,15 @@ describe('persistence parsing', () => {
   })
 
   it('keeps valid flashcard grades and filters malformed reviews', () => {
-    const state = parsePersistedState(JSON.stringify({ flashcardProgressByDeck: { 'heart-foundations': { contentVersion: '1', cards: { one: { grade: 'good', reviewCount: 2, updatedAt: '2026-08-08T10:00:00.000Z' }, bad: { grade: 'perfect', reviewCount: -1 } } } } }))
+    const state = parsePersistedState(JSON.stringify({ flashcardProgressByDeck: { 'heart-foundations': { contentVersion: '1', cards: { one: { grade: 'good', reviewCount: 2, updatedAt: '2026-08-08T10:00:00.000Z' }, zero: { grade: 'good', reviewCount: 0, updatedAt: '2026-08-08T10:00:00.000Z' }, invalidDate: { grade: 'easy', reviewCount: 1, updatedAt: 'never' }, bad: { grade: 'perfect', reviewCount: -1 } } } } }))
     expect(state.flashcardProgressByDeck['heart-foundations']).toEqual({ contentVersion: '1', cards: { one: { grade: 'good', reviewCount: 2, updatedAt: '2026-08-08T10:00:00.000Z' } } })
+  })
+
+  it('preserves all decks and valid pending review events', () => {
+    const flashcardProgressByDeck = Object.fromEntries(Array.from({ length: 60 }, (_, index) => [`deck-${index}`, { contentVersion: '1', cards: {} }]))
+    const event = { id: '123e4567-e89b-42d3-a456-426614174000', deckId: 'deck-59', contentVersion: '1', cardId: 'card', grade: 'again', reviewedAt: '2026-08-11T10:00:00Z' }
+    const state = parsePersistedState(JSON.stringify({ flashcardProgressByDeck, pendingFlashcardReviews: [event, event, { ...event, id: 'bad' }] }))
+    expect(Object.keys(state.flashcardProgressByDeck)).toHaveLength(60)
+    expect(state.pendingFlashcardReviews).toEqual([event])
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { models } from './models'
-import { defaultFlashcardDecks, resolveFlashcardDiagram } from './flashcards'
+import { defaultFlashcardDecks, flashcardProgress, resolveFlashcardDiagram } from './flashcards'
 
 describe('default flashcard decks', () => {
   it('ships a verified free deck for every model', () => {
@@ -26,5 +26,12 @@ describe('default flashcard decks', () => {
     expect(resolveFlashcardDiagram({ modelId: 'missing', variantId: 'v1', selectedStructureIds: ['heart'] })).toBeUndefined()
     expect(resolveFlashcardDiagram({ modelId: 'heart', variantId: 'missing', selectedStructureIds: ['aorta'] })).toBeUndefined()
     expect(resolveFlashcardDiagram({ modelId: 'heart', variantId: 'primary', selectedStructureIds: ['missing'] })).toBeUndefined()
+  })
+
+  it('does not complete stale or Again-graded cards', () => {
+    const deck = defaultFlashcardDecks[0]
+    const cards = Object.fromEntries(deck.cards.map((card, index) => [card.id, { grade: index === 0 ? 'again' as const : 'good' as const, reviewCount: 1, updatedAt: '2026-08-11T10:00:00Z' }]))
+    expect(flashcardProgress(deck, { contentVersion: deck.contentVersion, cards }).reviewed).toBe(deck.cards.length - 1)
+    expect(flashcardProgress(deck, { contentVersion: 'old', cards }).reviewed).toBe(0)
   })
 })

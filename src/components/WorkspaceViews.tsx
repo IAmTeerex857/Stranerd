@@ -28,7 +28,7 @@ export function LibraryView({ onAssessment, onFlashcards, onGeneratedDeck, onUnl
   const filtered = useMemo(() => models.filter((model) => {
     const assessment = assessmentProgressForModel(model.id, completedQuizIds)
     const deck = flashcardDeckForModel(model.id)!
-    const cards = flashcardProgress(deck, flashcardProgressByDeck[deck.id]?.cards)
+    const cards = flashcardProgress(deck, flashcardProgressByDeck[deck.id])
     const matchesProgress = progressFilter === 'all'
       || (contentFilter === 'practice' && assessment.status === progressFilter)
       || (contentFilter === 'flashcards' && cards.status === progressFilter)
@@ -41,7 +41,7 @@ export function LibraryView({ onAssessment, onFlashcards, onGeneratedDeck, onUnl
     return contentFilter === 'flashcards' && Boolean(model) && (modelFilter === 'all' || deck.modelId === modelFilter) && `${deck.title} ${model?.name}`.toLowerCase().includes(query.trim().toLowerCase())
   })
   const renderGenerated = (deck: GeneratedDeckSummary) => {
-    const progress = deck.cards ? flashcardProgress({ ...deck, cards: deck.cards }, flashcardProgressByDeck[deck.id]?.cards) : undefined
+    const progress = deck.cards ? flashcardProgress({ ...deck, cards: deck.cards }, flashcardProgressByDeck[deck.id]) : undefined
     return <Card key={deck.id} className="library-resource-card generated-deck-card"><header><span className="resource-icon ai" aria-hidden="true"><Sparkles /></span></header><div className="resource-card-copy"><h3>{deck.title}</h3></div>{progress && <Progress value={(progress.reviewed / progress.total) * 100} />}<footer><span>{progress ? `${progress.reviewed} of ${progress.total} reviewed` : 'Ready to study'}</span><div>{!deck.owner && <Button variant="ghost" size="sm" onClick={() => onReportDeck(deck)}>Report</Button>}{deck.owner || deck.unlocked ? <Button size="sm" onClick={() => onGeneratedDeck(deck)}>Study<ArrowRight /></Button> : <Button variant="ai" size="sm" onClick={() => onUnlockDeck(deck)}>Unlock · 5 credits</Button>}</div></footer></Card>
   }
 
@@ -66,7 +66,7 @@ export function LibraryView({ onAssessment, onFlashcards, onGeneratedDeck, onUnl
     <div className="library-collection-heading"><div><h2>{contentFilter === 'flashcards' ? 'Flashcard sets' : 'Practice tests'}</h2></div></div>
     {contentFilter === 'flashcards' ? <div className="library-resource-grid">{filtered.map((model) => {
       const deck = flashcardDeckForModel(model.id)!
-      const deckProgress = flashcardProgress(deck, flashcardProgressByDeck[deck.id]?.cards)
+      const deckProgress = flashcardProgress(deck, flashcardProgressByDeck[deck.id])
       return <Card key={`${model.id}-flashcards`} className="library-resource-card flashcard-deck-card"><header><span className="resource-icon deck"><GalleryVerticalEnd /></span></header><div className="resource-card-copy"><h3>{deck.title}</h3></div><Progress value={(deckProgress.reviewed / deckProgress.total) * 100} /><footer><span>{deckProgress.reviewed} of {deckProgress.total} reviewed</span><Button size="sm" onClick={() => onFlashcards(deck)}>{deckProgress.reviewed > 0 ? 'Continue' : 'Study'}<ArrowRight /></Button></footer></Card>
     })}</div> : <div className="practice-test-list">{filtered.map((model) => {
       const progress = assessmentProgressForModel(model.id, completedQuizIds)

@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Check, ClipboardList, Eye, GalleryVert
 import type { FlashcardDeckProgress, FlashcardGrade } from '../types'
 import type { ActiveNoteContext, LibraryContentMode, MaterialFlashcard, MaterialFlashcardVoiceState, MaterialLearningController, MaterialLearningState, MaterialMnemonic, MaterialQuestion, MaterialSection, MaterialSectionSummary, MaterialSubject } from '../types/materials'
 import { getMaterialSection, listMaterialFlashcards, listMaterialMnemonics, listMaterialQuestions, listMaterialSections, listMaterialSubjects, materialFlashcardFace } from '../lib/materials'
-import { shuffledIds } from '../lib/flashcards'
+import { flashcardGradeTransition, shuffledIds } from '../lib/flashcards'
 import { generateMaterialCorrections, generateMaterialFlashcardHint, generateMaterialQuestionHint } from '../lib/quiz'
 import { AIActionError, type CreditBalance } from '../lib/ai'
 import type { VoiceAction, VoiceActionResult } from '../lib/voiceActions'
@@ -54,7 +54,7 @@ export default function MaterialsView(props: Props) {
   }
   if (error) return <Failure message={error} retry={() => { setError(undefined); setReload((value) => value + 1) }} />
   if (!subjects) return <Loading />
-  if (subject) return <SubjectMaterials {...props} subject={subject} progress={progressByDeck[`materials:${subject.releaseId}`]} onCardGrade={(cardId, grade) => onGrade(subject, cardId, grade)} onBack={() => selectSubject(undefined)} />
+  if (subject) { const progress = progressByDeck[`materials:${subject.releaseId}`]; return <SubjectMaterials {...props} subject={subject} progress={progress?.contentVersion === subject.contentVersion ? progress : undefined} onCardGrade={(cardId, grade) => onGrade(subject, cardId, grade)} onBack={() => selectSubject(undefined)} /> }
   const normalized = query.trim().toLowerCase()
   const filtered = subjects.filter((entry) => entry.title.toLowerCase().includes(normalized))
   const copy = mode === 'notes' ? { heading: 'Notes by subject', detail: 'Read and review your course notes.', Icon: BookOpen } : mode === 'practice' ? { heading: 'Practice by subject', detail: 'Test your understanding by subject.', Icon: ClipboardList } : { heading: 'Flashcards by subject', detail: 'Build recall one subject at a time.', Icon: GalleryVerticalEnd }
@@ -95,7 +95,7 @@ function MaterialCards({ subject, progress, onGrade, signedIn, onBalance, onInsu
   const byId = useMemo(() => new Map(cards?.map((entry) => [entry.id, entry])), [cards]), card = byId.get(order[index])
   function navigate(next: number) { setIndex(Math.max(0, Math.min(order.length - 1, next))); setRevealed(false); setGraded(false) }
   function shuffle() { if (!card) return; const next = shuffledIds(order); setOrder(next); setIndex(Math.max(0, next.indexOf(card.id))); setRevealed(false); setGraded(false) }
-  function gradeCurrent(grade: FlashcardGrade) { if (!card || graded || !revealed) return false; onGrade(card.id, grade); setGraded(true); return true }
+  function gradeCurrent(grade: FlashcardGrade) { if (!card || graded || !revealed) return false; onGrade(card.id, grade); const transition = flashcardGradeTransition(grade, index, order.length); if (transition === 'repeat') { setRevealed(false); setGraded(false) } else if (transition === 'next') navigate(index + 1); else setGraded(true); return true }
   async function requestHint() {
     if (!card || hints[card.id] || loadingHintId) return Boolean(card && hints[card.id])
     if (!signedIn) { onSignIn(); return false }
@@ -118,7 +118,7 @@ function MaterialCards({ subject, progress, onGrade, signedIn, onBalance, onInsu
   if (error) return <Failure message={error} retry={() => { setError(undefined); setReload((value) => value + 1) }} />
   if (!cards) return <Loading />
   if (!card) return <div className="materials-state">No flashcards are available for this subject yet.</div>
-  const reviewed = cards.filter((entry) => progress?.cards[entry.id]).length
+  const reviewed = cards.filter((entry) => progress?.cards[entry.id]?.grade !== undefined && progress.cards[entry.id].grade !== 'again').length
   return <div className="material-card-study"><header><div><strong>{reviewed}/{cards.length} reviewed</strong><Progress value={(reviewed / cards.length) * 100} /></div><div><Button variant="ghost" onClick={() => void requestHint()} disabled={Boolean(hints[card.id]) || Boolean(loadingHintId)}><Lightbulb />{hints[card.id] ? 'Hint unlocked' : loadingHintId === card.id ? 'Generating...' : signedIn ? 'Hint · 1 credit' : 'Sign in for hint'}</Button><Button variant="ghost" onClick={shuffle}><Shuffle />Shuffle</Button></div></header>{aiError && <div className="ai-action-error" role="alert"><span>{aiError}</span></div>}<div className="material-card-nav"><Button variant="ghost" size="sm" disabled={index === 0} onClick={() => navigate(index - 1)}><ArrowLeft />Previous</Button><span>Card {index + 1} of {cards.length}</span><Button variant="ghost" size="sm" disabled={index === cards.length - 1} onClick={() => navigate(index + 1)}>Next<ArrowRight /></Button></div><Card className={`material-card-stage ${revealed ? 'flipped' : ''}`}><div className="material-card-inner"><div className="material-card-face material-card-front" aria-hidden={revealed} inert={revealed ? true : undefined}><span>Question</span><MaterialMarkdown markdown={materialFlashcardFace(card, false)} mnemonics={new Map()} />{hints[card.id] && <div className="assessment-hint"><Lightbulb /><div><strong>Hint</strong><p>{hints[card.id]}</p></div></div>}</div><div className="material-card-face material-card-back" aria-hidden={!revealed} inert={!revealed ? true : undefined}><span>Answer</span><MaterialMarkdown markdown={materialFlashcardFace(card, true)} mnemonics={new Map()} /></div></div></Card><div className="material-card-actions">{revealed && <div aria-label="Grade this card">{(['again', 'hard', 'good', 'easy'] as const).map((grade) => <Button key={grade} variant="grade" disabled={graded} onClick={() => gradeCurrent(grade)}>{grade[0].toUpperCase() + grade.slice(1)}</Button>)}</div>}<Button size="lg" onClick={() => setRevealed((value) => !value)} aria-expanded={revealed}>{revealed ? <><RotateCcw />Show question</> : <><Eye />Reveal answer</>}</Button></div></div>
 }
 

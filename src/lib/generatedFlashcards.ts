@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { aiRequest, type CreditBalance } from './ai'
 import type { Flashcard, FlashcardDeck, GeneratedDeckSummary } from '../types'
+import { GENERATED_DECK_SIZE } from '../../shared/flashcards'
 
 export type GenerateDeckInput = {
   modelId: string
@@ -16,7 +17,7 @@ export async function generateDeck(input: GenerateDeckInput): Promise<{ deck: Fl
   const timeout = window.setTimeout(() => controller.abort(), 50_000)
   try {
     const data = await aiRequest('/api/flashcards/generate', input, controller.signal) as { deck?: FlashcardDeck; balance?: CreditBalance }
-    if (!data.deck || data.deck.cards.length !== 12 || !data.balance) throw new Error('Generated deck response was incomplete.')
+    if (!data.deck || data.deck.cards.length !== GENERATED_DECK_SIZE || !data.balance) throw new Error('Generated deck response was incomplete.')
     return { deck: data.deck, balance: data.balance }
   } finally {
     window.clearTimeout(timeout)

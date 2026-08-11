@@ -101,7 +101,16 @@ export type GeneratedDeckSummary = Omit<FlashcardDeck, 'cards'> & { cards?: Flas
 
 export type FlashcardDeckProgress = {
   contentVersion: string
-  cards: Record<string, { grade: FlashcardGrade; reviewCount: number; updatedAt: string }>
+  cards: Record<string, { grade: FlashcardGrade; reviewCount: number; updatedAt: string; reviewId?: string }>
+}
+
+export type PendingFlashcardReview = {
+  id: string
+  deckId: string
+  contentVersion: string
+  cardId: string
+  grade: FlashcardGrade
+  reviewedAt: string
 }
 
 export type Note = {
@@ -133,6 +142,7 @@ export type PersistedState = {
   dissectionActionsByModel: Record<string, DissectionHistoryItem[]>
   dissectionByModel: Record<string, PersistedDissectionSession>
   flashcardProgressByDeck: Record<string, FlashcardDeckProgress>
+  pendingFlashcardReviews: PendingFlashcardReview[]
   settings: Settings
 }
 

@@ -47,9 +47,9 @@ Design should treat the corresponding requirements as descriptions of the intend
 
 1. **Voice cannot operate the application.** The entire allowlisted action set in Section 14.4 is aspirational. Voice today can speak, listen, caption, and receive context about what the learner is looking at, but it has no mechanism to act — there is no tool or function-call handling in the realtime session at all. The single exception is the practice test, where spoken input can select an option A-D, match option text, and move to the next or previous question. Nothing else in Section 14.4 — canvas, dissection, flashcards, Labs, navigation, Notes — is wired up. This is the largest gap between this document and the product.
 
-2. **Flashcards do not offer four grades.** Section 13.10 requires Again, Hard, Good, and Easy. In practice there is no grading interface: revealing a card's answer silently records a grade of Good the first time, and there is no way for a learner to express difficulty. Spaced-repetition behavior does not exist.
+2. **Flashcard grading is implemented.** Again repeats the current card without marking it reviewed; Hard, Good, and Easy save the attempt and advance when another card is available. Progress is stored locally and synchronized through idempotent review events for signed-in learners.
 
-3. **AI deck generation is broken and unreachable.** Three parts of the stack disagree on deck size — the server prompts for and expects 15 cards, the client rejects any response that is not exactly 12, and the database enforces exactly 12 with a hard constraint. Any generation attempt fails. Separately, nothing in the interface opens the generation modal, so the feature cannot be started even if the count were consistent. The unlock and community-deck paths depend on the same pipeline. Do not design against this as working behavior; treat Library's generate and unlock flows as new work.
+3. **AI deck generation is implemented at 15 cards.** The server, client, and database now enforce the same size. Legacy 12-card decks remain readable, while all newly generated decks contain exactly 15 cards.
 
 ### What is failing today
 
@@ -69,7 +69,7 @@ These problems are observed directly in the shipped implementation. They are the
 
 - **Notes.** Nothing in Section 13.12 is implemented. There is no note-taking, annotation, or capture of any kind anywhere in the product, and every insight a learner has is lost when they navigate away. The data type exists in the codebase but nothing reads or writes it.
 - **Voice control of the application**, as described above.
-- **Flashcard grading and spaced repetition**, as described above.
+- **Scheduled spaced repetition.** The implemented grading behavior repeats Again immediately and advances Hard, Good, and Easy; it does not schedule future due dates.
 
 ### What we do not yet know
 
@@ -116,7 +116,7 @@ Not everything in this document carries equal weight. Design effort should follo
 3. Dissect Mode controls and their relationship to the canvas (Section 13.7).
 4. The Library-to-flashcard study loop, including flip stability (Sections 13.9 and 13.10).
 
-Note that priorities 4 onward include work that is not merely visual. Per Section 2, flashcard grading, deck generation, and the entire Voice action set are unbuilt or broken, so those items carry engineering cost that design sequencing should account for rather than assume away.
+Note that priorities 4 onward include work that is not merely visual. Flashcard grading and deck generation are implemented, while remaining behavior should still be verified as part of design sequencing rather than assumed.
 
 **P1 — high value, dependent on P0**
 
@@ -452,7 +452,7 @@ Requirements:
 - Dragging the model must not flip the card
 - Reveal answer and return-to-question actions
 - Keyboard and touch support
-- Again, Hard, Good, and Easy review grades — **not implemented**; revealing a card currently records Good automatically and there is no grading interface or spaced repetition. Design this as new work, including how grading relates to revealing
+- Again, Hard, Good, and Easy review grades. Again saves the attempt and repeats the question; Hard, Good, and Easy save the attempt and advance to the next card when available
 - Clear card transition without disorientation
 - Text-only fallback when no model is available
 - Voice commands for reveal, flip, navigation, shuffle, grading, and model interaction
@@ -916,8 +916,8 @@ All ten Lab titles: Trace cardiac flow · Connect the cerebral hemispheres · Fo
 | Whole-body atlas layers | 6 (skin, muscular, skeleton, cardiovascular, nervous, organs) |
 | Model files | 53, from 80KB to nearly 8MB |
 | Questions per practice test | 20, always four options |
-| Cards in an AI-generated deck | intended 15, but the stack currently disagrees — see Section 2 |
-| Grades per flashcard | 4 are specified (Again, Hard, Good, Easy); none are implemented |
+| Cards in an AI-generated deck | 15 |
+| Grades per flashcard | 4 (Again, Hard, Good, Easy) |
 | Structures in a dissection list | dozens, grouped by region |
 
 Design against a variant count of one through seven. The specimen switcher must work when there is nothing to switch to, and must not become unusable at seven.

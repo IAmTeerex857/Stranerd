@@ -15,7 +15,7 @@ import type { CreditPrompt } from './components/CreditModal'
 import { usePreferences } from './preferences-context'
 import { flashcardDeckById } from './data/flashcards'
 import { generateDeck, listGeneratedDecks, reportGeneratedDeck, unlockDeck, type GenerateDeckInput } from './lib/generatedFlashcards'
-import { saveFlashcardReview, syncFlashcardProgress } from './lib/flashcardSync'
+import { mergeFlashcardProgress, syncFlashcardProgress } from './lib/flashcardSync'
 import { Button } from '@/components/ui/button'
 import { anatomyLayers } from './data/anatomyGraph'
 import type { AnatomyViewerController, ViewerVoiceState } from './components/AnatomyViewer'
@@ -111,6 +111,8 @@ export default function App() {
   const [generateModel, setGenerateModel] = useState<ModelEntry>()
   const [generatingDeck, setGeneratingDeck] = useState(false)
   const [deckError, setDeckError] = useState<string>()
+  const [flashcardSyncError, setFlashcardSyncError] = useState(false)
+  const [flashcardSyncRetry, setFlashcardSyncRetry] = useState(0)
   const [labMode, setLabMode] = useState<'catalog' | 'guided'>('catalog')
   const [activeActivityId, setActiveActivityId] = useState<string>()
   const [guidedActivityStep, setGuidedActivityStep] = useState<number | null>(null)
@@ -141,6 +143,7 @@ export default function App() {
   const effectiveSidebarCollapsed = sidebarCollapsed || (view === 'lab' && labMode !== 'catalog')
   const mentorAvailable = view === 'explore' || (view === 'lab' && labMode !== 'catalog')
   const assistantAvailable = mentorAvailable || (view === 'library' && (libraryMode === 'assessment' || libraryMode === 'flashcards' || Boolean(materialLearningState) || (libraryContentMode === 'notes' && Boolean(activeNoteContext))))
+  const pendingFlashcardReviewKey = persisted.pendingFlashcardReviews.map((review) => review.id).join(':')
 
   useEffect(() => {
     saveState(persisted)
@@ -154,15 +157,31 @@ export default function App() {
   }, [user])
 
   const syncSignedInProgress = useEffectEvent(async () => {
-    const progress = await syncFlashcardProgress(persisted.flashcardProgressByDeck)
-    setPersisted((current) => ({ ...current, flashcardProgressByDeck: progress }))
+    try {
+      const result = await syncFlashcardProgress(persisted.flashcardProgressByDeck, persisted.pendingFlashcardReviews)
+      const acknowledged = new Set(result.acknowledgedIds)
+      setPersisted((current) => ({
+        ...current,
+        flashcardProgressByDeck: mergeFlashcardProgress(current.flashcardProgressByDeck, result.rows),
+        pendingFlashcardReviews: current.pendingFlashcardReviews.filter((review) => !acknowledged.has(review.id)),
+      }))
+      setFlashcardSyncError(false)
+    } catch {
+      setFlashcardSyncError(true)
+    }
   })
 
   useEffect(() => {
     if (!user) return
-    const timer = window.setTimeout(() => void syncSignedInProgress().catch(() => undefined), 0)
+    const timer = window.setTimeout(() => void syncSignedInProgress(), 0)
     return () => window.clearTimeout(timer)
-  }, [user])
+  }, [flashcardSyncRetry, pendingFlashcardReviewKey, user])
+
+  useEffect(() => {
+    const retry = () => setFlashcardSyncRetry((value) => value + 1)
+    window.addEventListener('online', retry)
+    return () => window.removeEventListener('online', retry)
+  }, [])
 
   useEffect(() => {
     if (!menuOpen || window.innerWidth > 760) return
@@ -431,21 +450,21 @@ export default function App() {
     const generated = generatedDecks.find((entry) => entry.id === activeDeckId && entry.cards)
     const deck = flashcardDeckById(activeDeckId) ?? (generated?.cards ? { ...generated, cards: generated.cards } : undefined)
     if (!deck || !deck.cards.some((card) => card.id === cardId)) return
+    const review = { id: crypto.randomUUID(), deckId: deck.id, contentVersion: deck.contentVersion, cardId, grade, reviewedAt: new Date().toISOString() }
     setPersisted((current) => {
-      const existing = current.flashcardProgressByDeck[deck.id]
+      const existing = current.flashcardProgressByDeck[deck.id]?.contentVersion === deck.contentVersion ? current.flashcardProgressByDeck[deck.id] : undefined
       const previous = existing?.cards[cardId]
-      const updatedAt = new Date().toISOString()
       const reviewCount = (previous?.reviewCount ?? 0) + 1
-      void saveFlashcardReview(deck.id, cardId, grade, reviewCount, updatedAt).catch(() => undefined)
       return {
         ...current,
+        pendingFlashcardReviews: [...current.pendingFlashcardReviews, review],
         flashcardProgressByDeck: {
           ...current.flashcardProgressByDeck,
           [deck.id]: {
             contentVersion: deck.contentVersion,
             cards: {
               ...(existing?.cards ?? {}),
-              [cardId]: { grade, reviewCount, updatedAt },
+              [cardId]: { grade, reviewCount, updatedAt: review.reviewedAt, reviewId: review.id },
             },
           },
         },
@@ -455,13 +474,12 @@ export default function App() {
 
   function gradeMaterialFlashcard(subject: MaterialSubject, cardId: string, grade: FlashcardGrade) {
     const deckId = `materials:${subject.releaseId}`
+    const review = { id: crypto.randomUUID(), deckId, contentVersion: subject.contentVersion, cardId, grade, reviewedAt: new Date().toISOString() }
     setPersisted((current) => {
-      const existing = current.flashcardProgressByDeck[deckId]
+      const existing = current.flashcardProgressByDeck[deckId]?.contentVersion === subject.contentVersion ? current.flashcardProgressByDeck[deckId] : undefined
       const previous = existing?.cards[cardId]
-      const updatedAt = new Date().toISOString()
       const reviewCount = (previous?.reviewCount ?? 0) + 1
-      void saveFlashcardReview(deckId, cardId, grade, reviewCount, updatedAt).catch(() => undefined)
-      return { ...current, flashcardProgressByDeck: { ...current.flashcardProgressByDeck, [deckId]: { contentVersion: subject.contentVersion, cards: { ...(existing?.cards ?? {}), [cardId]: { grade, reviewCount, updatedAt } } } } }
+      return { ...current, pendingFlashcardReviews: [...current.pendingFlashcardReviews, review], flashcardProgressByDeck: { ...current.flashcardProgressByDeck, [deckId]: { contentVersion: subject.contentVersion, cards: { ...(existing?.cards ?? {}), [cardId]: { grade, reviewCount, updatedAt: review.reviewedAt, reviewId: review.id } } } } }
     })
   }
 
@@ -631,7 +649,7 @@ export default function App() {
       <div className="side-section"><header><span>Anatomy models</span></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}<ChevronRight size={14} /></Button>)}</div></div>
     </aside>
     <main className="workspace">
-      <header className="topbar"><div><span>{view === 'library' ? 'Learn' : view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions"><Button variant="outline" asChild><a href="/account"><CircleUserRound size={16} />Account</a></Button>{view !== 'lab' && <Button onClick={() => chooseView('lab')}><FlaskConical size={16} />Open Lab</Button>}</div></header>
+      <header className="topbar"><div><span>{view === 'library' ? 'Learn' : view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions">{flashcardSyncError && <Button variant="outline" role="alert" onClick={() => setFlashcardSyncRetry((value) => value + 1)}>Progress not synced · Retry</Button>}<Button variant="outline" asChild><a href="/account"><CircleUserRound size={16} />Account</a></Button>{view !== 'lab' && <Button onClick={() => chooseView('lab')}><FlaskConical size={16} />Open Lab</Button>}</div></header>
       <div className="center-pane"><Suspense fallback={<ViewLoading />}>{renderCenter()}</Suspense></div>
     </main>
     {assistantAvailable && <MentorPanel model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'An AI Mentor response', required: 1 })} noteContext={activeNoteContext} draftRequest={noteMentorRequest} voiceMode={voiceMode} voiceContext={voiceContext} onVoiceAction={handleVoiceAction} onVoiceInsufficientCredits={() => setCreditPrompt({ action: 'A five-minute Voice session', required: 10 })} />}

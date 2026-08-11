@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { ArrowLeft, ArrowRight, Eye, RotateCcw, Shuffle } from 'lucide-react'
 import type { FlashcardDeck, FlashcardDeckProgress, FlashcardGrade } from '../types'
-import { isTapGesture, shuffledIds } from '../lib/flashcards'
+import { flashcardGradeTransition, isTapGesture, shuffledIds } from '../lib/flashcards'
 import { FlashcardDiagram } from './FlashcardDiagram'
 import { usePreferences } from '../preferences-context'
 import { Button } from '@/components/ui/button'
@@ -41,7 +41,8 @@ export const FlashcardsView = forwardRef<FlashcardsController, Props>(function F
   const { reducedMotion } = usePreferences()
   const cardById = useMemo(() => new Map(deck.cards.map((card) => [card.id, card])), [deck.cards])
   const card = cardById.get(order[index]) ?? deck.cards[0]
-  const reviewed = deck.cards.filter((entry) => progress?.cards[entry.id]).length
+  const currentProgress = progress?.contentVersion === deck.contentVersion ? progress : undefined
+  const reviewed = deck.cards.filter((entry) => currentProgress?.cards[entry.id]?.grade !== undefined && currentProgress.cards[entry.id].grade !== 'again').length
   const onVoiceStateRef = useRef(onVoiceState)
 
   useEffect(() => { onVoiceStateRef.current = onVoiceState }, [onVoiceState])
@@ -80,7 +81,12 @@ export const FlashcardsView = forwardRef<FlashcardsController, Props>(function F
   function gradeCurrent(grade: FlashcardGrade) {
     if (graded) return false
     onGrade(card.id, grade)
-    setGraded(true)
+    const transition = flashcardGradeTransition(grade, index, order.length)
+    if (transition === 'repeat') {
+      setFlipped(false)
+      setGraded(false)
+    } else if (transition === 'next') navigate(index + 1)
+    else setGraded(true)
     return true
   }
 
