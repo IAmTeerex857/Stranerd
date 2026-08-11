@@ -9,6 +9,7 @@ import billingCheckoutHandler from '../api/billing/checkout.js'
 import billingStatusHandler from '../api/billing/status.js'
 import billingCancelHandler from '../api/billing/cancel.js'
 import spotflowWebhookHandler from '../api/webhooks/spotflow.js'
+import bachsWebhookHandler from '../api/webhooks/bachs.js'
 import welcomeEmailHandler from '../api/email/welcome.js'
 import generateFlashcardsHandler from '../api/flashcards/generate.js'
 import unlockFlashcardsHandler from '../api/flashcards/unlock.js'
@@ -21,6 +22,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 app.use(cors({ origin: /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/ }))
 app.post('/api/webhooks/spotflow', express.raw({ type: 'application/json', limit: '256kb' }), spotflowWebhookHandler)
+app.post('/api/webhooks/bachs', express.raw({ type: 'application/json', limit: '256kb' }), bachsWebhookHandler)
 app.use(express.json({ limit: '32kb' }))
 
 app.post('/api/mentor', mentorHandler)

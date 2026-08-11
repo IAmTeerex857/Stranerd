@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth-context'
-import { startCheckout, type BillingProductId } from '../lib/billing'
+import { startCheckout, type BillingProductId, type BillingRail } from '../lib/billing'
 import { Button } from '@/components/ui/button'
 
-export function BillingButton({ productId, children, className }: { productId: BillingProductId; children: ReactNode; className?: string }) {
+export function BillingButton({ productId, rail = 'ngn', children, className }: { productId: BillingProductId; rail?: BillingRail; children: ReactNode; className?: string }) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>()
@@ -26,7 +26,7 @@ export function BillingButton({ productId, children, className }: { productId: B
     setLoading(true)
     setError(undefined)
     try {
-      await startCheckout(productId)
+      await startCheckout(productId, rail)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Checkout could not be started.')
       setLoading(false)

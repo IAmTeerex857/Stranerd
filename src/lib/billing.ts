@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 
 export type BillingProductId = 'subscription' | 'payg_100'
+export type BillingRail = 'ngn' | 'usd_card' | 'stablecoin'
+export const bachsCheckoutEnabled = import.meta.env.DEV || import.meta.env.VITE_BACHS_CHECKOUT_ENABLED === 'true'
 
 async function billingFetch(path: string, init: RequestInit = {}) {
   if (!supabase) throw new Error('Sign in to manage billing.')
@@ -16,9 +18,9 @@ async function billingFetch(path: string, init: RequestInit = {}) {
   return body
 }
 
-export async function startCheckout(productId: BillingProductId) {
-  const body = await billingFetch('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ productId }) })
-  if (typeof body.checkoutUrl !== 'string' || typeof body.paymentIntentId !== 'string') throw new Error('Spotflow checkout details were not returned.')
+export async function startCheckout(productId: BillingProductId, rail: BillingRail) {
+  const body = await billingFetch('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ productId, rail }) })
+  if (typeof body.checkoutUrl !== 'string' || typeof body.paymentIntentId !== 'string') throw new Error('Checkout details were not returned.')
   window.localStorage.setItem('stranerd.billing.pendingIntent', body.paymentIntentId)
   window.location.assign(body.checkoutUrl)
 }

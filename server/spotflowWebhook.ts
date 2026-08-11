@@ -157,7 +157,7 @@ export async function processSpotflowEvent(event: SpotflowEvent) {
   if (success) {
     if (!event.providerPaymentId || event.currency !== 'NGN') throw new BillingError(400, 'incomplete_success_event', 'Successful Spotflow event is missing payment identifiers or currency.')
     const { data: existingSubscription, error: subscriptionLookupError } = event.providerSubscriptionId
-      ? await client.from('subscriptions').select('id').eq('provider_subscription_id', event.providerSubscriptionId).maybeSingle()
+      ? await client.from('subscriptions').select('id').eq('provider', 'spotflow').eq('provider_subscription_id', event.providerSubscriptionId).maybeSingle()
       : { data: null, error: null }
     if (subscriptionLookupError) throw subscriptionLookupError
     const effectiveIntentId = existingSubscription ? undefined : intentId

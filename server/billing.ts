@@ -1,10 +1,16 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
 
 export type BillingProductId = 'subscription' | 'payg_100'
+export type BillingRail = 'ngn' | 'usd_card' | 'stablecoin'
 
 export const billingCatalog = {
   subscription: { productType: 'subscription', amountMinor: 250000, providerAmount: undefined, currency: 'NGN', credits: 500 },
   payg_100: { productType: 'payg_100', amountMinor: 50000, providerAmount: 500, currency: 'NGN', credits: 100 },
+} as const
+
+export const bachsCatalog = {
+  subscription: { productType: 'subscription', amountMinor: 500, amount: '5.00', currency: 'USD', credits: 500 },
+  payg_100: { productType: 'payg_100', amountMinor: 200, amount: '2.00', currency: 'USD', credits: 100 },
 } as const
 
 export class BillingError extends Error {
@@ -57,6 +63,87 @@ export async function spotflowRequest(path: string, init: RequestInit = {}) {
   const body = await response.json().catch(() => ({})) as Record<string, unknown>
   if (!response.ok) throw new BillingError(502, 'spotflow_request_failed', typeof body.message === 'string' ? body.message : 'Spotflow could not complete the request.')
   return body
+}
+
+export function bachsConfiguration() {
+  const mode = process.env.BACHS_MODE
+  const key = process.env.BACHS_API_KEY
+  if (!mode || !key) throw new BillingError(503, 'bachs_not_configured', 'Bachs billing is not configured.')
+  if (process.env.VERCEL_ENV === 'production' && mode !== 'live') {
+    throw new BillingError(503, 'bachs_live_required', 'Production Bachs billing requires live credentials.')
+  }
+  if (!['sandbox', 'live'].includes(mode) || !key.startsWith(`sk_${mode}_`)) {
+    throw new BillingError(503, 'bachs_mode_mismatch', 'Bachs billing mode does not match its API key.')
+  }
+  return { key, mode, baseUrl: mode === 'sandbox' ? 'https://sandbox-api.bachs.io' : 'https://api.bachs.io' }
+}
+
+export async function bachsRequest(path: string, init: RequestInit = {}) {
+  const { key, baseUrl } = bachsConfiguration()
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      ...init.headers,
+    },
+    signal: AbortSignal.timeout(20_000),
+  })
+  const body = await response.json().catch(() => ({})) as Record<string, unknown>
+  if (!response.ok) throw new BillingError(502, 'bachs_request_failed', typeof body.detail === 'string' ? body.detail : 'Bachs could not complete the request.')
+  return body
+}
+
+export function usdDecimalToMinor(value: unknown) {
+  if (typeof value !== 'string' || !/^(0|[1-9]\d*)\.\d{2}$/.test(value)) {
+    throw new BillingError(400, 'invalid_money', 'Bachs returned an invalid USD amount.')
+  }
+  const [whole, fraction] = value.split('.')
+  const minor = Number(whole) * 100 + Number(fraction)
+  if (!Number.isSafeInteger(minor)) throw new BillingError(400, 'invalid_money', 'Bachs returned an invalid USD amount.')
+  return minor
+}
+
+export function validateBachsCheckoutUrl(value: unknown) {
+  if (typeof value !== 'string') throw new BillingError(502, 'invalid_checkout_url', 'Bachs returned an invalid checkout URL.')
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    throw new BillingError(502, 'invalid_checkout_url', 'Bachs returned an invalid checkout URL.')
+  }
+  if (url.protocol !== 'https:' || !/(^|\.)bachs\.io$/i.test(url.hostname)) {
+    throw new BillingError(502, 'invalid_checkout_url', 'Bachs returned an invalid checkout URL.')
+  }
+  return value
+}
+
+export function buildBachsCheckoutPayload(options: {
+  productId: BillingProductId
+  rail: Exclude<BillingRail, 'ngn'>
+  paymentIntentId: string
+  reference: string
+  userId: string
+  email: string
+  name: string
+  plusProductId?: string
+  baseUrl: string
+}) {
+  const product = bachsCatalog[options.productId]
+  if (options.productId === 'subscription' && options.rail === 'stablecoin') throw new BillingError(400, 'invalid_rail', 'Subscriptions require USD card checkout.')
+  if (options.productId === 'subscription' && !options.plusProductId) throw new BillingError(503, 'plan_not_configured', 'The Bachs Stranerd Plus product is not configured.')
+  return {
+    customer: { email: options.email, name: options.name },
+    ...(options.productId === 'subscription'
+      ? { product_cart: [{ product_id: options.plusProductId, quantity: 1 }] }
+      : { pricing: { currency: 'USD', amount: product.amount, price_type: 'fixed' } }),
+    billing_currency: 'USD',
+    allowed_payment_method_types: [options.rail === 'usd_card' ? 'card' : 'crypto'],
+    reference: options.reference,
+    metadata: { paymentIntentId: options.paymentIntentId, userId: options.userId, productType: product.productType },
+    success_url: `${options.baseUrl}/billing/success?intent=${options.paymentIntentId}`,
+    cancel_url: `${options.baseUrl}/billing/cancelled`,
+  }
 }
 
 export function billingErrorResponse(error: unknown) {

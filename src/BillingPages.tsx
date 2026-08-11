@@ -10,7 +10,7 @@ export function BillingSuccessPage() {
   const { user, loading } = useAuth()
   const intentId = new URLSearchParams(window.location.search).get('intent') || window.localStorage.getItem('stranerd.billing.pendingIntent') || ''
   const [status, setStatus] = useState('pending')
-  const [message, setMessage] = useState('Waiting for Spotflow to confirm your payment securely.')
+  const [message, setMessage] = useState('Waiting for the payment provider to confirm your payment securely.')
 
   useEffect(() => {
     if (!user) return

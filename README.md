@@ -10,7 +10,7 @@ Every practice-test question has four A-D options. After question 20, students m
 
 Flashcard decks pair recall prompts with interactive 3D diagrams and four-grade review, and learners may generate their own decks or unlock community decks. A text Mentor and a realtime Voice Agent are available on learning screens.
 
-Accounts use Google sign-in through Supabase. AI features cost credits, tracked in a reserve-then-finalize ledger that refunds automatically when a provider request fails. Billing runs through Spotflow with a monthly subscription and pay-as-you-go credit packs.
+Accounts use Google sign-in through Supabase. AI features cost credits, tracked in a reserve-then-finalize ledger that refunds automatically when a provider request fails. Billing uses Spotflow for NGN, with a staged Bachs integration for USD-card subscriptions and USD-card or stablecoin credit packs.
 
 ## Run
 
@@ -34,7 +34,7 @@ npm start
 
 ## Deploy
 
-Import the repository into Vercel as a Vite project. The frontend builds to `dist/`, and each file under `api/` deploys as a serverless function — mentor, quiz, flashcard generation and unlock, realtime voice session and extension, billing checkout, status and cancel, the Spotflow webhook, and the welcome email. Add `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to the Vercel project environment; without a key, the authored offline explanations remain available. Supabase and Spotflow credentials are required for accounts, credits, and billing.
+Import the repository into Vercel as a Vite project. The frontend builds to `dist/`, and each file under `api/` deploys as a serverless function — mentor, quiz, flashcard generation and unlock, realtime voice session and extension, billing checkout, status and cancel, provider webhooks, and the welcome email. Add `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to the Vercel project environment; without a key, the authored offline explanations remain available. Supabase, Spotflow, and Bachs credentials are required for accounts, credits, and regional billing.
 
 Design documentation for the in-progress redesign is in `docs/product/product-design-prd.md`, which is the authoritative description of intended product behavior.
 
