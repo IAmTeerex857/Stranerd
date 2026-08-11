@@ -2,8 +2,6 @@ import { lazy, Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, t
 import { Bot, ChevronRight, CircleUserRound, FlaskConical, Library, Menu, PanelLeftClose, PanelLeftOpen, Search, Star, X } from 'lucide-react'
 import { MentorPanel } from './components/MentorPanel'
 import { anatomyModels, modelById, models } from './data/models'
-import logoUrl from '../Logo Stranerd.png'
-import iconUrl from '../Icon Logo Stranerd.png'
 import { quizzesForModel } from './data/quizzes'
 import { loadState, saveState } from './lib/storage'
 import type { ChatItem, FlashcardDeck, FlashcardGrade, GeneratedDeckSummary, Hotspot, ModelEntry, PersistedState, Quiz, ViewId } from './types'
@@ -24,6 +22,9 @@ import type { AnatomyViewerController, ViewerVoiceState } from './components/Ana
 import type { FlashcardsController, FlashcardVoiceState } from './components/FlashcardsView'
 import type { VoiceAction, VoiceActionResult, VoiceMode } from './lib/voiceActions'
 import type { ActiveNoteContext, LibraryContentMode, MaterialLearningController, MaterialLearningState, MaterialSubject, NoteSelectionRequest } from './types/materials'
+
+const logoUrl = '/branding/stranerd-wordmark.png'
+const iconUrl = '/branding/stranerd-icon.png'
 
 const LibraryView = lazy(() => import('./components/WorkspaceViews').then((module) => ({ default: module.LibraryView })))
 const QuizzesView = lazy(() => import('./components/WorkspaceViews').then((module) => ({ default: module.QuizzesView })))

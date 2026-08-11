@@ -1,6 +1,6 @@
 # Asset notes
 
-The supplied models are user-generated assets created with GPT Image and Tripo, per the user's statement. Original source assets remain unchanged in `Images 3D/`. Web-ready derivatives were generated with glTF Transform 4.4.2 and live in `public/models/`.
+The supplied models are user-generated assets created with GPT Image and Tripo, per the user's statement. Original source assets remain unchanged in `assets/source-models/original/`, with intermediate meshes in `assets/source-models/meshed/`. Web-ready derivatives were generated with glTF Transform 4.4.2 and live in `public/models/`.
 
 ## Deployed derivatives
 
@@ -17,10 +17,8 @@ The supplied models are user-generated assets created with GPT Image and Tripo, 
 | Skin | `skin.glb`, `skin-v2.glb` |
 | Human Anatomy | `anatomy.glb` |
 | Digestive System | `digestive-system.glb` |
-| Arduino | `arduino.glb`, `arduino-v2.glb` |
-| Electronics Project | `electronics-project.glb` |
 
-The 29 derivatives use Meshopt geometry compression, quantized attributes, WebP textures capped at 2048px, and model-specific simplification ratios. `public/models/` is 54 MB on disk; specimens load on demand rather than as one bundle.
+The anatomy derivatives use Meshopt geometry compression, quantized attributes, WebP textures capped at 2048px, and model-specific simplification ratios. Specimens load on demand rather than as one bundle.
 
 The generated Tripo files contain single generic meshes rather than named anatomical or component submeshes. Demo grading therefore uses authored hotspot IDs and coordinate overlays. Markers do not imply mesh segmentation. Future structure isolation should use reviewed, segmented models with descriptive mesh names.
 

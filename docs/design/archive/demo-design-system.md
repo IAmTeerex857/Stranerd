@@ -126,4 +126,3 @@ A single entrance pattern — content rises and fades in, staggered in 4 tiers. 
 * Prompt cards — mono text in a bordered card with a header strip; a pill tag labels it (.bad red-tinted "Weak", .good cyan-tinted "Strong"); inside the prompt, spans color-code the parts: cyan \= role/instruction, magenta \= key parameter, muted \= constraint.  
 * Chips — mono, pill-shaped, 1px border, used for example phrases.  
 * Page footer — mono 15px, uppercase, wide tracking, faint; brand mark (diamond \+ "Spotflow") left, section name right.
-

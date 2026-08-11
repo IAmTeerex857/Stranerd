@@ -46,7 +46,7 @@ Resizable panes are nice-to-have, not required. Fixed widths are fine for the de
 
 ## 2. Visual design system
 
-**Use the attached `Design.md` as the source of truth for all color, type, spacing, and motion.** Summary of what to carry over:
+**Use `demo-design-system.md` as the source of truth for all color, type, spacing, and motion.** Summary of what to carry over:
 
 - **Background:** `#0A0C0F` near-black with the signature top-right cyan radial glow. Panels use translucent white surfaces (`rgba(255,255,255,.035)` fill, `rgba(255,255,255,.10)` borders), no drop shadows — depth via translucency.
 - **Accent:** electric cyan `#4DB6FF` for primary actions, highlights, the brand diamond. Semantic colors: green `#5FD08A` = correct/success, red `#FF7A7A` = error/wrong, amber `#F2C261` = warning, magenta `#E26BD6` = the AI mentor's voice/avatar accent.
@@ -105,7 +105,7 @@ Have a graceful offline fallback: if the model call fails, the mentor shows a sh
 - **Visual (center):** A 3D human skeleton rendered with **React Three Fiber + drei** (Three.js). Orbit controls (rotate/zoom/pan). Individual bones are **separately selectable meshes** — clicking a bone highlights it (cyan emissive) and shows its label.
 - **Assets & licensing (use a properly-licensed model — this matters commercially):**
   - **Z-Anatomy** — open-source, Creative Commons, and critically its meshes carry anatomical names, which is what enables deterministic "select the correct structure" grading. Export the skeleton subset to `.glb`. Best fit for the product direction.
-  - Alternatives for the demo: Artec 3D "Human skeleton HD" (CC BY 4.0, attribution required) or a CC BY 4.0 game-ready skeleton (e.g. GreyFrogGames on itch.io). **Whatever is used, record the license + attribution in an `ASSETS.md`** and show attribution in the UI footer. Avoid anything non-commercial or unlicensed.
+  - Alternatives for the demo: Artec 3D "Human skeleton HD" (CC BY 4.0, attribution required) or a CC BY 4.0 game-ready skeleton (e.g. GreyFrogGames on itch.io). **Whatever is used, record the license and attribution in `../../assets/asset-inventory.md`** and show attribution in the UI footer. Avoid anything non-commercial or unlicensed.
   - Requirement: meshes must have descriptive names (e.g. `femur_left`, `humerus_right`). If a chosen model lacks named meshes, name them in Blender first.
 - **Engine (deterministic grading):** Correctness = "did the student click/isolate the named structure the task asked for?" This is a pure string/ID match against the mesh name, plus optionally a spatial check. No AI involved in grading.
 - **Baked-in tasks (examples):**
@@ -141,7 +141,7 @@ Have a graceful offline fallback: if the model call fails, the mentor shows a sh
 - **React + Vite + TypeScript.**
 - **React Three Fiber + drei** for the skeleton; **Three.js** under it.
 - **mathjs** for the circuit linear solve; plain TS for Fourier; **d3** or canvas for plotting.
-- Styling: plain CSS / CSS modules using the `Design.md` tokens as CSS custom properties. (Tailwind optional, but the design system is defined as CSS vars, so vanilla is fine.)
+- Styling: plain CSS / CSS modules using the `demo-design-system.md` tokens as CSS custom properties. (Tailwind optional, but the design system is defined as CSS vars, so vanilla is fine.)
 - **Mentor proxy:** a minimal Node/Express (or serverless) `/api/mentor` route that holds `OPENAI_API_KEY` server-side and forwards to OpenAI's `/v1/chat/completions`. Frontend never sees the key.
 - No browser localStorage needed; keep all state in React state/memory.
 
@@ -165,8 +165,8 @@ Ship each module working before starting the next.
 - All three modules load and are interactable on a 1280px+ desktop screen.
 - In each, a student action is evaluated by **deterministic code**, a result chip shows the computed fact, and the AI mentor explains it.
 - The engine-vs-AI split is visible to a viewer who doesn't know the architecture.
-- The design matches `Design.md` and feels like a precise, premium instrument.
-- All 3D/asset licenses are documented in `ASSETS.md` with attribution shown in-app.
+- The design matches `demo-design-system.md` and feels like a precise, premium instrument.
+- All 3D/asset licenses are documented in `../../assets/asset-inventory.md` with attribution shown in-app.
 - Mentor works via the `/api/mentor` proxy once `OPENAI_API_KEY` is set on the server; the frontend contains no key. Offline fallback keeps the demo alive if the API call fails.
 
 ---

@@ -506,6 +506,6 @@ The realistic Eye is the primary specimen, while the improved segmented Eye rema
 
 ## Existing Related Documentation
 
-- `wolfram.md`: Wolfram computation, assessment, anatomy, and System Modeler strategy
-- `ASSETS.md`: Current model sources, optimization, and segmented specimen inventory
-- `README.md`: Current application operation and deployment notes
+- `../research/wolfram-strategy.md`: Wolfram computation, assessment, anatomy, and System Modeler strategy
+- `asset-inventory.md`: Current model sources, optimization, and segmented specimen inventory
+- `../../README.md`: Current application operation and deployment notes

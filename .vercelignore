@@ -2,10 +2,10 @@
 .git/
 .vercel/
 dist/
-Images 3D/
-3D Images 2 Meshed/
+assets/source-models/
 node_modules/
 coverage/
 Materials/
+docs/private/
 *.log
 *.tsbuildinfo

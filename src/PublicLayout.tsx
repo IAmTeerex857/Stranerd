@@ -1,8 +1,9 @@
 import { ArrowRight, Menu, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import logoUrl from '../Logo Stranerd.png'
 import { useAuth } from './auth-context'
 import { Button } from '@/components/ui/button'
+
+const logoUrl = '/branding/stranerd-wordmark.png'
 
 function Header() {
   const { user } = useAuth()

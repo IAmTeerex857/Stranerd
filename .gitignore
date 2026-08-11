@@ -6,9 +6,9 @@ dist/
 *.log
 coverage/
 *.tsbuildinfo
-Images 3D/
-3D Images 2 Meshed/
+assets/source-models/
 Openai key.md
 Details.md
+docs/private/
 .vercel
 .env*
