@@ -18,6 +18,16 @@ const buttonVariants = cva(
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+        "destructive-outline":
+          "border-[color-mix(in_srgb,var(--destructive)_28%,var(--border-ui))] bg-card text-destructive hover:bg-destructive/10 focus-visible:border-destructive/50 focus-visible:ring-destructive/20",
+        ai:
+          "bg-[var(--ai)] text-white hover:bg-[color-mix(in_srgb,var(--ai),black_14%)] focus-visible:border-[var(--ai)] focus-visible:ring-[color-mix(in_srgb,var(--ai)_28%,transparent)]",
+        tool:
+          "border-border bg-[var(--overlay-surface)] text-muted-foreground shadow-none backdrop-blur-md hover:bg-muted hover:text-foreground",
+        "tool-active":
+          "border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+        grade:
+          "border-border bg-card text-foreground hover:border-primary/40 hover:bg-[var(--primary-subtle)]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -32,6 +42,7 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        tool: "h-11 min-w-11 gap-1.5 rounded-[10px] px-2.5 text-xs",
       },
     },
     defaultVariants: {

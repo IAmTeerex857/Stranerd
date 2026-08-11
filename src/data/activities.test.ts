@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { anatomyActivities } from './activities'
+import { activityActionMatches, anatomyActivities } from './activities'
+import { digestivePancreasSequence } from './dissection'
 import { anatomyModels, modelById } from './models'
 
 describe('anatomy activities', () => {
@@ -10,15 +11,17 @@ describe('anatomy activities', () => {
       expect(model.viewer === 'segmented-body' || model.variants.some((variant) => variant.segmentedSystem)).toBe(true)
       expect(activity.steps.length).toBeGreaterThanOrEqual(5)
       const questions = activity.steps.filter((step) => step.kind === 'question')
+      const actions = activity.steps.filter((step) => step.kind === 'action')
       expect(questions.length).toBeGreaterThanOrEqual(2)
       expect(questions.every((step) => step.options.length === 4 && new Set(step.options).size === 4)).toBe(true)
+      expect(actions.every((step) => step.targetIds.length > 0)).toBe(true)
     }
   })
 
   it('uses observable structure actions for the whole-body activity', () => {
     const wholeBody = anatomyActivities.find((activity) => activity.modelId === 'anatomy')!
     expect(wholeBody.steps.filter((step) => step.kind === 'action').map((step) => step.action)).toEqual(['select', 'isolate', 'move'])
-    expect(wholeBody.steps[0]).toMatchObject({ kind: 'action', targetTerms: ['femur'] })
+    expect(wholeBody.steps[0]).toMatchObject({ kind: 'action', targetIds: ['anatomy:skeleton:femur-left'] })
   })
 
   it('provides a guided educational sequence for every anatomy activity', () => {
@@ -27,5 +30,20 @@ describe('anatomy activities', () => {
     expect(guided.every((activity) => activity.steps.some((step) => step.kind === 'question'))).toBe(true)
     const pancreas = guided.find((activity) => activity.id === 'pancreas-pathway')!
     expect(pancreas.steps.filter((step) => step.kind === 'action').map((step) => step.action)).toEqual(['hide', 'isolate', 'select'])
+  })
+
+  it('validates the exact action verb, exact target set, and activating direction', () => {
+    const fade = anatomyActivities.find((activity) => activity.modelId === 'lungs')!.steps[2]
+    expect(activityActionMatches(fade, 'transparent', ['anatomy:organs:trachea'])).toBe(true)
+    expect(activityActionMatches(fade, 'isolate', ['anatomy:organs:trachea'])).toBe(false)
+    expect(activityActionMatches(fade, 'transparent', ['anatomy:organs:left-main-bronchus'])).toBe(false)
+    expect(activityActionMatches(fade, 'transparent', ['anatomy:organs:trachea', 'anatomy:organs:left-main-bronchus'])).toBe(false)
+    expect(activityActionMatches(fade, 'transparent', ['anatomy:organs:trachea'], false)).toBe(false)
+  })
+
+  it('keeps duplicate digestive action wording synchronized', () => {
+    const activity = anatomyActivities.find((entry) => entry.modelId === 'digestive-system')!
+    const actions = activity.steps.filter((step) => step.kind === 'action')
+    expect(actions.map(({ action, targetIds, prompt, success }) => ({ action, targetIds, prompt, success }))).toEqual(digestivePancreasSequence.steps)
   })
 })

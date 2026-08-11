@@ -6,5 +6,6 @@ Images 3D/
 3D Images 2 Meshed/
 node_modules/
 coverage/
+Materials/
 *.log
 *.tsbuildinfo

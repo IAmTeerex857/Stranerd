@@ -18,6 +18,12 @@ const badgeVariants = cva(
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
+        credit:
+          "border-[color-mix(in_srgb,var(--ai)_24%,var(--border-ui))] bg-[var(--ai-subtle)] font-mono text-[var(--ai)]",
+        weight:
+          "border-border bg-muted font-mono text-muted-foreground",
+        "progress-state":
+          "border-[color-mix(in_srgb,var(--success)_24%,var(--border-ui))] bg-[color-mix(in_srgb,var(--success)_10%,var(--card))] font-mono text-[var(--success)]",
         link: "text-primary underline-offset-4 hover:underline",
       },
     },

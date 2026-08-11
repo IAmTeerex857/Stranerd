@@ -28,7 +28,7 @@ export function GenerateDeckModal({ model, balance, generating, error, onClose, 
         <label className="generated-deck-check"><Switch checked={includeDiagrams} onCheckedChange={setIncludeDiagrams} />Include validated 3D context where supported</label>
       </div>
       {error && <p className="auth-error" role="alert">{error}</p>}
-      <footer><span>{balance} credits available</span><div><Button variant="ghost" onClick={onClose} disabled={generating}>Cancel</Button><Button disabled={generating || balance < 5} onClick={() => onGenerate({ modelId: model.id, difficulty, focus, visibility, includeDiagrams, topic: topic.trim() || undefined })}>{generating ? 'Generating...' : 'Generate deck'}</Button></div></footer>
+      <footer><span>{balance} credits available</span><div><Button variant="ghost" onClick={onClose} disabled={generating}>Cancel</Button><Button variant="ai" disabled={generating || balance < 5} onClick={() => onGenerate({ modelId: model.id, difficulty, focus, visibility, includeDiagrams, topic: topic.trim() || undefined })}>{generating ? 'Generating...' : 'Generate deck · 5 credits'}</Button></div></footer>
     </DialogContent>
   </Dialog>
 }

@@ -34,20 +34,20 @@ export const digestivePancreasSequence = {
     {
       action: 'hide',
       targetIds: ['anatomy:organs:stomach'],
-      prompt: 'Select and hide the stomach to expose structures behind it.',
-      success: 'The stomach is hidden, revealing the pancreas posterior to it.',
+      prompt: 'Select and hide the stomach to expose the pancreas.',
+      success: 'The hidden stomach reveals the pancreas posterior to it.',
     },
     {
       action: 'isolate',
       targetIds: ['anatomy:organs:pancreas'],
-      prompt: 'Select the pancreas and isolate it.',
-      success: 'The pancreas is isolated for focused inspection.',
+      prompt: 'Select and isolate the pancreas.',
+      success: 'The pancreas is isolated within the upper abdomen.',
     },
     {
       action: 'select',
       targetIds: ['anatomy:organs:duodenum'],
-      prompt: 'Select the structure that receives pancreatic secretions.',
-      success: 'The duodenum receives pancreatic secretions through the pancreatic duct.',
+      prompt: 'Select the duodenum that receives pancreatic secretions.',
+      success: 'The duodenum receiving pancreatic secretions is identified.',
     },
   ] satisfies GuidedDissectionStep[],
 } as const

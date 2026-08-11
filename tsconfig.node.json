@@ -9,5 +9,5 @@
     "strict": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "eslint.config.js", "server", "api"]
+  "include": ["vite.config.ts", "eslint.config.js", "server", "api", "src/lib/voiceActions.ts"]
 }

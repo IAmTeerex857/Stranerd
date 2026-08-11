@@ -66,10 +66,10 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
         if (!base) {
           base = cloneMaterial(material, layer.color)
           baseMaterials.set(material, base)
-          const selected = cloneMaterial(base, '#e26bd6')
+          const selected = base.clone()
           if (selected instanceof MeshStandardMaterial) {
-            selected.emissive.set('#5b174f')
-            selected.emissiveIntensity = 0.8
+            selected.emissive.set('#ff4fdd')
+            selected.emissiveIntensity = 1.5
           }
           selectedMaterials.set(base, selected)
           const transparent = base.clone()
@@ -127,7 +127,7 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
         ? transparent.has(nodeId) ? prepared.selectedTransparentMaterials.get(material) ?? material : prepared.selectedMaterials.get(material) ?? material
         : transparent.has(nodeId) ? prepared.transparentMaterials.get(material) ?? material : material)
       mesh.material = Array.isArray(baseMaterial) ? materials : materials[0]
-      const offset = dissection?.offsets[movementId] ?? [0, 0, 0]
+      const offset = dissection?.offsets[movementId] ?? dissection?.offsets[nodeId] ?? [0, 0, 0]
       mesh.position.copy(originalPosition).add(new Vector3(...offset))
       mesh.visible = !hidden.has(nodeId) && (!isolate || selected.size === 0 || selected.has(nodeId))
       materials.forEach((material) => {
@@ -161,7 +161,7 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
       mesh: entry.mesh,
       plane: new Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new Vector3()), event.point),
       startPoint: event.point.clone(),
-      startOffset: new Vector3(...(dissection?.offsets[entry.movementId] ?? [0, 0, 0])),
+      startOffset: new Vector3(...(dissection?.offsets[entry.movementId] ?? dissection?.offsets[entry.nodeId] ?? [0, 0, 0])),
       startClient: [event.nativeEvent.clientX, event.nativeEvent.clientY],
       pointerId: event.pointerId,
       moved: false,

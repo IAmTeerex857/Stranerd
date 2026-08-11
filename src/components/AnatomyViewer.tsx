@@ -1,7 +1,7 @@
-import { Component, Suspense, useEffect, useMemo, useReducer, useRef, useState, type ErrorInfo, type ReactNode, type RefObject } from 'react'
+import { Component, forwardRef, Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useReducer, useRef, useState, type ErrorInfo, type ReactNode, type RefObject } from 'react'
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
-import { Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three'
+import { Box3, Mesh, MeshStandardMaterial, Spherical, Vector3 } from 'three'
 import { Box, ChevronDown, ChevronUp, Eye, EyeOff, Grid3X3, Layers3, LoaderCircle, RotateCcw, ScanLine, Scissors, Search, Tags, Undo2, X } from 'lucide-react'
 import type { Hotspot, ModelEntry, PersistedDissectionSession, Settings } from '../types'
 import { anatomyLayers } from '../data/anatomyGraph'
@@ -12,6 +12,29 @@ import { useTheme } from '../theme-context'
 import type { ResolvedTheme } from '../theme-utils'
 import { usePreferences } from '../preferences-context'
 import { Button } from '@/components/ui/button'
+import type { VoiceAction, VoiceActionResult } from '../lib/voiceActions'
+
+const EMPTY_STRUCTURES: Hotspot[] = []
+
+type ViewerControls = {
+  reset: () => void
+  update: () => void
+  object: { position: Vector3 }
+  target: Vector3
+}
+
+export type ViewerVoiceState = {
+  dissectMode: boolean
+  structures: { id: string; label: string }[]
+  visibleLayerIds: string[]
+  hiddenStructureIds: string[]
+  fadedStructureIds: string[]
+  isolated: boolean
+}
+
+export type AnatomyViewerController = {
+  executeVoiceAction: (action: Extract<VoiceAction, { type: `viewer.${string}` }>) => VoiceActionResult
+}
 
 type ViewerProps = {
   model: ModelEntry
@@ -32,6 +55,7 @@ type ViewerProps = {
   onGuidedStep?: (step: number) => void
   dissectionSession?: PersistedDissectionSession
   onDissectionState?: (session: PersistedDissectionSession) => void
+  onVoiceState?: (state: ViewerVoiceState) => void
 }
 
 class ModelBoundary extends Component<{ children: ReactNode; name: string }, { failed: boolean }> {
@@ -106,7 +130,7 @@ function ModelGeometry({ url, settings, hotspots, onSelect, interactive = true }
   return <primitive object={prepared} onClick={selectSurface} onPointerOver={interactive ? () => { document.body.style.cursor = 'pointer' } : undefined} onPointerOut={interactive ? () => { document.body.style.cursor = '' } : undefined} />
 }
 
-function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled, theme, reducedMotion }: ViewerProps & { controlsRef: RefObject<{ reset: () => void } | null>; loadedLayers: string[]; visibleLayers: string[]; dissection?: DissectionSnapshot; onStructures: (structures: Hotspot[]) => void; onMoveStart: () => void; onMove: (nodeId: string, offset: [number, number, number]) => void; onMoveEnd: (nodeId: string) => void; touchMoveEnabled: boolean; theme: ResolvedTheme; reducedMotion: boolean }) {
+function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled, theme, reducedMotion }: ViewerProps & { controlsRef: RefObject<ViewerControls | null>; loadedLayers: string[]; visibleLayers: string[]; dissection?: DissectionSnapshot; onStructures: (structures: Hotspot[]) => void; onMoveStart: () => void; onMove: (nodeId: string, offset: [number, number, number]) => void; onMoveEnd: (nodeId: string) => void; touchMoveEnabled: boolean; theme: ResolvedTheme; reducedMotion: boolean }) {
   const variant = model.variants.find((entry) => entry.id === selectedVariantId) ?? model.variants[0]
   const hotspots = variant.hotspots ?? model.hotspots
   const light = theme === 'light'
@@ -154,11 +178,12 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
   )
 }
 
-export function AnatomyViewer(props: ViewerProps) {
+export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(function AnatomyViewer(props, ref) {
   const { resolvedTheme } = useTheme()
   const { reducedMotion } = usePreferences()
-  const controlsRef = useRef<{ reset: () => void } | null>(null)
+  const controlsRef = useRef<ViewerControls | null>(null)
   const onDissectionStateRef = useRef(props.onDissectionState)
+  const onVoiceStateRef = useRef(props.onVoiceState)
   const defaults = anatomyLayers.filter((layer) => layer.defaultVisible).map((layer) => layer.id)
   const restoredLayers = props.dissectionSession?.visibleLayerIds.length ? props.dissectionSession.visibleLayerIds : defaults
   const [visibleLayers, setVisibleLayers] = useState<string[]>(restoredLayers)
@@ -170,7 +195,8 @@ export function AnatomyViewer(props: ViewerProps) {
     offsets: session.offsets,
     isolate: session.isolate,
   } : undefined))
-  const [structures, setStructures] = useState<Hotspot[]>([])
+  const [structureCatalog, setStructureCatalog] = useState<{ variantId: string; entries: Hotspot[] }>({ variantId: props.selectedVariantId, entries: [] })
+  const structures = structureCatalog.variantId === props.selectedVariantId ? structureCatalog.entries : EMPTY_STRUCTURES
   const [structureQuery, setStructureQuery] = useState('')
   const [dissectPanelOpen, setDissectPanelOpen] = useState(false)
   const [touchMoveEnabled, setTouchMoveEnabled] = useState(false)
@@ -190,6 +216,7 @@ export function AnatomyViewer(props: ViewerProps) {
       })
     return [...groups]
   }, [props.model.id, props.model.name, structureQuery, structures])
+  const receiveStructures = useCallback((entries: Hotspot[]) => setStructureCatalog({ variantId: props.selectedVariantId, entries }), [props.selectedVariantId])
 
   useEffect(() => {
     if (props.model.id === 'lungs') return
@@ -202,6 +229,10 @@ export function AnatomyViewer(props: ViewerProps) {
   }, [props.onDissectionState])
 
   useEffect(() => {
+    onVoiceStateRef.current = props.onVoiceState
+  }, [props.onVoiceState])
+
+  useEffect(() => {
     onDissectionStateRef.current?.({
       active: dissectMode,
       hiddenIds: dissection.hiddenIds,
@@ -212,6 +243,19 @@ export function AnatomyViewer(props: ViewerProps) {
       visibleLayerIds: visibleLayers,
     })
   }, [dissectMode, dissection.hiddenIds, dissection.isolate, dissection.offsets, dissection.transparentIds, props.selectedIds, visibleLayers])
+
+  useEffect(() => {
+    const fallbackStructures = variant.hotspots ?? props.model.hotspots
+    const availableStructures = structures.length > 0 ? structures : fallbackStructures
+    onVoiceStateRef.current?.({
+      dissectMode,
+      structures: availableStructures.map(({ id, label }) => ({ id, label })),
+      visibleLayerIds: visibleLayers,
+      hiddenStructureIds: dissection.hiddenIds,
+      fadedStructureIds: dissection.transparentIds,
+      isolated: dissection.isolate,
+    })
+  }, [dissectMode, dissection.hiddenIds, dissection.isolate, dissection.transparentIds, props.model.hotspots, structures, variant.hotspots, visibleLayers])
 
   function toggleLayer(layerId: string) {
     setLoadedLayers((current) => current.includes(layerId) ? current : [...current, layerId])
@@ -276,22 +320,110 @@ export function AnatomyViewer(props: ViewerProps) {
     dispatchDissection({ type: 'set-offset', id: nodeId, offset })
   }
 
+  function resolveStructures(requestedIds: string[]): { structures: Hotspot[] } | { error: string } {
+    const fallbackStructures = variant.hotspots ?? props.model.hotspots
+    const available = structures.length > 0 ? structures : fallbackStructures
+    const resolved: Hotspot[] = []
+    for (const requested of requestedIds) {
+      const normalized = requested.toLowerCase().replace(/[^a-z0-9]/g, '')
+      const matches = available.filter((entry) => entry.id === requested || entry.nodeId === requested || entry.label.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized)
+      if (matches.length !== 1) return { error: matches.length === 0 ? `Structure not found: ${requested}` : `Structure is ambiguous: ${requested}` }
+      if (!resolved.some((entry) => entry.id === matches[0].id)) resolved.push(matches[0])
+    }
+    return { structures: resolved }
+  }
+
+  function controlCamera(operation: Extract<VoiceAction, { type: 'viewer.camera' }>['operation']): VoiceActionResult {
+    const controls = controlsRef.current
+    if (!controls) return { ok: false, error: 'The canvas camera is still loading.' }
+    if (operation === 'reset') controls.reset()
+    else if (operation === 'zoom_in' || operation === 'zoom_out') {
+      const offset = controls.object.position.clone().sub(controls.target)
+      const distance = Math.max(2.2, Math.min(8, offset.length() * (operation === 'zoom_in' ? 0.78 : 1.28)))
+      controls.object.position.copy(controls.target).add(offset.setLength(distance))
+      controls.update()
+    } else {
+      const offset = controls.object.position.clone().sub(controls.target)
+      const spherical = new Spherical().setFromVector3(offset)
+      if (operation === 'rotate_left' || operation === 'rotate_right') spherical.theta += operation === 'rotate_left' ? Math.PI / 8 : -Math.PI / 8
+      else spherical.phi = Math.max(0.08, Math.min(Math.PI - 0.08, spherical.phi + (operation === 'rotate_up' ? -Math.PI / 10 : Math.PI / 10)))
+      controls.object.position.copy(controls.target).add(offset.setFromSpherical(spherical))
+      controls.update()
+    }
+    return { ok: true, message: `Camera ${operation.replace('_', ' ')} completed.` }
+  }
+
+  useImperativeHandle(ref, () => ({
+    executeVoiceAction(action) {
+      if (action.type === 'viewer.camera') return controlCamera(action.operation)
+      if (action.type === 'viewer.settings') {
+        props.onSettings({ ...props.settings, ...action.settings })
+        return { ok: true, message: 'Viewer settings updated.' }
+      }
+      if (action.type === 'viewer.variant') {
+        if (!props.model.variants.some((entry) => entry.id === action.variantId)) return { ok: false, error: `Unknown specimen variant: ${action.variantId}` }
+        changeVariant(action.variantId)
+        return { ok: true, message: 'Specimen variant changed.' }
+      }
+      if (action.type === 'viewer.layer') {
+        if (props.model.viewer !== 'segmented-body') return { ok: false, error: 'System layers are only available in the segmented whole-body atlas.' }
+        if (!anatomyLayers.some((entry) => entry.id === action.layerId)) return { ok: false, error: `Unknown anatomy layer: ${action.layerId}` }
+        const isVisible = visibleLayers.includes(action.layerId)
+        if (isVisible !== action.visible) toggleLayer(action.layerId)
+        return { ok: true, message: `${action.layerId} layer ${action.visible ? 'shown' : 'hidden'}.` }
+      }
+      const resolved = resolveStructures(action.structureIds)
+      if ('error' in resolved) return { ok: false, error: resolved.error }
+      const ids = resolved.structures.map((entry) => entry.id)
+      if (action.type === 'viewer.selection') {
+        if (ids.length === 0) props.onClearSelection()
+        else resolved.structures.forEach((entry, index) => selectStructure(entry, index > 0))
+        return { ok: true, message: ids.length === 0 ? 'Selection cleared.' : `${ids.length} structure${ids.length === 1 ? '' : 's'} selected.` }
+      }
+      if (!dissectMode) return { ok: false, error: 'Dissect Mode is not active.' }
+      if (!['show_all', 'undo', 'reset'].includes(action.operation) && ids.length === 0) return { ok: false, error: 'Choose at least one structure for this dissection action.' }
+      if (action.operation === 'reset' && !window.confirm('Reset the current dissection?')) return { ok: false, error: 'The learner did not confirm the dissection reset.' }
+      if (action.operation === 'hide') dispatchDissection({ type: 'hide', ids })
+      else if (action.operation === 'show') dispatchDissection({ type: 'show', ids })
+      else if (action.operation === 'transparent') {
+        if (!ids.every((id) => dissection.transparentIds.includes(id))) dispatchDissection({ type: 'toggle-transparent', ids })
+      } else if (action.operation === 'isolate') {
+        resolved.structures.forEach((entry, index) => selectStructure(entry, index > 0))
+        if (!dissection.isolate) dispatchDissection({ type: 'toggle-isolate' })
+      } else if (action.operation === 'move') {
+        const distance = action.distance ?? 0.45
+        const offsets: Record<NonNullable<typeof action.direction>, [number, number, number]> = {
+          left: [-distance, 0, 0], right: [distance, 0, 0], up: [0, distance, 0], down: [0, -distance, 0], out: [0, 0, distance],
+        }
+        dispatchDissection({ type: 'begin-move' })
+        ids.forEach((id) => dispatchDissection({ type: 'set-offset', id, offset: offsets[action.direction ?? 'out'] }))
+      } else if (action.operation === 'show_all') {
+        dispatchDissection({ type: 'show-all' })
+        if (dissection.isolate) dispatchDissection({ type: 'toggle-isolate' })
+      }
+      else if (action.operation === 'undo') dispatchDissection({ type: 'undo' })
+      else resetDissection()
+      if (action.operation !== 'undo' && action.operation !== 'reset') recordAction(action.operation === 'transparent' ? 'transparent' : action.operation === 'show_all' ? 'show' : action.operation, action.operation === 'show_all' ? dissection.hiddenIds : ids)
+      return { ok: true, message: `Dissection action ${action.operation.replace('_', ' ')} completed.` }
+    },
+  }))
+
   return (
     <section className={`viewer ${props.model.viewer === 'segmented-body' ? 'segmented' : 'standard'} ${props.activityLayout ? 'activity-layout' : ''} panel anim`} aria-label={`${props.model.name} 3D viewer`}>
       <div className="viewer-head">
         <div><span className="eyebrow">{dissectMode ? 'Virtual dissection' : props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p>{props.model.viewer !== 'segmented-body' && <div className="variant-control"><label htmlFor={`variant-${props.model.id}`}>Specimen</label><select id={`variant-${props.model.id}`} value={variant.id} onChange={(event) => changeVariant(event.target.value)}>{props.model.variants.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>{variant.note && <small>{variant.note}</small>}</div>}</div>
         <div className="viewer-tools" aria-label="Viewer controls">
-          <Button variant="ghost" size="sm" className={props.settings.autoRotate ? 'active' : ''} onClick={() => toggle('autoRotate')} title="Toggle auto rotate"><ScanLine size={17} /><span>Rotate</span></Button>
-          <Button variant="ghost" size="sm" onClick={() => controlsRef.current?.reset()} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></Button>
-          {props.model.viewer !== 'segmented-body' && <Button variant="ghost" size="sm" className={props.settings.labels ? 'active' : ''} onClick={() => toggle('labels')} title="Toggle labels"><Tags size={17} /><span>Labels</span></Button>}
-          <Button variant="ghost" size="sm" className={props.settings.wireframe ? 'active' : ''} onClick={() => toggle('wireframe')} title="Toggle wireframe"><Grid3X3 size={17} /><span>Wire</span></Button>
-          <Button variant="ghost" size="sm" className={props.settings.layers ? 'active' : ''} onClick={() => toggle('layers')} title="Toggle reference layers"><Layers3 size={17} /><span>Layers</span></Button>
-          {canDissect && <Button variant="ghost" size="sm" className={dissectMode ? 'active' : ''} onClick={toggleDissectMode} title="Toggle Dissect Mode" aria-pressed={dissectMode}><Scissors size={17} /><span>Dissect</span></Button>}
+          <Button variant={props.settings.autoRotate ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('autoRotate')} title="Toggle auto rotate"><ScanLine size={17} /><span>Rotate</span></Button>
+          <Button variant="tool" size="tool" onClick={() => controlsRef.current?.reset()} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></Button>
+          {props.model.viewer !== 'segmented-body' && <Button variant={props.settings.labels ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('labels')} title="Toggle labels"><Tags size={17} /><span>Labels</span></Button>}
+          <Button variant={props.settings.wireframe ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('wireframe')} title="Toggle wireframe"><Grid3X3 size={17} /><span>Wire</span></Button>
+          <Button variant={props.settings.layers ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('layers')} title="Toggle reference layers"><Layers3 size={17} /><span>Layers</span></Button>
+          {canDissect && <Button variant={dissectMode ? 'tool-active' : 'tool'} size="tool" onClick={toggleDissectMode} title="Toggle Dissect Mode" aria-pressed={dissectMode}><Scissors size={17} /><span>Dissect</span></Button>}
         </div>
       </div>
       <div className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
         <Canvas onPointerMissed={props.onClearSelection} frameloop={props.settings.autoRotate && !reducedMotion ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, props.activityLayout ? 6.3 : 4.7], fov: 42 }} gl={{ antialias: true, alpha: true }}>
-          <Scene {...props} theme={resolvedTheme} reducedMotion={reducedMotion} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={setStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} touchMoveEnabled={touchMoveEnabled} />
+          <Scene {...props} theme={resolvedTheme} reducedMotion={reducedMotion} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={receiveStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} touchMoveEnabled={touchMoveEnabled} />
         </Canvas>
         {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
         <div className="axis"><span>Y</span><i /><b>X</b></div>
@@ -317,4 +449,4 @@ export function AnatomyViewer(props: ViewerProps) {
       </div>
     </section>
   )
-}
+})

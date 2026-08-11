@@ -20,6 +20,16 @@ type MentorContext = {
   movedStructures?: string[]
   selectedStructures?: string[]
   facts: string[]
+  note?: {
+    subject: string
+    subjectSlug: string
+    releaseId: string
+    sectionId: string
+    section: string
+    pageStart: number
+    pageEnd: number
+    selectedText: string
+  }
 }
 
 export async function askMentor(question: string, context: MentorContext): Promise<{ message: string; balance: CreditBalance }> {

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { AIActionError, type CreditBalance } from './ai'
+import { createLatestValueQueue, createRealtimeFunctionHandler, type VoiceAction, type VoiceActionResult, type VoiceMode } from './voiceActions'
 
 export type VoiceStatus = 'connecting' | 'listening' | 'speaking' | 'muted' | 'ended' | 'error'
 
@@ -9,7 +10,14 @@ export function voiceRenewalDelay(endsAt: number, now = Date.now()) {
   return Math.max(0, endsAt - now - VOICE_EXTENSION_LEAD_MS)
 }
 
-export async function startRealtimeSession(input: { mode: 'mentor' | 'lab' | 'assessment'; modelId: string; context: unknown; stream: MediaStream; onStatus: (status: VoiceStatus) => void; onCaption: (role: 'student' | 'mentor', text: string) => void; onError: (message: string) => void; onExtended: (endsAt: number, balance: CreditBalance) => void; onExtensionFailed: (message: string, insufficientCredits: boolean) => void }) {
+export function realtimeToolOutputEvents(callId: string, result: VoiceActionResult, eventId: () => string = () => crypto.randomUUID()) {
+  return [
+    { event_id: eventId(), type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: JSON.stringify(result) } },
+    { event_id: eventId(), type: 'response.create' },
+  ]
+}
+
+export async function startRealtimeSession(input: { mode: VoiceMode; modelId: string; context: unknown; stream: MediaStream; signal?: AbortSignal; onStatus: (status: VoiceStatus) => void; onCaption: (role: 'student' | 'mentor', text: string) => void; onError: (message: string) => void; onExtended: (endsAt: number, balance: CreditBalance) => void; onExtensionFailed: (message: string, insufficientCredits: boolean) => void; onAction?: (action: VoiceAction) => VoiceActionResult | Promise<VoiceActionResult> }) {
   if (!supabase) throw new AIActionError('authentication_required', 'Sign in to use Voice.', 401)
   const { data } = await supabase.auth.getSession()
   if (!data.session) throw new AIActionError('authentication_required', 'Sign in to use Voice.', 401)
@@ -19,9 +27,17 @@ export async function startRealtimeSession(input: { mode: 'mentor' | 'lab' | 'as
   audio.autoplay = true
   peer.ontrack = (event) => { audio.srcObject = event.streams[0] }
   const channel = peer.createDataChannel('oai-events')
+  const sendContextMessage = (context: unknown) => channel.send(JSON.stringify({ event_id: crypto.randomUUID(), type: 'conversation.item.create', item: { type: 'message', role: 'system', content: [{ type: 'input_text', text: `Updated Stranerd state: ${JSON.stringify(context)}` }] } }))
+  const contextQueue = createLatestValueQueue(() => channel.readyState === 'open', sendContextMessage)
+  const handleFunctionCall = createRealtimeFunctionHandler(input.onAction, (callId, result) => {
+    if (channel.readyState !== 'open') return
+    realtimeToolOutputEvents(callId, result).forEach((outputEvent) => channel.send(JSON.stringify(outputEvent)))
+  })
+  channel.onopen = () => contextQueue.flush()
   channel.onmessage = (event) => {
     try {
       const message = JSON.parse(event.data) as { type?: string; transcript?: string; error?: { message?: string }; response?: { status?: string; status_details?: { error?: { message?: string } } } }
+      void handleFunctionCall(message)
       if (message.type === 'input_audio_buffer.speech_started') input.onStatus('listening')
       if (message.type === 'response.audio.delta' || message.type === 'response.output_audio.delta' || message.type === 'output_audio_buffer.started') input.onStatus('speaking')
       if ((message.type === 'response.audio_transcript.done' || message.type === 'response.output_audio_transcript.done') && message.transcript) input.onCaption('mentor', message.transcript)
@@ -31,19 +47,20 @@ export async function startRealtimeSession(input: { mode: 'mentor' | 'lab' | 'as
       if (message.type === 'error') input.onError(message.error?.message || 'The Voice provider reported an error.')
     } catch { /* Ignore unknown provider events. */ }
   }
-  const offer = await peer.createOffer()
-  await peer.setLocalDescription(offer)
-  let response: Response
+  let credential: { answerSdp?: string; endsAt?: number; sessionId?: string; balance?: CreditBalance; error?: string; message?: string }
   try {
-    response = await fetch('/api/realtime/session', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}`, 'X-Request-ID': crypto.randomUUID() }, body: JSON.stringify({ mode: input.mode, modelId: input.modelId, context: input.context, sdp: offer.sdp }) })
+    const offer = await peer.createOffer()
+    await peer.setLocalDescription(offer)
+    const response = await fetch('/api/realtime/session', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}`, 'X-Request-ID': crypto.randomUUID() }, body: JSON.stringify({ mode: input.mode, modelId: input.modelId, context: input.context, sdp: offer.sdp }), signal: input.signal })
+    credential = await response.json() as typeof credential
+    if (!response.ok || !credential.answerSdp || !credential.endsAt || !credential.sessionId || !credential.balance) throw new AIActionError(credential.error || 'voice_failed', credential.message || 'Voice could not be started.', response.status, credential.balance)
+    await peer.setRemoteDescription({ type: 'answer', sdp: credential.answerSdp })
   } catch (error) {
+    channel.close()
     peer.close()
     input.stream.getTracks().forEach((track) => track.stop())
     throw error
   }
-  const credential = await response.json() as { answerSdp?: string; endsAt?: number; sessionId?: string; balance?: CreditBalance; error?: string; message?: string }
-  if (!response.ok || !credential.answerSdp || !credential.endsAt || !credential.sessionId || !credential.balance) { peer.close(); input.stream.getTracks().forEach((track) => track.stop()); throw new AIActionError(credential.error || 'voice_failed', credential.message || 'Voice could not be started.', response.status, credential.balance) }
-  await peer.setRemoteDescription({ type: 'answer', sdp: credential.answerSdp })
   input.onStatus('listening')
   let stopped = false
   let currentEndsAt = credential.endsAt
@@ -87,6 +104,6 @@ export async function startRealtimeSession(input: { mode: 'mentor' | 'lab' | 'as
   }
   schedule()
   function mute(value: boolean) { input.stream.getAudioTracks().forEach((track) => { track.enabled = !value }); input.onStatus(value ? 'muted' : 'listening') }
-  function sendContext(context: unknown) { if (channel.readyState === 'open') channel.send(JSON.stringify({ type: 'conversation.item.create', item: { type: 'message', role: 'system', content: [{ type: 'input_text', text: `Updated Stranerd state: ${JSON.stringify(context)}` }] } })) }
+  function sendContext(context: unknown) { contextQueue.push(context) }
   return { balance: credential.balance, endsAt: currentEndsAt, stop, mute, sendContext }
 }

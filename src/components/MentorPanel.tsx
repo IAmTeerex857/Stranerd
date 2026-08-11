@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { VoiceDock } from './VoiceDock'
+import type { VoiceAction, VoiceActionResult, VoiceMode } from '../lib/voiceActions'
+import type { ActiveNoteContext, NoteSelectionRequest } from '../types/materials'
 
 type Props = {
   model: ModelEntry
@@ -21,9 +23,11 @@ type Props = {
   mobileOpen?: boolean
   onMobileClose?: () => void
   onInsufficientCredits?: () => void
-  voiceMode: 'mentor' | 'lab' | 'assessment'
+  noteContext?: ActiveNoteContext
+  draftRequest?: NoteSelectionRequest
+  voiceMode: VoiceMode
   voiceContext: unknown
-  onStudentCaption?: (text: string) => void
+  onVoiceAction: (action: VoiceAction) => VoiceActionResult | Promise<VoiceActionResult>
   onVoiceInsufficientCredits: () => void
 }
 
@@ -38,14 +42,16 @@ function MentorText({ text }: { text: string }) {
   })}</div>
 }
 
-export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose, onInsufficientCredits, voiceMode, voiceContext, onStudentCaption, onVoiceInsufficientCredits }: Props) {
+export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose, onInsufficientCredits, noteContext, draftRequest, voiceMode, voiceContext, onVoiceAction, onVoiceInsufficientCredits }: Props) {
   const { user, balance, setBalance } = useAuth()
   const [input, setInput] = useState('')
   const [actionError, setActionError] = useState<{ message: string; needsCredits: boolean }>()
+  const [assistantTab, setAssistantTab] = useState(new URLSearchParams(window.location.search).get('assistant') === 'voice' ? 'voice' : 'text')
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const transcript = useRef<HTMLDivElement>(null)
   const transcriptEnd = useRef<HTMLDivElement>(null)
   const visibleMessages = messages.filter((message) => !message.text.startsWith('Authored context') && !message.text.startsWith('SELECTED'))
-  const showSuggestions = visibleMessages.length <= 1 && !selectedHotspot
+  const showSuggestions = visibleMessages.length <= 1 && !selectedHotspot && !noteContext
   const suggestions = [
     { Icon: BookOpenCheck, label: `Quiz me on ${model.name.toLowerCase()} structure and function` },
     { Icon: GalleryVerticalEnd, label: `Build a quick recall plan for ${model.name.toLowerCase()}` },
@@ -66,6 +72,15 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = previous }
   }, [mobileOpen])
+  useEffect(() => {
+    if (!draftRequest) return
+    const frame = window.requestAnimationFrame(() => {
+      setInput(draftRequest.prompt)
+      setAssistantTab('text')
+      window.requestAnimationFrame(() => inputRef.current?.focus())
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [draftRequest])
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -95,6 +110,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
         movedStructures,
         selectedStructures,
         facts: model.facts,
+        note: noteContext,
       })
       setBalance(answer.balance)
       onMessages((current) => current.map((message) => message.id === replyId ? { ...message, text: answer.message, pending: false } : message))
@@ -119,10 +135,10 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
     {mobileOpen && <button className="mentor-backdrop" onClick={onMobileClose} aria-label="Close Mentor" />}
     <aside id="stranerd-mentor" className={`mentor assistant-panel ${mobileOpen ? 'mobile-open' : ''} panel anim3`} aria-label="Stranerd Mentor" role={mobileOpen ? 'dialog' : undefined} aria-modal={mobileOpen || undefined}>
       <header className="mentor-head"><span className="mentor-avatar"><Bot size={17} /></span><div><strong>Stranerd Mentor</strong><small><i /> anatomy learning assistant</small></div>{onMobileClose && <Button variant="ghost" size="icon-sm" className="mentor-mobile-close" onClick={onMobileClose} aria-label="Close mentor"><X size={17} /></Button>}</header>
-      <Tabs defaultValue={new URLSearchParams(window.location.search).get('assistant') === 'voice' ? 'voice' : 'text'} className="assistant-tabs">
+      <Tabs value={assistantTab} onValueChange={setAssistantTab} className="assistant-tabs">
         <TabsList className="assistant-tabs-list"><TabsTrigger value="text"><Bot />Text</TabsTrigger><TabsTrigger value="voice"><Mic />Voice</TabsTrigger></TabsList>
         <TabsContent value="text" className="assistant-tab-content assistant-text-tab">
-          {selectedHotspot && <div className="mentor-context"><header><span>Selected context</span><b>{selectedHotspot.source === 'mesh' ? `KG ${anatomyGraph.contentVersion}` : model.name}</b></header><strong>{selectedHotspot.label}</strong><small>{anatomyLayers.find((layer) => layer.id === selectedHotspot.systemId)?.label || model.system} system</small><Button variant="ghost" size="sm" onClick={() => setInput(`Explain the structure and function of ${selectedHotspot.label}.`)}>Ask about this<CornerDownRight size={13} /></Button></div>}
+          {noteContext ? <div className="mentor-context note-mentor-context"><header><span>Active note</span></header><strong>{noteContext.subject}</strong><small>{noteContext.section}{noteContext.selectedText ? ' · selection included' : ''}</small></div> : selectedHotspot && <div className="mentor-context"><header><span>Selected context</span><b>{selectedHotspot.source === 'mesh' ? `KG ${anatomyGraph.contentVersion}` : model.name}</b></header><strong>{selectedHotspot.label}</strong><small>{anatomyLayers.find((layer) => layer.id === selectedHotspot.systemId)?.label || model.system} system</small><Button variant="ghost" size="sm" onClick={() => setInput(`Explain the structure and function of ${selectedHotspot.label}.`)}>Ask about this<CornerDownRight size={13} /></Button></div>}
           <div className={`transcript ${showSuggestions ? 'suggestion-state' : ''}`} ref={transcript} aria-live="polite">
             {showSuggestions ? <div className="mentor-welcome"><span className="mentor-welcome-mark"><Bot /></span><h2>Learn with Stranerd Mentor</h2><p>Ask about the current model, test your recall, or compare anatomical relationships.</p><div>{suggestions.map(({ Icon, label }) => <button key={label} onClick={() => setInput(label)}><span><Icon /></span>{label}<ArrowRight /></button>)}</div><small>Text Mentor uses 1 credit per response.</small></div> : visibleMessages.map((message) => message.role === 'engine' ? (
               <div key={message.id} className={`engine-chip ${message.status}`}>{message.text}</div>
@@ -134,11 +150,11 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
           </div>
           {actionError && !actionError.needsCredits && <div className="mentor-action-error"><span>{actionError.message}</span></div>}
           <form className="mentor-input" onSubmit={submit}>
-            <div><Textarea id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button size="icon" aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><Send size={16} /></Button></div>
+            <div><Textarea ref={inputRef} id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${noteContext?.section || selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button variant="ai" size="icon" aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><Send size={16} /></Button></div>
             <small>{user ? `${balance ? `${balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance} credits` : 'Loading credits'} | ` : ''}Enter to send</small>
           </form>
         </TabsContent>
-        <TabsContent value="voice" className="assistant-tab-content assistant-voice-tab"><VoiceDock embedded mode={voiceMode} modelId={model.id} context={voiceContext} onStudentCaption={onStudentCaption} onInsufficientCredits={onVoiceInsufficientCredits} /></TabsContent>
+        <TabsContent value="voice" className="assistant-tab-content assistant-voice-tab"><VoiceDock key={`${voiceMode}:${model.id}`} embedded mode={voiceMode} modelId={model.id} context={voiceContext} onAction={onVoiceAction} onInsufficientCredits={onVoiceInsufficientCredits} /></TabsContent>
       </Tabs>
     </aside>
   </>

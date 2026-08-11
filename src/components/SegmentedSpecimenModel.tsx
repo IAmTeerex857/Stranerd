@@ -78,9 +78,8 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
       const selected = base.map((material) => {
         const next = material.clone()
         if (next instanceof MeshStandardMaterial) {
-          next.color.set('#e26bd6')
-          next.emissive.set('#5b174f')
-          next.emissiveIntensity = 0.8
+          next.emissive.set('#ff4fdd')
+          next.emissiveIntensity = 1.5
           next.opacity = 1
           next.transparent = false
           next.depthWrite = true
@@ -161,7 +160,7 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
       entry.mesh.material = isSelected
         ? isTransparent ? entry.selectedTransparent : entry.selected
         : isTransparent ? entry.transparent : entry.base
-      const offset = dissection?.offsets[entry.movementId] ?? [0, 0, 0]
+      const offset = dissection?.offsets[entry.movementId] ?? dissection?.offsets[entry.nodeId] ?? [0, 0, 0]
       entry.mesh.position.copy(entry.originalPosition).add(new Vector3(...offset))
       entry.mesh.visible = !hidden.has(entry.nodeId) && (!isolate || selected.size === 0 || isSelected)
       const materials = Array.isArray(entry.mesh.material) ? entry.mesh.material : [entry.mesh.material]
@@ -213,7 +212,7 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
         mesh: meshEntry.mesh,
         plane: new Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new Vector3()), hit.point),
         startPoint: hit.point.clone(),
-        startOffset: new Vector3(...(interaction.current.offsets[candidate.movementId] ?? [0, 0, 0])),
+        startOffset: new Vector3(...(interaction.current.offsets[candidate.movementId] ?? interaction.current.offsets[candidate.nodeId] ?? [0, 0, 0])),
         moved: false,
       }
     }
@@ -275,7 +274,7 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
 
   return <group>
     <primitive object={prepared.root} />
-    {prepared.proxies.map(({ proxy }) => <primitive key={proxy.uuid} object={proxy} />)}
+    {prepared.proxies.map(({ proxy }) => <primitive key={proxy.uuid} object={proxy} onClick={(event: { stopPropagation: () => void }) => event.stopPropagation()} />)}
     {prepared.labelMeshes
       .filter((entry) => selectedIds.includes(entry.nodeId) && !dissection?.hiddenIds.includes(entry.nodeId))
       .map((entry) => <DissectionStructureLabel key={entry.nodeId} mesh={entry.mesh} label={prepared.structures.find((structure) => structure.id === entry.nodeId)?.label ?? entry.rawName} />)}

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useEffectEvent, useMemo, useState, type SetStateAction } from 'react'
+import { lazy, Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, type SetStateAction } from 'react'
 import { Bot, ChevronRight, CircleUserRound, FlaskConical, Library, Menu, PanelLeftClose, PanelLeftOpen, Search, Star, X } from 'lucide-react'
 import { MentorPanel } from './components/MentorPanel'
 import { anatomyModels, modelById, models } from './data/models'
@@ -8,7 +8,7 @@ import { quizzesForModel } from './data/quizzes'
 import { loadState, saveState } from './lib/storage'
 import type { ChatItem, FlashcardDeck, FlashcardGrade, GeneratedDeckSummary, Hotspot, ModelEntry, PersistedState, Quiz, ViewId } from './types'
 import type { DissectionActionContext } from './data/dissection'
-import { anatomyActivities, type AnatomyActivity } from './data/activities'
+import { activityActionMatches, anatomyActivities, type AnatomyActivity } from './data/activities'
 import { digestiveDissectionQuiz } from './data/dissection'
 import { generateAICorrections, generateAIHint, generateAIQuiz } from './lib/quiz'
 import { useAuth } from './auth-context'
@@ -19,6 +19,11 @@ import { flashcardDeckById } from './data/flashcards'
 import { generateDeck, listGeneratedDecks, reportGeneratedDeck, unlockDeck, type GenerateDeckInput } from './lib/generatedFlashcards'
 import { saveFlashcardReview, syncFlashcardProgress } from './lib/flashcardSync'
 import { Button } from '@/components/ui/button'
+import { anatomyLayers } from './data/anatomyGraph'
+import type { AnatomyViewerController, ViewerVoiceState } from './components/AnatomyViewer'
+import type { FlashcardsController, FlashcardVoiceState } from './components/FlashcardsView'
+import type { VoiceAction, VoiceActionResult, VoiceMode } from './lib/voiceActions'
+import type { ActiveNoteContext, LibraryContentMode, MaterialLearningController, MaterialLearningState, MaterialSubject, NoteSelectionRequest } from './types/materials'
 
 const LibraryView = lazy(() => import('./components/WorkspaceViews').then((module) => ({ default: module.LibraryView })))
 const QuizzesView = lazy(() => import('./components/WorkspaceViews').then((module) => ({ default: module.QuizzesView })))
@@ -34,14 +39,14 @@ function ViewLoading() {
 
 const navItems: { id: ViewId; label: string; icon: typeof Search }[] = [
   { id: 'explore', label: 'Explore', icon: Search },
-  { id: 'library', label: 'Library', icon: Library },
+  { id: 'library', label: 'Learn', icon: Library },
   { id: 'lab', label: 'Lab', icon: FlaskConical },
 ]
 
 const greeting: ChatItem = {
   id: 'mentor-welcome',
   role: 'mentor',
-  text: 'Click a structure to explore it with me, open Library for assessments, or enter Lab for guided dissection.',
+  text: 'Click a structure to explore it with me, open Learn for assessments, or enter Lab for guided dissection.',
 }
 
 function loadInitialState() {
@@ -83,7 +88,7 @@ export default function App() {
   const initialDissection = persisted.dissectionByModel[initialModel.id]
   const [view, setView] = useState<ViewId>(() => {
     const requested = new URLSearchParams(window.location.search).get('view')
-    return navItems.some((item) => item.id === requested) ? requested as ViewId : 'explore'
+    return new URLSearchParams(window.location.search).has('subject') ? 'library' : navItems.some((item) => item.id === requested) ? requested as ViewId : 'explore'
   })
   const [selectedIds, setSelectedIds] = useState<string[]>(initialDissection?.active ? initialDissection.selectedIds : initialHotspot ? [initialHotspot.id] : [])
   const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | undefined>(initialHotspot)
@@ -115,6 +120,15 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mentorOpen, setMentorOpen] = useState(false)
   const [creditPrompt, setCreditPrompt] = useState<CreditPrompt>()
+  const [viewerVoiceState, setViewerVoiceState] = useState<ViewerVoiceState>()
+  const [flashcardVoiceState, setFlashcardVoiceState] = useState<FlashcardVoiceState>()
+  const [libraryContentMode, setLibraryContentMode] = useState<LibraryContentMode>(() => { const content = new URLSearchParams(window.location.search).get('content'); return content === 'practice' || content === 'tests' ? 'practice' : content === 'flashcards' ? 'flashcards' : 'notes' })
+  const [activeNoteContext, setActiveNoteContext] = useState<ActiveNoteContext>()
+  const [noteMentorRequest, setNoteMentorRequest] = useState<NoteSelectionRequest>()
+  const [materialLearningState, setMaterialLearningState] = useState<MaterialLearningState>()
+  const viewerController = useRef<AnatomyViewerController>(null)
+  const flashcardsController = useRef<FlashcardsController>(null)
+  const materialLearningController = useRef<MaterialLearningController | undefined>(undefined)
   const model = modelById(persisted.selectedModelId)
   const messages = persisted.chatByModel[model.id] ?? [greeting]
   const fallbackQuizzes = useMemo(() => quizzesForModel(model.id, quizSeed), [model.id, quizSeed])
@@ -125,7 +139,7 @@ export default function App() {
   const sideModels = anatomyModels
   const effectiveSidebarCollapsed = sidebarCollapsed || (view === 'lab' && labMode !== 'catalog')
   const mentorAvailable = view === 'explore' || (view === 'lab' && labMode !== 'catalog')
-  const assistantAvailable = mentorAvailable || (view === 'library' && libraryMode === 'assessment')
+  const assistantAvailable = mentorAvailable || (view === 'library' && (libraryMode === 'assessment' || libraryMode === 'flashcards' || Boolean(materialLearningState) || (libraryContentMode === 'notes' && Boolean(activeNoteContext))))
 
   useEffect(() => {
     saveState(persisted)
@@ -207,9 +221,8 @@ export default function App() {
     setSelectedIds((current) => multi ? (current.includes(hotspot.id) ? current.filter((id) => id !== hotspot.id) : [...current, hotspot.id]) : [hotspot.id])
     const activeActivity = anatomyActivities.find((activity) => activity.id === activeActivityId && activity.modelId === model.id)
     const activeStep = guidedActivityStep === null ? undefined : activeActivity?.steps[guidedActivityStep]
-    const completesGuidedSelection = view === 'lab' && labMode === 'guided' && activeStep?.kind === 'action' && activeStep.action === 'select'
-      && (!activeStep.targetIds || activeStep.targetIds.includes(hotspot.id))
-      && (!activeStep.targetTerms || activeStep.targetTerms.every((term) => hotspot.label.toLowerCase().includes(term)))
+    const completesGuidedSelection = view === 'lab' && labMode === 'guided'
+      && activeStep !== undefined && activityActionMatches(activeStep, 'select', [hotspot.id])
     if (completesGuidedSelection && guidedActivityStep !== null) {
       setGuidedActivityStep(guidedActivityStep + 1)
       setActivityQuizChoice(undefined)
@@ -234,10 +247,11 @@ export default function App() {
     }))
     const activeActivity = anatomyActivities.find((activity) => activity.id === activeActivityId && activity.modelId === model.id)
     const activeStep = guidedActivityStep === null ? undefined : activeActivity?.steps[guidedActivityStep]
-    const stepComplete = Boolean(activeStep?.kind === 'action'
-      && activeStep.action === context.action
-      && (!activeStep.targetIds || activeStep.targetIds.every((id) => context.structureIds.includes(id)))
-      && (!activeStep.targetTerms || activeStep.targetTerms.every((term) => context.structures.some((structure) => structure.toLowerCase().includes(term)))))
+    const session = persisted.dissectionByModel[model.id]
+    const actionApplied = context.action === 'transparent'
+      ? !context.structureIds.every((id) => session?.transparentIds.includes(id))
+      : context.action === 'isolate' ? !session?.isolate : true
+    const stepComplete = Boolean(activeStep && activityActionMatches(activeStep, context.action, context.structureIds, actionApplied))
     if (stepComplete && activeStep?.kind === 'action' && guidedActivityStep !== null) {
       context = { ...context, guidedStep: activeStep.prompt }
       setGuidedActivityStep(guidedActivityStep + 1)
@@ -328,10 +342,10 @@ export default function App() {
   }
 
   async function requestAssessmentHint(index: number) {
-    if (loadingHintIndex !== undefined || assessmentHints[index]) return
+    if (loadingHintIndex !== undefined || assessmentHints[index]) return false
     if (!user) {
       window.location.assign(`/login?next=${encodeURIComponent(`/app?model=${model.id}`)}`)
-      return
+      return false
     }
     setLoadingHintIndex(index)
     setQuizGenerationError(undefined)
@@ -340,11 +354,13 @@ export default function App() {
       const result = await generateAIHint(model, modelQuizzes[index])
       setBalance(result.balance)
       setAssessmentHints((current) => ({ ...current, [index]: result.hint }))
+      return true
     } catch (error) {
       if (error instanceof AIActionError && error.balance) setBalance(error.balance)
       if (error instanceof AIActionError && error.code === 'insufficient_credits') setCreditPrompt({ action: 'An assessment hint', required: 1 })
       setQuizNeedsCredits(error instanceof AIActionError && error.code === 'insufficient_credits')
       setQuizGenerationError(error instanceof Error ? error.message : 'The hint could not be generated. No credit was charged.')
+      return false
     } finally {
       setLoadingHintIndex(undefined)
     }
@@ -381,6 +397,8 @@ export default function App() {
       ...current,
       selectedModelId: nextModel.id,
       selectedVariantIds: segmented ? { ...current.selectedVariantIds, [nextModel.id]: segmented.id } : current.selectedVariantIds,
+      settings: current.settings.isolate ? { ...current.settings, isolate: false } : current.settings,
+      dissectionByModel: Object.fromEntries(Object.entries(current.dissectionByModel).filter(([modelId]) => modelId !== nextModel.id)),
     }))
     setSelectedIds([])
     setSelectedHotspot(undefined)
@@ -417,7 +435,7 @@ export default function App() {
       const previous = existing?.cards[cardId]
       const updatedAt = new Date().toISOString()
       const reviewCount = (previous?.reviewCount ?? 0) + 1
-      void saveFlashcardReview(deck.id, cardId, grade, reviewCount, updatedAt).catch(() => setDeckError('Your review could not sync. Check your connection and try again.'))
+      void saveFlashcardReview(deck.id, cardId, grade, reviewCount, updatedAt).catch(() => undefined)
       return {
         ...current,
         flashcardProgressByDeck: {
@@ -431,6 +449,18 @@ export default function App() {
           },
         },
       }
+    })
+  }
+
+  function gradeMaterialFlashcard(subject: MaterialSubject, cardId: string, grade: FlashcardGrade) {
+    const deckId = `materials:${subject.releaseId}`
+    setPersisted((current) => {
+      const existing = current.flashcardProgressByDeck[deckId]
+      const previous = existing?.cards[cardId]
+      const updatedAt = new Date().toISOString()
+      const reviewCount = (previous?.reviewCount ?? 0) + 1
+      void saveFlashcardReview(deckId, cardId, grade, reviewCount, updatedAt).catch(() => undefined)
+      return { ...current, flashcardProgressByDeck: { ...current.flashcardProgressByDeck, [deckId]: { contentVersion: subject.contentVersion, cards: { ...(existing?.cards ?? {}), [cardId]: { grade, reviewCount, updatedAt } } } } }
     })
   }
 
@@ -511,31 +541,70 @@ export default function App() {
     setActivityQuizPassed(undefined)
   }
 
-  function handleSpokenAssessment(text: string) {
-    if (voiceMode !== 'assessment' || assessmentSubmitted) return
-    const normalized = text.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
-    if (normalized.includes('next question')) { chooseQuiz(Math.min(modelQuizzes.length - 1, quizIndex + 1)); return }
-    if (normalized.includes('previous question')) { chooseQuiz(Math.max(0, quizIndex - 1)); return }
-    const letter = normalized.match(/^(?:answer |option )?([a-d])$/)?.[1]
-    const exactOption = modelQuizzes[quizIndex]?.options.findIndex((option) => option.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim() === normalized)
-    const choice = letter ? letter.charCodeAt(0) - 97 : exactOption
-    if (choice !== undefined && choice >= 0 && choice < 4) setQuizAnswers((current) => ({ ...current, [quizIndex]: choice }))
+  async function handleVoiceAction(action: VoiceAction): Promise<VoiceActionResult> {
+    if (view === 'library' && libraryMode === 'catalog' && libraryContentMode === 'notes') return { ok: false, error: 'Notes are read-only and have no voice mutation actions.' }
+    if (view === 'library' && libraryMode === 'catalog' && materialLearningState) {
+      const controller = materialLearningController.current
+      if (!controller || controller.target !== materialLearningState.target) return { ok: false, error: 'The material learning controls are still loading.' }
+      if (materialLearningState.target === 'material-practice' && action.type.startsWith('assessment.')) return controller.executeVoiceAction(action as Extract<VoiceAction, { type: `assessment.${string}` }>)
+      if (materialLearningState.target === 'material-flashcards' && (action.type.startsWith('flashcard.') || action.type === 'materialFlashcard.hint')) return controller.executeVoiceAction(action as Extract<VoiceAction, { type: `flashcard.${string}` | `materialFlashcard.${string}` }>)
+      return { ok: false, error: 'That voice action does not apply to the open material.' }
+    }
+    if (action.type === 'materialFlashcard.hint') return { ok: false, error: 'Paid hints are available for imported material flashcards.' }
+    if (action.type.startsWith('viewer.')) {
+      if (view !== 'explore' && !(view === 'lab' && labMode !== 'catalog')) return { ok: false, error: 'The anatomy canvas is not open.' }
+      return viewerController.current?.executeVoiceAction(action as Extract<VoiceAction, { type: `viewer.${string}` }>) ?? { ok: false, error: 'The anatomy canvas is still loading.' }
+    }
+    if (action.type.startsWith('assessment.')) {
+      if (view !== 'library' || libraryMode !== 'assessment') return { ok: false, error: 'A practice test is not open.' }
+      if (action.type === 'assessment.select') {
+        if (assessmentSubmitted) return { ok: false, error: 'This assessment has already been submitted.' }
+        const quiz = modelQuizzes[quizIndex]
+        if (!quiz || action.optionIndex < 0 || action.optionIndex >= quiz.options.length) return { ok: false, error: 'That option is not available for this question.' }
+        setQuizAnswers((current) => ({ ...current, [quizIndex]: action.optionIndex }))
+        return { ok: true, message: `Option ${String.fromCharCode(65 + action.optionIndex)} selected for question ${quizIndex + 1}.` }
+      }
+      if (action.type === 'assessment.navigate') {
+        const next = quizIndex + (action.direction === 'next' ? 1 : -1)
+        if (next < 0 || next >= modelQuizzes.length) return { ok: false, error: `There is no ${action.direction} question.` }
+        chooseQuiz(next)
+        return { ok: true, message: `Moved to question ${next + 1}.` }
+      }
+      if (action.type === 'assessment.hint') {
+        if (assessmentSubmitted) return { ok: false, error: 'Hints are unavailable after submission.' }
+        if (assessmentHints[quizIndex]) return { ok: true, message: 'The hint is already visible.' }
+        if (!window.confirm('Spend 1 credit to generate a hint for this question?')) return { ok: false, error: 'The learner did not confirm the hint charge.' }
+        const generated = await requestAssessmentHint(quizIndex)
+        return generated ? { ok: true, message: 'The hint is now visible.' } : { ok: false, error: 'The hint could not be generated.' }
+      }
+      if (assessmentSubmitted) return { ok: false, error: 'This assessment has already been submitted.' }
+      if (Object.keys(quizAnswers).length !== modelQuizzes.length) return { ok: false, error: 'Answer every question before submitting.' }
+      if (!window.confirm('Submit this assessment for final grading?')) return { ok: false, error: 'The learner did not confirm assessment submission.' }
+      submitAssessment()
+      return { ok: true, message: 'Assessment submitted.' }
+    }
+    if (view !== 'library' || libraryMode !== 'flashcards') return { ok: false, error: 'A flashcard deck is not open.' }
+    return flashcardsController.current?.executeVoiceAction(action as Extract<VoiceAction, { type: `flashcard.${string}` }>) ?? { ok: false, error: 'The flashcard is still loading.' }
   }
 
-  const viewer = <AnatomyViewer key={`${model.id}:${view === 'lab' ? `${labMode}:${activeActivityId || ''}` : 'explore'}`} model={model} selectedIds={selectedIds} selectedHotspot={selectedHotspot} settings={persisted.settings} selectedVariantId={selectedVariantId} favorite={favorite} onSelect={selectHotspot} onClearSelection={clearSelection} onSettings={(settings) => updatePersisted({ settings })} onVariant={selectVariant} onFavorite={() => toggleFavorite(model.id)} onDissectionAction={explainDissectionAction} dissectionSession={persisted.dissectionByModel[model.id]} onDissectionState={saveDissectionSession} initialDissect={view === 'lab' && labMode !== 'catalog'} activityLayout={view === 'lab' && labMode !== 'catalog'} guidedStep={guidedActivityStep} onGuidedStep={setGuidedActivityStep} />
+  const viewer = <AnatomyViewer ref={viewerController} key={`${model.id}:${view === 'lab' ? `${labMode}:${activeActivityId || ''}` : 'explore'}`} model={model} selectedIds={selectedIds} selectedHotspot={selectedHotspot} settings={persisted.settings} selectedVariantId={selectedVariantId} favorite={favorite} onSelect={selectHotspot} onClearSelection={clearSelection} onSettings={(settings) => updatePersisted({ settings })} onVariant={selectVariant} onFavorite={() => toggleFavorite(model.id)} onDissectionAction={explainDissectionAction} dissectionSession={persisted.dissectionByModel[model.id]} onDissectionState={saveDissectionSession} onVoiceState={setViewerVoiceState} initialDissect={view === 'lab' && labMode !== 'catalog'} activityLayout={view === 'lab' && labMode !== 'catalog'} guidedStep={guidedActivityStep} onGuidedStep={setGuidedActivityStep} />
   const quizView = <QuizzesView model={model} quizzes={modelQuizzes} quizIndex={quizIndex} answers={quizAnswers} submitted={assessmentSubmitted} hints={assessmentHints} corrections={assessmentCorrections} loadingHintIndex={loadingHintIndex} loadingCorrections={loadingCorrections} onQuiz={chooseQuiz} onAnswer={(index) => setQuizAnswers((current) => ({ ...current, [quizIndex]: index }))} onSubmit={submitAssessment} onHint={requestAssessmentHint} onNewAssessment={takeNewAIQuiz} onCorrections={requestAssessmentCorrections} generatingAssessment={generatingQuiz} aiError={quizGenerationError} aiNeedsCredits={quizNeedsCredits} signedIn={Boolean(user)} creditBalance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : undefined} onBack={() => setLibraryMode('catalog')} />
   const generatedActiveDeck = generatedDecks.find((deck) => deck.id === activeDeckId && deck.cards)
   const activeDeck = activeDeckId ? flashcardDeckById(activeDeckId) ?? (generatedActiveDeck?.cards ? { ...generatedActiveDeck, cards: generatedActiveDeck.cards } : undefined) : undefined
-  const voiceMode = view === 'lab' ? 'lab' as const : view === 'library' ? 'assessment' as const : 'mentor' as const
+  const voiceMode: VoiceMode = view === 'lab' ? 'lab' : view === 'library' ? libraryMode === 'flashcards' || materialLearningState?.target === 'material-flashcards' ? 'flashcard' : libraryMode === 'assessment' || materialLearningState?.target === 'material-practice' ? 'assessment' : 'notes' : 'mentor'
   const voiceContext = (() => {
+    if (voiceMode === 'notes') return { screen: 'notes', note: activeNoteContext }
     const activeActivity = anatomyActivities.find((activity) => activity.id === activeActivityId)
     const step = guidedActivityStep === null ? undefined : activeActivity?.steps[guidedActivityStep]
     return {
-      model: { id: model.id, name: model.name, variantId: selectedVariantId, system: model.system, facts: model.facts.slice(0, 5) },
+      screen: voiceMode,
+      model: { id: model.id, name: model.name, variantId: selectedVariantId, variants: model.variants.map(({ id, label }) => ({ id, label })), system: model.system, facts: model.facts.slice(0, 5) },
       selectedStructure: selectedHotspot ? { id: selectedHotspot.id, label: selectedHotspot.label, detail: selectedHotspot.detail } : null,
       recentActions: (persisted.dissectionActionsByModel[model.id] ?? []).slice(-10).map(({ action, structureIds, structures }) => ({ action, structureIds, structures })),
-      lab: voiceMode === 'lab' ? { activityId: activeActivityId, stepIndex: guidedActivityStep, prompt: step?.prompt } : undefined,
-      assessment: voiceMode === 'assessment' ? { questionId: modelQuizzes[quizIndex]?.id, index: quizIndex, count: modelQuizzes.length, question: modelQuizzes[quizIndex]?.question, options: modelQuizzes[quizIndex]?.options, selectedIndex: quizAnswers[quizIndex] ?? null, submitted: assessmentSubmitted } : undefined,
+      viewer: voiceMode === 'mentor' || voiceMode === 'lab' ? { settings: persisted.settings, layers: model.viewer === 'segmented-body' ? anatomyLayers.map(({ id, label }) => ({ id, label, visible: viewerVoiceState?.visibleLayerIds.includes(id) ?? false })) : [], state: viewerVoiceState ? { ...viewerVoiceState, structures: viewerVoiceState.structures.slice(0, 50) } : undefined } : undefined,
+      lab: voiceMode === 'lab' ? { activityId: activeActivityId, stepIndex: guidedActivityStep, prompt: step?.prompt, validated: activityQuizPassed } : undefined,
+      assessment: voiceMode === 'assessment' ? materialLearningState?.target === 'material-practice' ? { questionId: materialLearningState.questionId, index: materialLearningState.index, count: materialLearningState.count, question: materialLearningState.question, options: materialLearningState.options, selectedIndex: materialLearningState.selectedIndex, submitted: materialLearningState.submitted, hint: materialLearningState.hint } : { questionId: modelQuizzes[quizIndex]?.id, index: quizIndex, count: modelQuizzes.length, question: modelQuizzes[quizIndex]?.question, options: modelQuizzes[quizIndex]?.options, selectedIndex: quizAnswers[quizIndex] ?? null, submitted: assessmentSubmitted, hint: assessmentHints[quizIndex] } : undefined,
+      flashcard: voiceMode === 'flashcard' ? materialLearningState?.target === 'material-flashcards' ? { deckId: materialLearningState.deckId, cardId: materialLearningState.cardId, index: materialLearningState.index, count: materialLearningState.count, side: materialLearningState.side, graded: materialLearningState.graded, question: materialLearningState.question, answer: materialLearningState.answer, hint: materialLearningState.hint } : flashcardVoiceState : undefined,
     }
   })()
   const detail = <ModelDetail model={model} hotspot={selectedHotspot} />
@@ -543,8 +612,8 @@ export default function App() {
   function renderCenter() {
     if (view === 'library') {
       if (libraryMode === 'assessment') return quizView
-      if (libraryMode === 'flashcards' && activeDeck) return <FlashcardsView deck={activeDeck} progress={persisted.flashcardProgressByDeck[activeDeck.id]} onGrade={gradeFlashcard} onBack={() => setLibraryMode('catalog')} />
-      return <LibraryView onAssessment={openAssessment} onFlashcards={openFlashcards} onGeneratedDeck={openGeneratedDeck} onUnlockDeck={unlockGeneratedDeck} onReportDeck={reportDeck} generatedDecks={generatedDecks} generatedError={deckError} completedQuizIds={persisted.completedQuizIds} flashcardProgressByDeck={persisted.flashcardProgressByDeck} />
+      if (libraryMode === 'flashcards' && activeDeck) return <FlashcardsView key={activeDeck.id} ref={flashcardsController} deck={activeDeck} progress={persisted.flashcardProgressByDeck[activeDeck.id]} onGrade={gradeFlashcard} onVoiceState={setFlashcardVoiceState} onBack={() => setLibraryMode('catalog')} />
+      return <LibraryView onAssessment={openAssessment} onFlashcards={openFlashcards} onGeneratedDeck={openGeneratedDeck} onUnlockDeck={unlockGeneratedDeck} onReportDeck={reportDeck} onMaterialGrade={gradeMaterialFlashcard} onModeChange={(mode) => { setLibraryContentMode(mode); if (mode !== 'notes') setActiveNoteContext(undefined) }} onNoteContext={setActiveNoteContext} onNoteRequest={(prompt) => { setNoteMentorRequest({ id: crypto.randomUUID(), prompt }); setMentorOpen(true) }} onMaterialLearningState={setMaterialLearningState} onMaterialLearningController={(controller) => { materialLearningController.current = controller }} onBalance={setBalance} onInsufficientCredits={(action, required) => setCreditPrompt({ action, required })} onSignIn={() => window.location.assign('/login?next=/app')} signedIn={Boolean(user)} creditBalance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : undefined} generatedDecks={generatedDecks} generatedError={deckError} completedQuizIds={persisted.completedQuizIds} flashcardProgressByDeck={persisted.flashcardProgressByDeck} />
     }
     if (view === 'lab') {
       const lab = <DissectionActivitiesView mode={labMode} activeActivityId={activeActivityId} onGuided={launchDissectionActivity} onCatalog={returnToLabCatalog} guidedStep={guidedActivityStep} quizChoice={activityQuizChoice} quizPassed={activityQuizPassed} onStartGuide={() => { setGuidedActivityStep(0); setActivityQuizChoice(undefined); setActivityQuizPassed(undefined) }} onQuizChoice={(choice) => { setActivityQuizChoice(choice); setActivityQuizPassed(undefined) }} onQuizCheck={checkActivityQuestion} onStepContinue={continueActivity} />
@@ -561,10 +630,10 @@ export default function App() {
       <div className="side-section"><header><span>Anatomy models</span></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}<ChevronRight size={14} /></Button>)}</div></div>
     </aside>
     <main className="workspace">
-      <header className="topbar"><div><span>{view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions"><Button variant="outline" asChild><a href="/account"><CircleUserRound size={16} />Account</a></Button>{view !== 'lab' && <Button onClick={() => chooseView('lab')}><FlaskConical size={16} />Open Lab</Button>}</div></header>
+      <header className="topbar"><div><span>{view === 'library' ? 'Learn' : view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions"><Button variant="outline" asChild><a href="/account"><CircleUserRound size={16} />Account</a></Button>{view !== 'lab' && <Button onClick={() => chooseView('lab')}><FlaskConical size={16} />Open Lab</Button>}</div></header>
       <div className="center-pane"><Suspense fallback={<ViewLoading />}>{renderCenter()}</Suspense></div>
     </main>
-    {assistantAvailable && <MentorPanel model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'An AI Mentor response', required: 1 })} voiceMode={voiceMode} voiceContext={voiceContext} onStudentCaption={handleSpokenAssessment} onVoiceInsufficientCredits={() => setCreditPrompt({ action: 'A five-minute Voice session', required: 10 })} />}
+    {assistantAvailable && <MentorPanel model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'An AI Mentor response', required: 1 })} noteContext={activeNoteContext} draftRequest={noteMentorRequest} voiceMode={voiceMode} voiceContext={voiceContext} onVoiceAction={handleVoiceAction} onVoiceInsufficientCredits={() => setCreditPrompt({ action: 'A five-minute Voice session', required: 10 })} />}
     <nav className="mobile-tabs" aria-label="Workspace navigation">{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
     {assistantAvailable && <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)} aria-expanded={mentorOpen} aria-controls="stranerd-mentor"><Bot size={15} />Mentor{typing && <i />}</button>}
     {creditPrompt && <Suspense fallback={null}><CreditModal prompt={creditPrompt} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} onClose={() => setCreditPrompt(undefined)} /></Suspense>}
