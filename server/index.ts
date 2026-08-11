@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
 import cors from 'cors'
 import express from 'express'
 import path from 'node:path'
@@ -15,6 +15,9 @@ import generateFlashcardsHandler from '../api/flashcards/generate.js'
 import unlockFlashcardsHandler from '../api/flashcards/unlock.js'
 import realtimeSessionHandler from '../api/realtime/session.js'
 import extendRealtimeSessionHandler from '../api/realtime/extend.js'
+
+dotenv.config()
+dotenv.config({ path: '.env.local', override: true })
 
 const app = express()
 const port = Number(process.env.PORT) || 8787
