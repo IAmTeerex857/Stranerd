@@ -7,6 +7,7 @@ dist/
 coverage/
 *.tsbuildinfo
 assets/source-models/
+Materials/
 Openai key.md
 Details.md
 docs/private/
