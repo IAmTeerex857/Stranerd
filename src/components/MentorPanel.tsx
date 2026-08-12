@@ -132,23 +132,23 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
   }
 
   return <>
-    {mobileOpen && <button className="mentor-backdrop" onClick={onMobileClose} aria-label="Close Mentor" />}
-    <aside id="stranerd-mentor" className={`mentor assistant-panel ${mobileOpen ? 'mobile-open' : ''} panel anim3`} aria-label="Stranerd Mentor" role={mobileOpen ? 'dialog' : undefined} aria-modal={mobileOpen || undefined}>
-      <header className="mentor-head"><span className="mentor-avatar"><Sparkles size={18} /></span><div><strong>AI Mentor</strong><small>{noteContext?.subject || model.name} · grounded in context</small></div>{onMobileClose && <Button variant="ghost" size="icon-sm" className="mentor-mobile-close" onClick={onMobileClose} aria-label="Close mentor"><ChevronDown size={17} /></Button>}</header>
+    {mobileOpen && <button className="mentor-backdrop" onClick={onMobileClose} aria-label="Close Nerd Bot" />}
+    <aside id="stranerd-mentor" className={`mentor assistant-panel ${mobileOpen ? 'mobile-open' : ''} panel anim3`} aria-label="Nerd Bot" role={mobileOpen ? 'dialog' : undefined} aria-modal={mobileOpen || undefined}>
+      <header className="mentor-head"><span className="mentor-avatar"><Sparkles size={18} /></span><div><strong>Nerd Bot</strong><small>{noteContext?.subject || model.name} · grounded in context</small></div>{onMobileClose && <Button variant="ghost" size="icon-sm" className="mentor-mobile-close" onClick={onMobileClose} aria-label="Close Nerd Bot"><ChevronDown size={17} /></Button>}</header>
       <Tabs value={assistantTab} onValueChange={setAssistantTab} className="assistant-tabs">
         <TabsList className="assistant-tabs-list"><TabsTrigger value="text"><Bot />Text</TabsTrigger><TabsTrigger value="voice"><Mic />Voice</TabsTrigger></TabsList>
         <TabsContent value="text" className="assistant-tab-content assistant-text-tab">
           {noteContext ? <div className="mentor-context note-mentor-context"><header><span>Active note</span></header><strong>{noteContext.subject}</strong><small>{noteContext.section}{noteContext.selectedText ? ' · selection included' : ''}</small></div> : selectedHotspot && <div className="mentor-context"><header><span>Selected context</span><b>{selectedHotspot.source === 'mesh' ? `KG ${anatomyGraph.contentVersion}` : model.name}</b></header><strong>{selectedHotspot.label}</strong><small>{anatomyLayers.find((layer) => layer.id === selectedHotspot.systemId)?.label || model.system} system</small><Button variant="ghost" size="sm" onClick={() => setInput(`Explain the structure and function of ${selectedHotspot.label}.`)}>Ask about this<CornerDownRight size={13} /></Button></div>}
           <div className={`transcript ${showSuggestions ? 'suggestion-state' : ''}`} ref={transcript} aria-live="polite">
-            {showSuggestions ? <div className="mentor-welcome"><span className="mentor-welcome-mark"><Bot /></span><h2>Learn with Mentor</h2><p>Ask about the current model, test your recall, or compare anatomical relationships.</p><div>{suggestions.map(({ Icon, label }) => <button key={label} onClick={() => setInput(label)}><span><Icon /></span>{label}<ArrowRight /></button>)}</div><small>Grounded in your current anatomy context</small></div> : visibleMessages.map((message) => (
+            {showSuggestions ? <div className="mentor-welcome"><span className="mentor-welcome-mark"><Bot /></span><h2>Learn with Nerd Bot</h2><p>Ask about the current model, test your recall, or compare anatomical relationships.</p><div>{suggestions.map(({ Icon, label }) => <button key={label} onClick={() => setInput(label)}><span><Icon /></span>{label}<ArrowRight /></button>)}</div><small>Grounded in your current anatomy context</small></div> : visibleMessages.map((message) => (
               <div key={message.id} className={`chat-row ${message.role} ${message.pending ? 'pending' : ''}`}><span>{message.role === 'mentor' ? <Bot size={15} /> : 'YOU'}</span><MentorText text={message.text} /></div>
             ))}
-            {typing && <div className="typing"><i /><i /><i /><span>Mentor is responding</span></div>}
+            {typing && <div className="typing"><i /><i /><i /><span>Nerd Bot is responding</span></div>}
             <div ref={transcriptEnd} aria-hidden="true" />
           </div>
           {actionError && !actionError.needsCredits && <div className="mentor-action-error"><span>{actionError.message}</span></div>}
           <form className="mentor-input" onSubmit={submit}>
-            <div><Textarea ref={inputRef} id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${noteContext?.section || selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button variant="ai" className="mentor-send" aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><span>Send</span><b><Sparkles size={11} />1</b><Send className="mentor-send-mobile" size={16} /></Button></div>
+            <div><Textarea ref={inputRef} id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${noteContext?.section || selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button variant="ai" className="mentor-send" aria-label={user ? 'Ask Nerd Bot for 1 credit' : 'Sign in to ask Nerd Bot'} disabled={!input.trim() || typing}><span>Send</span><b><Sparkles size={11} />1</b><Send className="mentor-send-mobile" size={16} /></Button></div>
           </form>
         </TabsContent>
         <TabsContent value="voice" className="assistant-tab-content assistant-voice-tab"><VoiceDock key={`${voiceMode}:${model.id}`} embedded mode={voiceMode} modelId={model.id} context={voiceContext} onAction={onVoiceAction} onInsufficientCredits={onVoiceInsufficientCredits} /></TabsContent>

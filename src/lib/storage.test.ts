@@ -14,6 +14,8 @@ describe('persistence parsing', () => {
     expect(state.dissectionByModel).toEqual({})
     expect(state.flashcardProgressByDeck).toEqual({})
     expect(state.pendingFlashcardReviews).toEqual([])
+    expect(state.materialProgressByRelease).toEqual({})
+    expect(state.materialProgressOwnerId).toBeUndefined()
   })
 
   it('keeps valid persisted dissection sessions', () => {
@@ -59,5 +61,11 @@ describe('persistence parsing', () => {
     const state = parsePersistedState(JSON.stringify({ flashcardProgressByDeck, pendingFlashcardReviews: [event, event, { ...event, id: 'bad' }] }))
     expect(Object.keys(state.flashcardProgressByDeck)).toHaveLength(60)
     expect(state.pendingFlashcardReviews).toEqual([event])
+  })
+
+  it('keeps valid material learning progress', () => {
+    const updatedAt = '2026-08-13T10:00:00Z'
+    const state = parsePersistedState(JSON.stringify({ materialProgressByRelease: { release: { contentVersion: 'v1', readSectionIds: ['one', 'one', 2], practiceAnswers: { q1: 2, bad: 8 }, practiceSubmitted: true, updatedAt } } }))
+    expect(state.materialProgressByRelease.release).toEqual({ contentVersion: 'v1', readSectionIds: ['one'], practiceAnswers: { q1: 2 }, practiceSubmitted: true, updatedAt })
   })
 })

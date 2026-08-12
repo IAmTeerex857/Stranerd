@@ -1132,7 +1132,10 @@ button, input, textarea, select { font-family: inherit; }
     overflow: hidden;
   }
   .app-shell.mentor-hidden { grid-template-columns: 264px minmax(0, 1fr); }
+  .app-shell.sidebar-collapsed { grid-template-columns: 64px minmax(0, 1fr) 384px; }
+  .app-shell.sidebar-collapsed.mentor-hidden { grid-template-columns: 64px minmax(0, 1fr); }
   .app-shell .sidebar { width: 264px; }
+  .app-shell.sidebar-collapsed .sidebar { width: 64px; }
   .app-shell .center-pane { height: calc(100dvh - 64px); overflow: auto; }
   .app-shell .center-pane:has(.explore-view),
   .app-shell .center-pane:has(.lab-guided-workspace) { overflow: hidden; padding: 0; }
@@ -1169,6 +1172,7 @@ button, input, textarea, select { font-family: inherit; }
   box-shadow: none;
 }
 .app-shell .side-brand { height: 64px; min-height: 64px; padding: 0 20px; border-bottom: 1px solid var(--border-ui); }
+.app-shell .side-brand > button { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; margin-left: auto; border: 0; border-radius: 8px; color: var(--muted-foreground); background: transparent; }
 .app-shell .mobile-sidebar-close { display: none; }
 .app-shell .mobile-drawer-brand { display: none; }
 .app-shell .dissect-backdrop { display: none; }
@@ -1194,6 +1198,20 @@ button, input, textarea, select { font-family: inherit; }
 .app-shell .sidebar-account > span { display: grid; min-width: 0; flex: 1; text-align: left; }
 .app-shell .sidebar-account b { overflow: hidden; color: var(--foreground); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .app-shell .sidebar-account small { color: var(--muted-foreground); font-size: 10px; }
+.app-shell .sidebar-account > img,
+.app-shell .sidebar-account-avatar { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border: 1px solid var(--primary-border); border-radius: 50%; object-fit: cover; color: var(--primary); background: var(--primary-subtle); font-size: 12px; font-weight: 700; }
+@media (min-width: 1200px) {
+  .app-shell.sidebar-collapsed .side-brand { justify-content: center; padding-inline: 0; }
+  .app-shell.sidebar-collapsed .side-brand .brand { display: none; }
+  .app-shell.sidebar-collapsed .side-brand > button { margin: 0; }
+  .app-shell.sidebar-collapsed .sidebar nav { padding-inline: 8px; }
+  .app-shell.sidebar-collapsed .sidebar nav > button { justify-content: center; padding: 0; }
+  .app-shell.sidebar-collapsed .sidebar nav > button span,
+  .app-shell.sidebar-collapsed .side-section { display: none; }
+  .app-shell.sidebar-collapsed .sidebar-account { justify-content: center; padding-inline: 0; }
+  .app-shell.sidebar-collapsed .sidebar-account > span:not(.sidebar-account-avatar),
+  .app-shell.sidebar-collapsed .sidebar-account svg:last-child { display: none; }
+}
 
 .app-shell .topbar { display: grid; height: 64px; min-height: 64px; grid-template-columns: minmax(190px, 1fr) minmax(300px, 460px) minmax(190px, 1fr); gap: 20px; padding: 0 24px; }
 .app-shell .topbar > div:first-child > span { color: var(--primary); font: 600 10px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }

@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, type FormEvent, type SetStateAction } from 'react'
-import { ArrowLeft, BookOpen, Bot, ChevronRight, CircleUserRound, Compass, Menu, Microscope, Moon, Search, Sparkles, Star, Sun, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Bot, ChevronRight, CircleUserRound, Compass, Menu, Microscope, Moon, PanelLeftClose, PanelLeftOpen, Search, Sparkles, Star, Sun, X } from 'lucide-react'
 import { MentorPanel } from './components/MentorPanel'
 import { anatomyModels, modelById, models } from './data/models'
 import { quizzesForModel } from './data/quizzes'
 import { loadState, saveState } from './lib/storage'
-import type { ChatItem, FlashcardDeck, FlashcardGrade, GeneratedDeckSummary, Hotspot, ModelEntry, PersistedState, Quiz, ViewId } from './types'
+import type { ChatItem, FlashcardDeck, FlashcardGrade, GeneratedDeckSummary, Hotspot, MaterialReleaseProgress, ModelEntry, PersistedState, Quiz, ViewId } from './types'
 import type { DissectionActionContext } from './data/dissection'
 import { activityActionMatches, anatomyActivities, type AnatomyActivity } from './data/activities'
 import { digestiveDissectionQuiz } from './data/dissection'
@@ -23,9 +23,12 @@ import type { FlashcardsController, FlashcardVoiceState } from './components/Fla
 import type { VoiceAction, VoiceActionResult, VoiceMode } from './lib/voiceActions'
 import type { ActiveNoteContext, LibraryContentMode, MaterialLearningController, MaterialLearningState, MaterialSubject, NoteSelectionRequest } from './types/materials'
 import { useTheme } from './theme-context'
+import { mergeMaterialProgress, syncMaterialProgress } from './lib/materialProgressSync'
+import { userAvatar, userFirstName } from './lib/userProfile'
 
 const logoUrl = '/branding/stranerd-wordmark.png'
 const iconUrl = '/branding/stranerd-icon.png'
+const CHAT_STORAGE_KEY = 'stranerd.chat.sessions.v1'
 
 const LibraryView = lazy(() => import('./components/WorkspaceViews').then((module) => ({ default: module.LibraryView })))
 const QuizzesView = lazy(() => import('./components/WorkspaceViews').then((module) => ({ default: module.QuizzesView })))
@@ -64,6 +67,15 @@ function loadAssessmentSeed() {
   const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1
   window.localStorage.setItem(key, String(seed))
   return seed
+}
+
+function loadChatSessions(storageKey: string): Record<string, ChatItem[]> {
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(storageKey) ?? '{}') as Record<string, ChatItem[]>
+    return Object.fromEntries(Object.entries(parsed).filter(([, messages]) => Array.isArray(messages)).map(([key, messages]) => [key, messages.slice(-100)]))
+  } catch {
+    return {}
+  }
 }
 
 function Brand() {
@@ -113,6 +125,7 @@ export default function App() {
   const [activityQuizPassed, setActivityQuizPassed] = useState<boolean>()
   const [typing, setTyping] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [workspaceSearch, setWorkspaceSearch] = useState('')
   const [mentorOpen, setMentorOpen] = useState(false)
   const [creditPrompt, setCreditPrompt] = useState<CreditPrompt>()
@@ -136,9 +149,10 @@ export default function App() {
         : libraryMode === 'flashcards'
           ? `library:flashcards:${activeDeckId ?? 'catalog'}`
           : `library:${libraryContentMode}:${activeNoteContext?.sectionId ?? materialSession ?? 'catalog'}`
-  const [chatSession, setChatSession] = useState<{ key: string; messages: ChatItem[] }>(() => ({ key: chatSessionKey, messages: [greeting] }))
-  if (chatSession.key !== chatSessionKey) setChatSession({ key: chatSessionKey, messages: [greeting] })
-  const messages = chatSession.key === chatSessionKey ? chatSession.messages : [greeting]
+  const chatStorageKey = `${CHAT_STORAGE_KEY}:${user?.id ?? 'guest'}`
+  const [chatSessions, setChatSessions] = useState<Record<string, ChatItem[]>>(() => loadChatSessions(chatStorageKey))
+  const chatStorageKeyRef = useRef(chatStorageKey)
+  const messages = chatSessions[chatSessionKey] ?? [greeting]
   const fallbackQuizzes = useMemo(() => quizzesForModel(model.id, quizSeed), [model.id, quizSeed])
   const modelQuizzes = generatedQuizSet?.modelId === model.id ? generatedQuizSet.quizzes : fallbackQuizzes
   const savedVariantId = persisted.selectedVariantIds[model.id]
@@ -148,11 +162,21 @@ export default function App() {
   const mentorAvailable = view === 'explore' || (view === 'lab' && labMode !== 'catalog')
   const assistantAvailable = mentorAvailable || (view === 'library' && (libraryMode === 'assessment' || libraryMode === 'flashcards' || Boolean(materialLearningState) || (libraryContentMode === 'notes' && Boolean(activeNoteContext))))
   const pendingFlashcardReviewKey = persisted.pendingFlashcardReviews.map((review) => review.id).join(':')
+  const materialProgressKey = JSON.stringify(persisted.materialProgressByRelease)
   const creditBalance = balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0
 
   useEffect(() => {
     saveState(persisted)
   }, [persisted])
+
+  useEffect(() => {
+    if (chatStorageKeyRef.current !== chatStorageKey) {
+      chatStorageKeyRef.current = chatStorageKey
+      setChatSessions(loadChatSessions(chatStorageKey))
+      return
+    }
+    window.sessionStorage.setItem(chatStorageKey, JSON.stringify(chatSessions))
+  }, [chatSessions, chatStorageKey])
 
   useEffect(() => {
     if (!user) return
@@ -163,12 +187,17 @@ export default function App() {
 
   const syncSignedInProgress = useEffectEvent(async () => {
     try {
-      const result = await syncFlashcardProgress(persisted.flashcardProgressByDeck, persisted.pendingFlashcardReviews)
+      const [result, materialProgressByRelease] = await Promise.all([
+        syncFlashcardProgress(persisted.flashcardProgressByDeck, persisted.pendingFlashcardReviews),
+        syncMaterialProgress(persisted.materialProgressOwnerId && persisted.materialProgressOwnerId !== user?.id ? {} : persisted.materialProgressByRelease),
+      ])
       const acknowledged = new Set(result.acknowledgedIds)
       setPersisted((current) => ({
         ...current,
         flashcardProgressByDeck: mergeFlashcardProgress(current.flashcardProgressByDeck, result.rows),
         pendingFlashcardReviews: current.pendingFlashcardReviews.filter((review) => !acknowledged.has(review.id)),
+        materialProgressByRelease: current.materialProgressOwnerId && current.materialProgressOwnerId !== user?.id ? materialProgressByRelease : mergeMaterialProgress(current.materialProgressByRelease, materialProgressByRelease),
+        materialProgressOwnerId: user?.id,
       }))
       setFlashcardSyncError(false)
     } catch {
@@ -180,7 +209,7 @@ export default function App() {
     if (!user) return
     const timer = window.setTimeout(() => void syncSignedInProgress(), 0)
     return () => window.clearTimeout(timer)
-  }, [flashcardSyncRetry, pendingFlashcardReviewKey, user])
+  }, [flashcardSyncRetry, materialProgressKey, pendingFlashcardReviewKey, user])
 
   useEffect(() => {
     const retry = () => setFlashcardSyncRetry((value) => value + 1)
@@ -200,12 +229,18 @@ export default function App() {
   }
 
   function setMessages(action: SetStateAction<ChatItem[]>) {
-    const expectedSession = chatSessionKey
-    setChatSession((current) => {
-      if (current.key !== expectedSession) return current
-      const currentMessages = current.messages
+    setChatSessions((current) => {
+      const currentMessages = current[chatSessionKey] ?? [greeting]
       const nextMessages = typeof action === 'function' ? action(currentMessages) : action
-      return { key: expectedSession, messages: nextMessages.slice(-100) }
+      return { ...current, [chatSessionKey]: nextMessages.slice(-100) }
+    })
+  }
+
+  function updateMaterialProgress(subject: MaterialSubject, patch: Partial<MaterialReleaseProgress>) {
+    setPersisted((current) => {
+      const previous = current.materialProgressByRelease[subject.releaseId]
+      const base = previous?.contentVersion === subject.contentVersion ? previous : { contentVersion: subject.contentVersion, readSectionIds: [], practiceAnswers: {}, practiceSubmitted: false, updatedAt: new Date(0).toISOString() }
+      return { ...current, materialProgressByRelease: { ...current.materialProgressByRelease, [subject.releaseId]: { ...base, ...patch, contentVersion: subject.contentVersion, updatedAt: new Date().toISOString() } } }
     })
   }
 
@@ -222,6 +257,9 @@ export default function App() {
     setLabMode('catalog')
     setGuidedActivityStep(null)
     setLibraryMode('catalog')
+    setActiveNoteContext(undefined)
+    setMaterialLearningState(undefined)
+    materialLearningController.current = undefined
     setView('explore')
     setMenuOpen(false)
   }
@@ -605,7 +643,6 @@ export default function App() {
       if (action.type === 'assessment.hint') {
         if (assessmentSubmitted) return { ok: false, error: 'Hints are unavailable after submission.' }
         if (assessmentHints[quizIndex]) return { ok: true, message: 'The hint is already visible.' }
-        if (!window.confirm('Spend 1 credit to generate a hint for this question?')) return { ok: false, error: 'The learner did not confirm the hint charge.' }
         const generated = await requestAssessmentHint(quizIndex)
         return generated ? { ok: true, message: 'The hint is now visible.' } : { ok: false, error: 'The hint could not be generated.' }
       }
@@ -643,7 +680,7 @@ export default function App() {
     if (view === 'library') {
       if (libraryMode === 'assessment') return quizView
       if (libraryMode === 'flashcards' && activeDeck) return <FlashcardsView key={activeDeck.id} ref={flashcardsController} deck={activeDeck} progress={persisted.flashcardProgressByDeck[activeDeck.id]} onGrade={gradeFlashcard} onVoiceState={setFlashcardVoiceState} onBack={() => setLibraryMode('catalog')} />
-      return <LibraryView onAssessment={openAssessment} onFlashcards={openFlashcards} onGeneratedDeck={openGeneratedDeck} onUnlockDeck={unlockGeneratedDeck} onReportDeck={reportDeck} onMaterialGrade={gradeMaterialFlashcard} onModeChange={(mode) => { setLibraryContentMode(mode); if (mode !== 'notes') setActiveNoteContext(undefined) }} onNoteContext={setActiveNoteContext} onNoteRequest={(prompt) => { setNoteMentorRequest({ id: crypto.randomUUID(), prompt }); setMentorOpen(true) }} onMaterialLearningState={setMaterialLearningState} onMaterialLearningController={(controller) => { materialLearningController.current = controller }} onBalance={setBalance} onInsufficientCredits={(action, required) => setCreditPrompt({ action, required })} onSignIn={() => window.location.assign('/login?next=/app')} signedIn={Boolean(user)} creditBalance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : undefined} generatedDecks={generatedDecks} generatedError={deckError} completedQuizIds={persisted.completedQuizIds} flashcardProgressByDeck={persisted.flashcardProgressByDeck} />
+      return <LibraryView onAssessment={openAssessment} onFlashcards={openFlashcards} onGeneratedDeck={openGeneratedDeck} onUnlockDeck={unlockGeneratedDeck} onReportDeck={reportDeck} onMaterialGrade={gradeMaterialFlashcard} onMaterialProgress={updateMaterialProgress} onModeChange={(mode) => { setLibraryContentMode(mode); if (mode !== 'notes') setActiveNoteContext(undefined) }} onNoteContext={setActiveNoteContext} onNoteRequest={(prompt) => { setNoteMentorRequest({ id: crypto.randomUUID(), prompt }); setMentorOpen(true) }} onMaterialLearningState={setMaterialLearningState} onMaterialLearningController={(controller) => { materialLearningController.current = controller }} onBalance={setBalance} onInsufficientCredits={(action, required) => setCreditPrompt({ action, required })} onSignIn={() => window.location.assign('/login?next=/app')} signedIn={Boolean(user)} creditBalance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : undefined} generatedDecks={generatedDecks} generatedError={deckError} completedQuizIds={persisted.completedQuizIds} flashcardProgressByDeck={persisted.flashcardProgressByDeck} materialProgressByRelease={persisted.materialProgressByRelease} />
     }
     if (view === 'lab') {
       const lab = <DissectionActivitiesView mode={labMode} activeActivityId={activeActivityId} onGuided={launchDissectionActivity} onCatalog={returnToLabCatalog} guidedStep={guidedActivityStep} quizChoice={activityQuizChoice} quizPassed={activityQuizPassed} onStartGuide={() => { setGuidedActivityStep(0); setActivityQuizChoice(undefined); setActivityQuizPassed(undefined) }} onQuizChoice={(choice) => { setActivityQuizChoice(choice); setActivityQuizPassed(undefined) }} onQuizCheck={checkActivityQuestion} onStepContinue={continueActivity} />
@@ -687,7 +724,9 @@ export default function App() {
     else document.querySelector<HTMLButtonElement>('.subject-materials-header .library-back')?.click()
   }
 
-  return <div className={`app-shell ${!assistantAvailable ? 'mentor-hidden' : ''}`}>
+  const firstName = userFirstName(user)
+  const avatar = userAvatar(user)
+  return <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${!assistantAvailable ? 'mentor-hidden' : ''}`}>
     <header className="mobile-head">
       <button onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation" aria-expanded={menuOpen} aria-controls="app-sidebar">{menuOpen ? <X /> : <Menu />}</button>
       {(view === 'lab' && labMode === 'guided' || mobileNestedLibrary) && <button className="mobile-back" onClick={mobileBack} aria-label="Back"><ArrowLeft /></button>}
@@ -695,12 +734,12 @@ export default function App() {
       <a className="mobile-credits" href="/account" aria-label={`${creditBalance} credits`}><Sparkles size={14} /><b>{creditBalance}</b></a>
       <button onClick={() => setPreference(resolvedTheme === 'dark' ? 'light' : 'dark')} aria-label={`Use ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}>{resolvedTheme === 'dark' ? <Sun /> : <Moon />}</button>
     </header>
-    <aside id="app-sidebar" className={`sidebar ${menuOpen ? 'open' : ''}`}>
-      <div className="side-brand"><Brand /></div>
+    <aside id="app-sidebar" className={`sidebar ${menuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
+      <div className="side-brand"><Brand /><button onClick={() => setSidebarCollapsed((value) => !value)} aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>{sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div>
       <div className="mobile-drawer-brand"><img src={logoUrl} alt="Stranerd" /></div>
       <nav>{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
       <div className="side-section"><header><span>Subjects</span><b>{sideModels.length}</b></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span><small>{entry.system}</small>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}</Button>)}</div></div>
-      <Button variant="ghost" className="sidebar-account" asChild><a href="/account"><CircleUserRound size={34} /><span><b>{user?.email?.split('@')[0] || 'Your account'}</b><small>{creditBalance} credits</small></span><ChevronRight size={14} /></a></Button>
+      <Button variant="ghost" className="sidebar-account" asChild><a href="/account">{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : <span className="sidebar-account-avatar">{firstName[0]?.toUpperCase()}</span>}<span><b>{firstName}</b><small>{creditBalance} credits</small></span><ChevronRight size={14} /></a></Button>
     </aside>
     {menuOpen && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label="Close navigation" />}
     <main className="workspace">
@@ -712,9 +751,9 @@ export default function App() {
       <div className="center-pane"><Suspense fallback={<ViewLoading />}>{renderCenter()}</Suspense></div>
     </main>
     {assistantAvailable && <div className="mentor-top-actions"><a className="credit-pill" href="/account"><Sparkles size={15} /><b>{creditBalance}</b><span>credits</span></a><Button variant="outline" size="icon" onClick={() => setPreference(resolvedTheme === 'dark' ? 'light' : 'dark')} aria-label={`Use ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}>{resolvedTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</Button></div>}
-    {assistantAvailable && <MentorPanel key={chatSessionKey} model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'An AI Mentor response', required: 1 })} noteContext={activeNoteContext} draftRequest={noteMentorRequest} voiceMode={voiceMode} voiceContext={voiceContext} onVoiceAction={handleVoiceAction} onVoiceInsufficientCredits={() => setCreditPrompt({ action: 'A five-minute Voice session', required: 10 })} />}
+    {assistantAvailable && <MentorPanel key={chatSessionKey} model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'A Nerd Bot response', required: 1 })} noteContext={activeNoteContext} draftRequest={noteMentorRequest} voiceMode={voiceMode} voiceContext={voiceContext} onVoiceAction={handleVoiceAction} onVoiceInsufficientCredits={() => setCreditPrompt({ action: 'A five-minute Voice session', required: 10 })} />}
     <nav className="mobile-tabs" aria-label="Workspace navigation">{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={21} /><span>{item.label}</span></Button>)}<Button variant="ghost" asChild><a href="/account"><CircleUserRound size={21} /><span>Account</span></a></Button></nav>
-    {assistantAvailable && <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)} aria-label="Open Mentor" aria-expanded={mentorOpen} aria-controls="stranerd-mentor"><Bot size={25} />{typing && <i />}</button>}
+    {assistantAvailable && <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)} aria-label="Open Nerd Bot" aria-expanded={mentorOpen} aria-controls="stranerd-mentor"><Bot size={25} />{typing && <i />}</button>}
     {creditPrompt && <Suspense fallback={null}><CreditModal prompt={creditPrompt} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} onClose={() => setCreditPrompt(undefined)} /></Suspense>}
     {generateModel && <Suspense fallback={null}><GenerateDeckModal model={generateModel} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} generating={generatingDeck} error={deckError} onClose={() => setGenerateModel(undefined)} onGenerate={createGeneratedDeck} /></Suspense>}
   </div>

@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { ArrowLeft, ArrowRight, Book, Check, ClipboardList, Eye, GalleryVerticalEnd, LayoutGrid, Lightbulb, RotateCcw, ScanLine, Search, Shuffle, Sparkles } from 'lucide-react'
-import type { FlashcardDeckProgress, FlashcardGrade } from '../types'
+import type { FlashcardDeckProgress, FlashcardGrade, MaterialReleaseProgress } from '../types'
 import type { ActiveNoteContext, LibraryContentMode, MaterialFlashcard, MaterialFlashcardVoiceState, MaterialLearningController, MaterialLearningState, MaterialMnemonic, MaterialQuestion, MaterialSection, MaterialSectionSummary, MaterialSubject } from '../types/materials'
 import { getMaterialSection, listMaterialFlashcards, listMaterialMnemonics, listMaterialQuestions, listMaterialSections, listMaterialSubjects, materialFlashcardFace } from '../lib/materials'
 import { flashcardGradeTransition, shuffledIds } from '../lib/flashcards'
@@ -115,7 +115,9 @@ function subjectTheme(subject: MaterialSubject, index: number) {
 type Props = {
   mode: LibraryContentMode
   progressByDeck: Record<string, FlashcardDeckProgress>
+  materialProgressByRelease: Record<string, MaterialReleaseProgress>
   onGrade: (subject: MaterialSubject, cardId: string, grade: FlashcardGrade) => void
+  onProgress: (subject: MaterialSubject, progress: Partial<MaterialReleaseProgress>) => void
   onSubjectChange: (subject?: MaterialSubject) => void
   onNoteContext: (context?: ActiveNoteContext) => void
   onNoteRequest: (prompt: string) => void
@@ -149,7 +151,7 @@ function Failure({ message, retry }: { message: string; retry: () => void }) {
 }
 
 export default function MaterialsView(props: Props) {
-  const { mode, progressByDeck, onGrade, onSubjectChange, onNoteContext } = props
+  const { mode, progressByDeck, materialProgressByRelease, onGrade, onSubjectChange, onNoteContext } = props
   const [subjects, setSubjects] = useState<MaterialSubject[]>()
   const [subject, setSubject] = useState<MaterialSubject>()
   const [query, setQuery] = useState('')
@@ -197,7 +199,8 @@ export default function MaterialsView(props: Props) {
   if (!subjects) return <Loading />
   if (subject) {
     const progress = progressByDeck[`materials:${subject.releaseId}`]
-    return <SubjectMaterials {...props} subject={subject} progress={progress?.contentVersion === subject.contentVersion ? progress : undefined} onCardGrade={(cardId, grade) => onGrade(subject, cardId, grade)} onBack={() => selectSubject(undefined)} />
+    const materialProgress = materialProgressByRelease[subject.releaseId]
+    return <SubjectMaterials {...props} subject={subject} progress={progress?.contentVersion === subject.contentVersion ? progress : undefined} materialProgress={materialProgress?.contentVersion === subject.contentVersion ? materialProgress : undefined} onCardGrade={(cardId, grade) => onGrade(subject, cardId, grade)} onBack={() => selectSubject(undefined)} />
   }
   const normalized = query.trim().toLowerCase()
   const ordered = [...subjects].sort((a, b) => Object.keys(subjectThemes).indexOf(subjectKey(a)) - Object.keys(subjectThemes).indexOf(subjectKey(b)))
@@ -254,6 +257,11 @@ export default function MaterialsView(props: Props) {
           <div className="material-practice-list">
             {filtered.map((entry) => {
               const theme = subjectTheme(entry, ordered.indexOf(entry))
+              const progress = materialProgressByRelease[entry.releaseId]
+              const answered = progress?.contentVersion === entry.contentVersion ? Object.keys(progress.practiceAnswers).length : 0
+              const total = Math.min(20, entry.counts.questions)
+              const percent = total ? Math.round((answered / total) * 100) : 0
+              const action = progress?.practiceSubmitted ? 'Review' : answered > 0 ? 'Continue' : 'Start'
               return (
                 <article key={entry.id} style={{ '--subject-color': theme.from } as CSSProperties}>
                   <span className="material-practice-icon" aria-hidden="true">
@@ -264,11 +272,12 @@ export default function MaterialsView(props: Props) {
                     <p>
                       <b>{entry.counts.questions} questions</b>
                       <i />
-                      Not attempted
+                      {progress?.practiceSubmitted ? 'Completed' : answered ? `${answered}/${total} answered` : 'Not attempted'}
                     </p>
                   </div>
-                  <Button variant="outline" onClick={() => selectSubject(entry)} aria-label={`Start ${entry.title} practice test`}>
-                    <span>Start</span>
+                  <div className="material-practice-progress"><Progress value={percent} aria-label={`${percent}% complete`} /></div>
+                  <Button variant={answered ? 'default' : 'outline'} onClick={() => selectSubject(entry)} aria-label={`${action} ${entry.title} practice test`}>
+                    <span>{action}</span>
                     <ArrowRight />
                   </Button>
                 </article>
@@ -282,10 +291,13 @@ export default function MaterialsView(props: Props) {
               const count = mode === 'notes' ? entry.counts.sections : entry.counts.flashcards
               const unit = mode === 'notes' ? 'sections' : 'cards'
               const saved = progressByDeck[`materials:${entry.releaseId}`]
-              const reviewed = mode === 'flashcards' && saved?.contentVersion === entry.contentVersion ? Object.values(saved.cards).filter((card) => card.grade && card.grade !== 'again').length : 0
-              const percent = mode === 'flashcards' && count ? Math.round((reviewed / count) * 100) : 0
-              const started = mode === 'flashcards' && reviewed > 0
-              const action = mode === 'notes' ? 'Read' : reviewed >= count && count > 0 ? 'Review' : started ? 'Continue' : 'Study'
+              const materialProgress = materialProgressByRelease[entry.releaseId]
+              const completed = mode === 'notes'
+                ? materialProgress?.contentVersion === entry.contentVersion ? materialProgress.readSectionIds.length : 0
+                : saved?.contentVersion === entry.contentVersion ? Object.values(saved.cards).filter((card) => card.grade && card.grade !== 'again').length : 0
+              const percent = count ? Math.round((completed / count) * 100) : 0
+              const started = completed > 0
+              const action = completed >= count && count > 0 ? 'Review' : started ? 'Continue' : mode === 'notes' ? 'Read' : 'Study'
               return (
                 <Card
                   key={entry.id}
@@ -317,7 +329,7 @@ export default function MaterialsView(props: Props) {
                     </p>
                     <div className="material-catalog-progress">
                       <span>
-                        {mode === 'notes' ? 'Reading notes' : started ? `${reviewed} of ${count} reviewed` : 'Not started'}
+                        {started ? `${completed} of ${count} ${mode === 'notes' ? 'read' : 'reviewed'}` : 'Not started'}
                         <b>{percent}%</b>
                       </span>
                       <Progress value={percent} aria-label={`${percent}% complete`} />
@@ -347,11 +359,15 @@ function SubjectMaterials({
   onNoteContext,
   onNoteRequest,
   onBack,
+  materialProgress,
+  onProgress,
   ...learning
 }: LearningProps & {
   mode: LibraryContentMode
   subject: MaterialSubject
   progress?: FlashcardDeckProgress
+  materialProgress?: MaterialReleaseProgress
+  onProgress: Props['onProgress']
   onCardGrade: (cardId: string, grade: FlashcardGrade) => void
   onNoteContext: Props['onNoteContext']
   onNoteRequest: Props['onNoteRequest']
@@ -372,14 +388,16 @@ function SubjectMaterials({
           <h2 id="subject-materials-heading">{subject.title}</h2>
         </div>
       </header>
-      {mode === 'notes' && <MaterialNotes subject={subject} onNoteContext={onNoteContext} onNoteRequest={onNoteRequest} />}
+      {mode === 'notes' && <MaterialNotes subject={subject} progress={materialProgress} onProgress={onProgress} onNoteContext={onNoteContext} onNoteRequest={onNoteRequest} />}
       {mode === 'flashcards' && <MaterialCards subject={subject} progress={progress} onGrade={onCardGrade} {...learning} />}
-      {mode === 'practice' && <MaterialPractice subject={subject} onBack={onBack} {...learning} />}
+      {mode === 'practice' && <MaterialPractice subject={subject} progress={materialProgress} onProgress={onProgress} onBack={onBack} {...learning} />}
     </section>
   )
 }
 
-function MaterialNotes({ subject, onNoteContext, onNoteRequest }: { subject: MaterialSubject; onNoteContext: Props['onNoteContext']; onNoteRequest: Props['onNoteRequest'] }) {
+function MaterialNotes({ subject, progress, onProgress, onNoteContext, onNoteRequest }: { subject: MaterialSubject; progress?: MaterialReleaseProgress; onProgress: Props['onProgress']; onNoteContext: Props['onNoteContext']; onNoteRequest: Props['onNoteRequest'] }) {
+  const initialProgress = useRef(progress)
+  const reportProgress = useEffectEvent((readSectionIds: string[]) => onProgress(subject, { readSectionIds }))
   const [sections, setSections] = useState<MaterialSectionSummary[]>()
   const [section, setSection] = useState<MaterialSection>()
   const [mnemonics, setMnemonics] = useState<MaterialMnemonic[]>([])
@@ -393,7 +411,7 @@ function MaterialNotes({ subject, onNoteContext, onNoteRequest }: { subject: Mat
         if (current) {
           setSections(nextSections)
           setMnemonics(nextMnemonics)
-          setSelectedId(nextSections[0]?.id)
+          setSelectedId(nextSections.find((entry) => !initialProgress.current?.readSectionIds.includes(entry.id))?.id ?? nextSections[0]?.id)
         }
       })
       .catch((cause) => {
@@ -408,7 +426,10 @@ function MaterialNotes({ subject, onNoteContext, onNoteRequest }: { subject: Mat
     let current = true
     getMaterialSection(subject.releaseId, selectedId)
       .then((row) => {
-        if (current) setSection(row)
+        if (current) {
+          setSection(row)
+          if (!progress?.readSectionIds.includes(row.id)) reportProgress([...(progress?.readSectionIds ?? []), row.id])
+        }
       })
       .catch((cause) => {
         if (current) setError(cause instanceof Error ? cause.message : 'This section could not be loaded.')
@@ -416,7 +437,7 @@ function MaterialNotes({ subject, onNoteContext, onNoteRequest }: { subject: Mat
     return () => {
       current = false
     }
-  }, [reload, selectedId, subject.releaseId])
+  }, [progress?.readSectionIds, reload, selectedId, subject.releaseId])
   useEffect(() => {
     if (section)
       onNoteContext({
@@ -509,6 +530,8 @@ function MaterialCards({
   progress?: FlashcardDeckProgress
   onGrade: (cardId: string, grade: FlashcardGrade) => void
 }) {
+  const initialProgress = useRef(progress)
+  const progressHydrated = useRef(Boolean(progress))
   const [cards, setCards] = useState<MaterialFlashcard[]>(),
     [order, setOrder] = useState<string[]>([]),
     [index, setIndex] = useState(0)
@@ -527,6 +550,8 @@ function MaterialCards({
         if (current) {
           setCards(rows)
           setOrder(rows.map((entry) => entry.id))
+          const firstUnreviewed = rows.findIndex((entry) => !initialProgress.current?.cards[entry.id] || initialProgress.current.cards[entry.id].grade === 'again')
+          setIndex(firstUnreviewed >= 0 ? firstUnreviewed : 0)
         }
       })
       .catch((cause) => {
@@ -546,6 +571,12 @@ function MaterialCards({
   }, [onLearningController])
   const byId = useMemo(() => new Map(cards?.map((entry) => [entry.id, entry])), [cards]),
     card = byId.get(order[index])
+  useEffect(() => {
+    if (progressHydrated.current || !progress || !cards?.length) return
+    progressHydrated.current = true
+    const firstUnreviewed = cards.findIndex((entry) => !progress.cards[entry.id] || progress.cards[entry.id].grade === 'again')
+    setIndex(firstUnreviewed >= 0 ? firstUnreviewed : 0)
+  }, [cards, progress])
   function navigate(next: number) {
     setIndex(Math.max(0, Math.min(order.length - 1, next)))
     setRevealed(false)
@@ -576,7 +607,6 @@ function MaterialCards({
       onSignIn()
       return false
     }
-    if (!window.confirm('Spend 1 credit to generate a hint for this flashcard?')) return false
     setLoadingHintId(card.id)
     setAiError(undefined)
     try {
@@ -779,11 +809,13 @@ function MaterialCards({
   )
 }
 
-function MaterialPractice({ subject, signedIn, onBalance, onInsufficientCredits, onSignIn, onLearningState, onLearningController, onBack }: LearningProps & { subject: MaterialSubject; onBack: () => void }) {
+function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, onInsufficientCredits, onSignIn, onLearningState, onLearningController, onBack }: LearningProps & { subject: MaterialSubject; progress?: MaterialReleaseProgress; onProgress: Props['onProgress']; onBack: () => void }) {
+  const initialProgress = useRef(progress)
+  const progressHydrated = useRef(Boolean(progress))
   const [questions, setQuestions] = useState<MaterialQuestion[]>(),
     [index, setIndex] = useState(0),
-    [answers, setAnswers] = useState<Record<string, number>>({}),
-    [submitted, setSubmitted] = useState(false)
+    [answers, setAnswers] = useState<Record<string, number>>(() => progress?.practiceAnswers ?? {}),
+    [submitted, setSubmitted] = useState(() => progress?.practiceSubmitted ?? false)
   const [hints, setHints] = useState<Record<string, string>>({}),
     [corrections, setCorrections] = useState<string[]>(),
     [loadingHintId, setLoadingHintId] = useState<string>(),
@@ -800,7 +832,12 @@ function MaterialPractice({ subject, signedIn, onBalance, onInsufficientCredits,
       .then((rows) => {
         if (!current) return
         if (rows.length < 20) setError('This practice test does not contain the required 20 questions.')
-        else setQuestions(rows.slice(0, 20))
+        else {
+          const next = rows.slice(0, 20)
+          setQuestions(next)
+          const firstUnanswered = next.findIndex((entry) => initialProgress.current?.practiceAnswers[entry.id] === undefined)
+          setIndex(firstUnanswered >= 0 ? firstUnanswered : 0)
+        }
       })
       .catch((cause) => {
         if (current) setError(cause instanceof Error ? cause.message : 'Practice questions could not be loaded.')
@@ -819,13 +856,20 @@ function MaterialPractice({ subject, signedIn, onBalance, onInsufficientCredits,
   }, [onLearningController])
   const question = questions?.[index],
     answered = Object.keys(answers).length
+  useEffect(() => {
+    if (progressHydrated.current || !progress || !questions?.length || answered > 0) return
+    progressHydrated.current = true
+    setAnswers(progress.practiceAnswers)
+    setSubmitted(progress.practiceSubmitted)
+    const firstUnanswered = questions.findIndex((entry) => progress.practiceAnswers[entry.id] === undefined)
+    setIndex(firstUnanswered >= 0 ? firstUnanswered : 0)
+  }, [answered, progress, questions])
   async function requestHint() {
     if (!question || submitted || hints[question.id] || loadingHintId) return Boolean(question && hints[question.id])
     if (!signedIn) {
       onSignIn()
       return false
     }
-    if (!window.confirm('Spend 1 credit to generate a hint for this question?')) return false
     setLoadingHintId(question.id)
     setAiError(undefined)
     try {
@@ -846,6 +890,7 @@ function MaterialPractice({ subject, signedIn, onBalance, onInsufficientCredits,
     if (!questions || answered !== questions.length || submitted) return false
     setReviewing(false)
     setSubmitted(true)
+    onProgress(subject, { practiceAnswers: answers, practiceSubmitted: true })
     return true
   }
   async function requestCorrections() {
@@ -884,10 +929,11 @@ function MaterialPractice({ subject, signedIn, onBalance, onInsufficientCredits,
             error: 'This assessment has already been submitted.',
           }
         if (action.optionIndex < 0 || action.optionIndex >= question.options.length) return { ok: false, error: 'That option is not available.' }
-        setAnswers((current) => ({
-          ...current,
-          [question.id]: action.optionIndex,
-        }))
+        setAnswers((current) => {
+          const next = { ...current, [question.id]: action.optionIndex }
+          onProgress(subject, { practiceAnswers: next })
+          return next
+        })
         return {
           ok: true,
           message: `Option ${String.fromCharCode(65 + action.optionIndex)} selected for question ${index + 1}.`,
@@ -1046,12 +1092,11 @@ function MaterialPractice({ subject, signedIn, onBalance, onInsufficientCredits,
                       type="radio"
                       name={`material-question-${question.id}`}
                       checked={isSelected}
-                      onChange={() =>
-                        setAnswers((current) => ({
-                          ...current,
-                          [question.id]: optionIndex,
-                        }))
-                      }
+                      onChange={() => setAnswers((current) => {
+                        const next = { ...current, [question.id]: optionIndex }
+                        onProgress(subject, { practiceAnswers: next })
+                        return next
+                      })}
                     />
                     <span>{String.fromCharCode(65 + optionIndex)}</span>
                     <b>{option}</b>

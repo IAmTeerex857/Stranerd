@@ -65,7 +65,7 @@ export function DissectionActivitiesView({ mode, activeActivityId, onGuided, onC
   }
 
   return <section className="content-view dissection-activity-view lab-catalog-view anim">
-    <div className="lab-catalog-hero"><div><span>Guided dissection</span><h1>Lab</h1><p>Step-by-step activities that combine structure identification, model manipulation and deterministic knowledge checks. Mentor explains results, it never decides them.</p></div></div>
+    <div className="lab-catalog-hero"><div><span>Guided dissection</span><h1>Lab</h1><p>Step-by-step activities that combine structure identification, model manipulation and deterministic knowledge checks. Nerd Bot explains results, it never decides them.</p></div></div>
     <div className="activity-catalog">{anatomyActivities.map((activity) => {
       const model = modelById(activity.modelId)
       return <Card key={activity.id} data-accent={activityAccents[activity.id]}><header><i><FlaskConical size={19} /></i><span>{activity.steps.length} checkpoints</span></header><div><small>{model.name}</small><h2>{activity.title}</h2><p>{activity.description}</p></div><Button onClick={() => onGuided(activity)}>Start Lab<ArrowRight size={14} /></Button></Card>

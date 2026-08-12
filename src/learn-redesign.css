@@ -181,6 +181,8 @@
 .learn-redesign .material-practice-icon { display: grid; width: 48px; height: 48px; flex: 0 0 auto; place-items: center; border-radius: 13px; color: var(--subject-color); background: color-mix(in srgb, var(--subject-color) 16%, transparent); }
 .learn-redesign .material-practice-icon svg { width: 22px; height: 22px; }
 .learn-redesign .material-practice-list article > div { min-width: 0; flex: 1; }
+.learn-redesign .material-practice-list article > .material-practice-progress { max-width: 110px; flex: 0 1 110px; }
+.learn-redesign .material-practice-progress [data-slot="progress"] { height: 6px; }
 .learn-redesign .material-practice-list h3 { margin: 0 0 5px; overflow: hidden; font-size: 16px; font-weight: 600; letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
 .learn-redesign .material-practice-list p { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--learn-fg-2); font-size: 12.5px; }
 .learn-redesign .material-practice-list p b { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 400; }
@@ -308,6 +310,10 @@
 .learn-redesign .subject-materials-header .library-back,
 .learn-redesign .library-back {
   min-height: 44px;
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .learn-redesign .subject-materials-header h2 {
@@ -736,6 +742,8 @@
   .learn-redesign .material-practice-list article > button { width: 44px; min-width: 44px; min-height: 44px; padding: 0; border-color: var(--primary); color: #fff; background: var(--primary); }
   .learn-redesign .material-practice-list article > button span { display: none; }
   .learn-redesign .material-practice-list article > button svg { margin: 0; }
+  .learn-redesign .material-practice-list article > .material-practice-progress { position: absolute; right: 70px; bottom: 12px; left: 70px; max-width: none; }
+  .learn-redesign .material-practice-list article { position: relative; padding-bottom: 24px; }
 
   .learn-redesign .subject-materials-header { padding: 0; }
   .learn-redesign .subject-materials-header h2 { font-size: 24px; }

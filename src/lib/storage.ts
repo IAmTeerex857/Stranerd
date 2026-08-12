@@ -17,6 +17,7 @@ export const defaultPersistedState: PersistedState = {
   dissectionByModel: {},
   flashcardProgressByDeck: {},
   pendingFlashcardReviews: [],
+  materialProgressByRelease: {},
   settings: defaultSettings,
 }
 
@@ -93,6 +94,24 @@ export function parsePersistedState(raw: string | null): PersistedState {
         }))
         : {},
       pendingFlashcardReviews: parsePendingReviews(value.pendingFlashcardReviews),
+      materialProgressByRelease: value.materialProgressByRelease && typeof value.materialProgressByRelease === 'object' && !Array.isArray(value.materialProgressByRelease)
+        ? Object.fromEntries(Object.entries(value.materialProgressByRelease).flatMap(([releaseId, progress]) => {
+          if (!validText(releaseId, 200) || !progress || typeof progress !== 'object' || Array.isArray(progress)) return []
+          const entry = progress as Partial<PersistedState['materialProgressByRelease'][string]>
+          if (!validText(entry.contentVersion, 200) || !validDate(entry.updatedAt)) return []
+          const practiceAnswers = entry.practiceAnswers && typeof entry.practiceAnswers === 'object' && !Array.isArray(entry.practiceAnswers)
+            ? Object.fromEntries(Object.entries(entry.practiceAnswers).filter((item): item is [string, number] => validText(item[0], 300) && Number.isInteger(item[1]) && item[1] >= 0 && item[1] <= 3))
+            : {}
+          return [[releaseId, {
+            contentVersion: entry.contentVersion,
+            readSectionIds: Array.isArray(entry.readSectionIds) ? [...new Set(entry.readSectionIds.filter((id): id is string => validText(id, 300)))] : [],
+            practiceAnswers,
+            practiceSubmitted: entry.practiceSubmitted === true,
+            updatedAt: entry.updatedAt!,
+          }]]
+        }))
+        : {},
+      materialProgressOwnerId: typeof value.materialProgressOwnerId === 'string' ? value.materialProgressOwnerId : undefined,
       settings: Object.fromEntries(Object.entries(defaultSettings).map(([key, fallback]) => [
         key,
         value.settings && typeof value.settings === 'object' && typeof value.settings[key as keyof Settings] === 'boolean'

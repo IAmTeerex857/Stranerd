@@ -60,7 +60,7 @@ function LearningLoop() {
 function MentorInterface() {
   return <div className="landing-product-frame mentor-demo">
     <div className="mentor-demo-context"><span>Selected context</span><h3>Left atrium</h3><p>Receives oxygenated blood from the pulmonary veins.</p><div><b>Moved</b><span>Left atrium, pulmonary trunk</span></div><div><b>Hidden</b><span>Right atrium</span></div></div>
-    <div className="mentor-demo-chat"><header><Bot size={16} /><span>Stranerd Mentor</span><b>Explicit AI · 1 credit</b></header><div className="mentor-question">Explain the function of every structure I moved.</div><div className="mentor-answer"><span>AI Mentor</span><p><b>Left atrium:</b> receives oxygenated blood returning from both lungs.</p><p><b>Pulmonary trunk:</b> carries deoxygenated blood from the right ventricle toward the pulmonary arteries.</p></div><footer><span>Balance shown before request</span><b>Ask AI · 1 credit <ArrowRight size={14} /></b></footer></div>
+    <div className="mentor-demo-chat"><header><Bot size={16} /><span>Nerd Bot</span><b>Explicit AI · 1 credit</b></header><div className="mentor-question">Explain the function of every structure I moved.</div><div className="mentor-answer"><span>Nerd Bot</span><p><b>Left atrium:</b> receives oxygenated blood returning from both lungs.</p><p><b>Pulmonary trunk:</b> carries deoxygenated blood from the right ventricle toward the pulmonary arteries.</p></div><footer><span>Balance shown before request</span><b>Ask Nerd Bot · 1 credit <ArrowRight size={14} /></b></footer></div>
   </div>
 }
 
@@ -80,7 +80,7 @@ function LandingPricing() {
 
 const faqs = [
   ['Can I explore anatomy without signing in?', 'Yes. Models, guided Labs, free dissection, verified assessments, default flashcards, and educational context are available without using AI credits.'],
-  ['When does Stranerd use a credit?', 'Only when you explicitly ask AI Mentor or request a new AI-generated quiz. The cost is shown before the action.'],
+  ['When does Stranerd use a credit?', 'Only when you explicitly ask Nerd Bot or request a new AI-generated quiz. The cost is shown before the action.'],
   ['What happens if an AI request fails?', 'The reserved credit is refunded automatically. Failed or invalid AI responses cost zero net credits.'],
   ['Do purchased credits expire?', 'No. Purchased PAYG credits remain in your account and are spent only after free and subscription credits.'],
   ['Is Stranerd medical advice?', 'No. Stranerd is an educational study tool. It does not provide diagnosis, treatment, or patient-specific medical advice.'],
@@ -91,7 +91,7 @@ export function LandingPage() {
     <section className="landing-new-hero" aria-labelledby="landing-title">
       <div className="hero-copy"><span className="landing-kicker">Interactive anatomy for active learners</span><h1 id="landing-title">Do not just look at anatomy.<br /><em>Work with it.</em></h1><p>Explore real spatial relationships, dissect structures, test recall, and ask for AI only when it adds value.</p><div><a className="landing-primary" href="/app">Enter the anatomy lab <ArrowRight /></a><a className="landing-secondary" href="#how-it-works">See how it works</a></div></div>
       <div className="hero-model-wrap"><LandingHeart /><span className="hero-model-label label-top">01 · Ascending aorta</span><span className="hero-model-label label-bottom">02 · Left ventricle</span><small>Drag to inspect</small></div>
-      <footer><span>10 anatomy studies</span><span>Persistent dissection</span><span>Authored learning loop</span><span>Optional AI Mentor</span></footer>
+      <footer><span>10 anatomy studies</span><span>Persistent dissection</span><span>Authored learning loop</span><span>Optional Nerd Bot</span></footer>
     </section>
 
     <section className="landing-preface landing-reveal" id="how-it-works"><SectionMarker index="01">The problem</SectionMarker><p>Flat diagrams are good for naming structures. They are less useful for understanding what sits behind, beneath, around, and through them.</p></section>
@@ -108,7 +108,7 @@ export function LandingPage() {
 
     <section className="landing-organ-worlds landing-reveal"><SectionMarker index="05">Across systems</SectionMarker><div className="story-heading"><h2>Different anatomy.<br />One learning language.</h2><p>Color and motion change with the subject. The controls and study loop stay familiar.</p></div><OrganShowcase /></section>
 
-    <section className="landing-ai landing-reveal"><SectionMarker index="06">AI, when requested</SectionMarker><div className="story-heading split"><h2>Context-aware help.<br />Never an invisible charge.</h2><p>Mentor receives your selected and moved structures. You choose when to ask, see the cost first, and pay nothing when a request fails.</p></div><MentorInterface /></section>
+    <section className="landing-ai landing-reveal"><SectionMarker index="06">AI, when requested</SectionMarker><div className="story-heading split"><h2>Context-aware help.<br />Never an invisible charge.</h2><p>Nerd Bot receives your selected and moved structures. You choose when to ask, see the cost first, and pay nothing when a request fails.</p></div><MentorInterface /></section>
 
     <section className="landing-library landing-reveal"><SectionMarker index="07">The anatomy library</SectionMarker><div className="library-heading"><h2>Study one organ deeply.<br />Or connect the whole body.</h2><p>Each subject includes realistic and interactive specimens where the source geometry supports them.</p></div><div className="subject-index">{subjects.map(([id, subject], index) => <a key={id} href={`/app?model=${id}`}><span>{String(index + 1).padStart(2, '0')}</span><strong>{subject}</strong><ChevronRight /></a>)}</div></section>
 

@@ -10,6 +10,7 @@ import { cancelSubscription, checkoutRail, useBillingOptions } from "./lib/billi
 import { sendWelcomeEmail } from "./lib/email";
 import { ThemeControl } from "./theme";
 import { MotionControl } from "./preferences";
+import { userAvatar, userFirstName } from "./lib/userProfile";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -313,12 +314,8 @@ export function AccountPage() {
 
   const wallet = data?.wallet;
   const total = wallet ? wallet.free_balance + wallet.subscription_balance + wallet.purchased_balance : undefined;
-  const name =
-    data?.profile?.display_name ||
-    user.user_metadata.full_name ||
-    user.email ||
-    "Stranerd learner";
-  const avatar = data?.profile?.avatar_url || user.user_metadata.avatar_url;
+  const name = userFirstName(user);
+  const avatar = userAvatar(user) || data?.profile?.avatar_url;
   const subscription = data?.subscription;
   const subscriptionLabels: Record<string, string> = { pending: "Plus activation pending", active: "Stranerd Plus", past_due: "Plus payment past due", cancelled: "Plus cancelled", completed: "Previous Plus plan completed" };
   const subscriptionTitle = subscription ? subscriptionLabels[subscription.status] || `Plan status: ${subscription.status}` : "Free account";
@@ -336,7 +333,7 @@ export function AccountPage() {
     <Page themed account>
       <main className="account-page account-redesign">
         <header className="account-heading">
-          <div className="account-profile-mobile">{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : <span>{String(name).split(/\s+/).slice(0, 2).map((part: string) => part[0]).join("").toUpperCase()}</span>}<div><h2>{name}</h2><p>{data?.profile?.email || user.email}</p></div></div>
+          <div className="account-profile-mobile">{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : <span>{name[0]?.toUpperCase()}</span>}<div><h2>{name}</h2></div></div>
           <div className="account-billing-heading"><span className="account-kicker">Billing</span><h1>Credits &amp; plan</h1></div>
         </header>
         {error && (

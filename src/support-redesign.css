@@ -48,7 +48,7 @@
 .assistant-panel .assistant-tabs-list svg { display: none; }
 .assistant-panel .assistant-tab-content { margin: 0; border: 0; border-radius: 0; background: var(--card); }
 .assistant-panel .mentor-context { margin: 14px 18px 0; border-color: color-mix(in srgb, var(--support-ai) 12%, transparent); border-radius: 12px; background: var(--support-ai-soft); }
-.assistant-panel .transcript { gap: 14px; padding: 18px; }
+.assistant-panel .transcript { display: flex; align-items: stretch; flex-direction: column; gap: 14px; padding: 18px; }
 .assistant-panel .chat-row {
   width: fit-content;
   max-width: 88%;
@@ -58,6 +58,7 @@
 }
 .assistant-panel .chat-row.mentor { align-self: flex-start; border-radius: 15px 15px 15px 5px; background: var(--support-ai-soft); }
 .assistant-panel .chat-row.student { align-self: flex-end; border-color: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: 15px 15px 5px 15px; background: var(--secondary); }
+.assistant-panel .chat-row.student { margin-left: 0; }
 .assistant-panel .chat-row > span { min-width: 24px; color: var(--support-ai); font-size: 9px; }
 .assistant-panel .chat-row.student > span { color: var(--primary); }
 .assistant-panel .mentor-copy p,
@@ -165,7 +166,10 @@
 .voice-privacy .section-kicker { display: flex; align-items: center; gap: 7px; color: var(--support-ai); }
 .voice-privacy p,
 .data-controls p { margin: 12px 0; color: var(--muted-foreground); font-size: 12.5px; line-height: 1.6; }
-.voice-privacy > a { display: inline-flex; align-items: center; gap: 5px; color: var(--primary); font-size: 12px; font-weight: 600; }
+.voice-privacy > div { display: grid; gap: 0; }
+.voice-privacy > div > a { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: 10px; color: var(--foreground); font-size: 12px; font-weight: 600; }
+.voice-privacy > div > a + a { border-top: 1px solid var(--support-line); }
+.voice-privacy > div > a svg { flex: 0 0 auto; }
 
 /* Pricing */
 .pricing-page { width: min(1180px, 100%); padding: 72px 28px 88px; }

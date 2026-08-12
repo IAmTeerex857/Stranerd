@@ -128,6 +128,14 @@ export type PendingFlashcardReview = {
   reviewedAt: string
 }
 
+export type MaterialReleaseProgress = {
+  contentVersion: string
+  readSectionIds: string[]
+  practiceAnswers: Record<string, number>
+  practiceSubmitted: boolean
+  updatedAt: string
+}
+
 export type Note = {
   id: string
   modelId: string
@@ -157,6 +165,8 @@ export type PersistedState = {
   dissectionByModel: Record<string, PersistedDissectionSession>
   flashcardProgressByDeck: Record<string, FlashcardDeckProgress>
   pendingFlashcardReviews: PendingFlashcardReview[]
+  materialProgressByRelease: Record<string, MaterialReleaseProgress>
+  materialProgressOwnerId?: string
   settings: Settings
 }
 
