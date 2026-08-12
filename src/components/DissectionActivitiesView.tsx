@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Check, Route } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CircleDot, Route } from 'lucide-react'
 import { anatomyActivities, type AnatomyActivity } from '../data/activities'
 import { modelById } from '../data/models'
 import { digestiveDissectionQuiz } from '../data/dissection'
@@ -25,13 +25,14 @@ export function DissectionActivitiesView({ mode, activeActivityId, onGuided, onC
   if (mode === 'guided' && active) {
     const guideComplete = guidedStep === active.steps.length
     const currentStep = guidedStep === null ? undefined : active.steps[guidedStep]
-    return <section className="content-view dissection-activity-view anim">
-      <Button variant="ghost" className="library-back" onClick={onCatalog}><ArrowLeft size={14} />Back to Lab</Button>
-      <div className="view-title"><h1>{active.title}</h1><p>{active.description}</p></div>
-      <div className="activity-objectives">{active.steps.map((step, index) => <div key={`${step.prompt}-${index}`} className={guidedStep !== null && index < guidedStep ? 'complete' : ''}><span>{String(index + 1).padStart(2, '0')}</span><p>{step.prompt}</p>{guidedStep !== null && index < guidedStep && <Check size={14} />}</div>)}</div>
+    const completedSteps = guidedStep === null ? 0 : Math.min(guidedStep, active.steps.length)
+    return <section className="content-view dissection-activity-view lab-runner-view anim">
+      <header className="lab-runner-header"><Button variant="ghost" className="library-back" onClick={onCatalog}><ArrowLeft size={14} />All Labs</Button><span>{completedSteps}/{active.steps.length} complete</span></header>
+      <div className="lab-runner-title"><span>{modelById(active.modelId).name}</span><h1>{active.title}</h1><p>{active.description}</p></div>
+      <div className="lab-step-track" aria-label={`${completedSteps} of ${active.steps.length} checkpoints complete`}>{active.steps.map((step, index) => <i key={`${step.prompt}-${index}`} className={guidedStep !== null && index < guidedStep ? 'complete' : index === guidedStep ? 'current' : ''} />)}</div>
       <section className={`activity-runner ${guideComplete ? 'complete' : ''}`}>
-        {guidedStep === null && <><span>Lab briefing</span><h2>{active.title}</h2><p>Identify structures, answer anatomy questions, and manipulate the model. Each completed checkpoint unlocks the next.</p><Button onClick={onStartGuide}>Start guided Lab<ArrowRight size={15} /></Button></>}
-        {currentStep?.kind === 'action' && <><span>Model action · step {guidedStep! + 1} of {active.steps.length}</span><h2>{currentStep.prompt}</h2><p>Complete this action in the 3D viewer. Stranerd advances only after the required action and target are validated.</p></>}
+        {guidedStep === null && <><span>Lab briefing</span><h2>Work checkpoint by checkpoint.</h2><p>Use the model to identify structures and perform each exact action. Knowledge checks appear here between model tasks.</p><Button onClick={onStartGuide}>Begin Lab<ArrowRight size={15} /></Button></>}
+        {currentStep?.kind === 'action' && <><span>Model action · step {guidedStep! + 1} of {active.steps.length}</span><h2>{currentStep.prompt}</h2><div className="lab-action-status"><CircleDot size={15} /><p>Waiting for the exact action and structure in the 3D viewer.</p></div></>}
         {currentStep?.kind === 'question' && <><span>Knowledge check · step {guidedStep! + 1} of {active.steps.length}</span><h2>{currentStep.question}</h2><fieldset>{currentStep.options.map((option, index) => <label key={option}><input type="radio" name={`activity-step-${guidedStep}`} checked={quizChoice === index} onChange={() => onQuizChoice(index)} /><i>{String.fromCharCode(65 + index)}</i>{option}</label>)}</fieldset>{quizPassed === undefined ? <Button disabled={quizChoice === undefined} onClick={onQuizCheck}>Check answer</Button> : <><div className={`activity-feedback ${quizPassed ? 'pass' : 'fail'}`}><strong>{quizPassed ? 'Correct' : 'Not quite'}</strong><p>{currentStep.explanation}</p></div>{quizPassed && <Button onClick={onStepContinue}>Continue<ArrowRight size={15} /></Button>}</>}</>}
         {guideComplete && active.modelId === 'digestive-system' && <><span>Sequence complete</span><h2>Pathway check</h2><p>{digestiveDissectionQuiz.question}</p><fieldset>{digestiveDissectionQuiz.options.map((option, index) => <label key={option}><input type="radio" name="activity-quiz" checked={quizChoice === index} onChange={() => onQuizChoice(index)} /><i>{String.fromCharCode(65 + index)}</i>{option}</label>)}</fieldset><button className="primary" disabled={quizChoice === undefined} onClick={onQuizCheck}>Check answer</button>{quizPassed !== undefined && <div className={`activity-feedback ${quizPassed ? 'pass' : 'fail'}`}><strong>{quizPassed ? 'Correct' : 'Not quite'}</strong><p>{digestiveDissectionQuiz.explanation}</p></div>}</>}
         {guideComplete && active.modelId !== 'digestive-system' && <><span>Lab complete</span><h2>Learning sequence completed</h2><p>You identified anatomy, answered the knowledge checks, and completed the model interactions.</p></>}
@@ -40,10 +41,10 @@ export function DissectionActivitiesView({ mode, activeActivityId, onGuided, onC
   }
 
   return <section className="content-view dissection-activity-view lab-catalog-view anim">
-    <div className="view-title"><h1>Learn by revealing structure.</h1><p>Choose a guided Lab and complete each validated anatomy checkpoint.</p></div>
+    <div className="lab-catalog-hero"><div><span>Interactive anatomy Labs</span><h1>Learn by revealing structure.</h1><p>Ten guided practicals pair the 3D specimen with deterministic anatomy checkpoints. Every model action is validated locally against the required structure.</p></div><aside><strong>{String(anatomyActivities.length).padStart(2, '0')}</strong><span>Guided Labs</span></aside></div>
     <div className="activity-catalog">{anatomyActivities.map((activity) => {
       const model = modelById(activity.modelId)
-      return <Card key={activity.id}><span>{model.name}</span><h2>{activity.title}</h2><p>{activity.description}</p><footer><b>{activity.steps.length} guided checkpoints</b><div><Button onClick={() => onGuided(activity)}><Route size={14} />Start Lab<ArrowRight size={14} /></Button></div></footer></Card>
+      return <Card key={activity.id}><header><span>{model.name}</span><Route size={16} /></header><h2>{activity.title}</h2><p>{activity.description}</p><footer><b>{activity.steps.length} checkpoints</b><Button onClick={() => onGuided(activity)}>Open Lab<ArrowRight size={14} /></Button></footer></Card>
     })}</div>
   </section>
 }

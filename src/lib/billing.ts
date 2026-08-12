@@ -1,24 +1,43 @@
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { supabase } from './supabase'
 
 export type BillingProductId = 'subscription' | 'payg_100'
 export type BillingRail = 'ngn' | 'usd_card' | 'stablecoin'
 export type BillingOptions = { country: string; rails: Record<BillingProductId, BillingRail[]>; unavailable?: boolean }
 
+let billingOptions: BillingOptions | undefined
+let billingOptionsRequest: Promise<void> | undefined
+const billingOptionsListeners = new Set<() => void>()
+
+function loadBillingOptions() {
+  if (billingOptionsRequest) return
+  billingOptionsRequest = fetch('/api/billing/checkout', { cache: 'no-store' })
+    .then(async (response) => {
+      const body = await response.json() as BillingOptions
+      if (!response.ok || !body.rails) throw new Error('Payment options could not be loaded.')
+      billingOptions = body
+    })
+    .catch(() => {
+      billingOptions = { country: 'UNKNOWN', rails: { subscription: [], payg_100: [] }, unavailable: true }
+    })
+    .finally(() => billingOptionsListeners.forEach((listener) => listener()))
+}
+
+function subscribeBillingOptions(listener: () => void) {
+  billingOptionsListeners.add(listener)
+  loadBillingOptions()
+  return () => billingOptionsListeners.delete(listener)
+}
+
 export function useBillingOptions() {
-  const [options, setOptions] = useState<BillingOptions>()
-  useEffect(() => {
-    let active = true
-    fetch('/api/billing/checkout', { cache: 'no-store' })
-      .then(async (response) => {
-        const body = await response.json() as BillingOptions
-        if (!response.ok || !body.rails) throw new Error('Payment options could not be loaded.')
-        if (active) setOptions(body)
-      })
-      .catch(() => { if (active) setOptions({ country: 'UNKNOWN', rails: { subscription: [], payg_100: [] }, unavailable: true }) })
-    return () => { active = false }
-  }, [])
-  return options
+  return useSyncExternalStore(subscribeBillingOptions, () => billingOptions, () => undefined)
+}
+
+export function checkoutRail(options: BillingOptions | undefined, productId: BillingProductId) {
+  if (!options) return undefined
+  const rails = options.rails[productId]
+  if (options.country === 'NG') return rails.find((rail) => rail === 'ngn')
+  return rails.find((rail) => rail === 'usd_card') || rails.find((rail) => rail !== 'ngn')
 }
 
 async function billingFetch(path: string, init: RequestInit = {}) {

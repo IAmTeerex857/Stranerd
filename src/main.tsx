@@ -12,6 +12,9 @@ import './styles.css'
 import './landing.css'
 import './app.css'
 import './design-system.css'
+import './learn-redesign.css'
+import './lab-redesign.css'
+import './support-redesign.css'
 
 const App = lazy(() => import('./App'))
 const PublicPages = lazy(() => import('./PublicPages').then((module) => ({ default: module.PublicPages })))

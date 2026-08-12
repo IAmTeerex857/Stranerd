@@ -188,14 +188,18 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
     event.stopPropagation()
   }
 
-  function pointerUp(event: ThreeEvent<PointerEvent>) {
-    if (drag.current?.moved) {
+  function finishPointer(event: ThreeEvent<PointerEvent>, cancelled = false) {
+    if (drag.current?.moved && !cancelled) {
       suppressClick.current = true
       onMoveEnd?.(drag.current.nodeId)
     }
     if (drag.current) (event.target as HTMLElement).releasePointerCapture?.(drag.current.pointerId)
     drag.current = undefined
     if (controlsRef.current) controlsRef.current.enabled = true
+  }
+
+  function pointerUp(event: ThreeEvent<PointerEvent>) {
+    finishPointer(event)
   }
 
   return <group>
@@ -213,6 +217,7 @@ function BodyLayer({ layer, visible, interactive, selectedIds, settings, onSelec
       onPointerDown={interactive ? pointerDown : undefined}
       onPointerMove={interactive ? pointerMove : undefined}
       onPointerUp={interactive ? pointerUp : undefined}
+      onPointerCancel={interactive ? (event: ThreeEvent<PointerEvent>) => finishPointer(event, true) : undefined}
       onPointerOver={interactive ? (event: { stopPropagation: () => void }) => { event.stopPropagation(); document.body.style.cursor = 'pointer' } : undefined}
       onPointerOut={interactive ? () => { document.body.style.cursor = '' } : undefined}
     />

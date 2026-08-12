@@ -215,13 +215,14 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
         startOffset: new Vector3(...(interaction.current.offsets[candidate.movementId] ?? interaction.current.offsets[candidate.nodeId] ?? [0, 0, 0])),
         moved: false,
       }
+      canvas.setPointerCapture?.(event.pointerId)
+      if (controls && 'enabled' in controls) controls.enabled = false
     }
     const pointerMove = (event: PointerEvent) => {
       if (!drag || start.distanceTo(new Vector2(event.clientX, event.clientY)) <= 5) return
       if (!drag.moved) {
         drag.moved = true
         interaction.current.onMoveStart?.()
-        if (controls && 'enabled' in controls) controls.enabled = false
       }
       raycaster.setFromCamera(pointerPosition(event), camera)
       const target = raycaster.ray.intersectPlane(drag.plane, new Vector3())
@@ -233,14 +234,20 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
       interaction.current.onMove?.(drag.movementId, [offset.x, offset.y, offset.z])
       event.preventDefault()
     }
+    const finishDrag = (event: PointerEvent, cancelled = false) => {
+      if (drag?.moved && !cancelled) interaction.current.onMoveEnd?.(drag.nodeId)
+      if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture?.(event.pointerId)
+      if (controls && 'enabled' in controls) controls.enabled = true
+      const moved = drag?.moved
+      drag = undefined
+      return moved
+    }
     const pointerUp = (event: PointerEvent) => {
       if (drag?.moved) {
-        interaction.current.onMoveEnd?.(drag.nodeId)
-        if (controls && 'enabled' in controls) controls.enabled = true
-        drag = undefined
+        finishDrag(event)
         return
       }
-      drag = undefined
+      finishDrag(event)
       if (start.distanceTo(new Vector2(event.clientX, event.clientY)) > 5) return
       raycaster.setFromCamera(pointerPosition(event), camera)
       const candidates: typeof prepared.proxies = []
@@ -260,14 +267,17 @@ export function SegmentedSpecimenModel({ url, systemId, selectedIds, settings, o
         interaction.current.onSelect({ ...selection, id: selected.nodeId, nodeId: selected.nodeId }, event.shiftKey)
       }
     }
+    const pointerCancel = (event: PointerEvent) => { finishDrag(event, true) }
     const canvas = gl.domElement
     canvas.addEventListener('pointerdown', pointerDown)
     canvas.addEventListener('pointermove', pointerMove)
     canvas.addEventListener('pointerup', pointerUp)
+    canvas.addEventListener('pointercancel', pointerCancel)
     return () => {
       canvas.removeEventListener('pointerdown', pointerDown)
       canvas.removeEventListener('pointermove', pointerMove)
       canvas.removeEventListener('pointerup', pointerUp)
+      canvas.removeEventListener('pointercancel', pointerCancel)
       if (controls && 'enabled' in controls) controls.enabled = true
     }
   }, [camera, controls, gl, prepared, raycaster, systemId])

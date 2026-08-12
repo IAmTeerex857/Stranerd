@@ -1,5 +1,5 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { ArrowRight, BookOpenCheck, Bot, CornerDownRight, GalleryVerticalEnd, GitCompareArrows, Mic, Send, X } from 'lucide-react'
+import { ArrowRight, BookOpenCheck, Bot, CornerDownRight, GalleryVerticalEnd, GitCompareArrows, Mic, Send, Sparkles, X } from 'lucide-react'
 import type { ChatItem, DissectionHistoryItem, Hotspot, ModelEntry } from '../types'
 import { askMentor } from '../lib/mentor'
 import { anatomyGraph, anatomyLayers } from '../data/anatomyGraph'
@@ -50,7 +50,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const transcript = useRef<HTMLDivElement>(null)
   const transcriptEnd = useRef<HTMLDivElement>(null)
-  const visibleMessages = messages.filter((message) => !message.text.startsWith('Authored context') && !message.text.startsWith('SELECTED'))
+  const visibleMessages = messages.filter((message) => message.role !== 'engine' && !message.text.startsWith('Authored context') && !message.text.startsWith('SELECTED'))
   const showSuggestions = visibleMessages.length <= 1 && !selectedHotspot && !noteContext
   const suggestions = [
     { Icon: BookOpenCheck, label: `Quiz me on ${model.name.toLowerCase()} structure and function` },
@@ -67,7 +67,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
     return () => window.cancelAnimationFrame(frame)
   }, [messages, mobileOpen, typing])
   useEffect(() => {
-    if (!mobileOpen || window.innerWidth > 760) return
+    if (!mobileOpen || window.innerWidth >= 1200) return
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = previous }
@@ -140,9 +140,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
         <TabsContent value="text" className="assistant-tab-content assistant-text-tab">
           {noteContext ? <div className="mentor-context note-mentor-context"><header><span>Active note</span></header><strong>{noteContext.subject}</strong><small>{noteContext.section}{noteContext.selectedText ? ' · selection included' : ''}</small></div> : selectedHotspot && <div className="mentor-context"><header><span>Selected context</span><b>{selectedHotspot.source === 'mesh' ? `KG ${anatomyGraph.contentVersion}` : model.name}</b></header><strong>{selectedHotspot.label}</strong><small>{anatomyLayers.find((layer) => layer.id === selectedHotspot.systemId)?.label || model.system} system</small><Button variant="ghost" size="sm" onClick={() => setInput(`Explain the structure and function of ${selectedHotspot.label}.`)}>Ask about this<CornerDownRight size={13} /></Button></div>}
           <div className={`transcript ${showSuggestions ? 'suggestion-state' : ''}`} ref={transcript} aria-live="polite">
-            {showSuggestions ? <div className="mentor-welcome"><span className="mentor-welcome-mark"><Bot /></span><h2>Learn with Stranerd Mentor</h2><p>Ask about the current model, test your recall, or compare anatomical relationships.</p><div>{suggestions.map(({ Icon, label }) => <button key={label} onClick={() => setInput(label)}><span><Icon /></span>{label}<ArrowRight /></button>)}</div><small>Text Mentor uses 1 credit per response.</small></div> : visibleMessages.map((message) => message.role === 'engine' ? (
-              <div key={message.id} className={`engine-chip ${message.status}`}>{message.text}</div>
-            ) : (
+            {showSuggestions ? <div className="mentor-welcome"><span className="mentor-welcome-mark"><Bot /></span><h2>Learn with Mentor</h2><p>Ask about the current model, test your recall, or compare anatomical relationships.</p><div>{suggestions.map(({ Icon, label }) => <button key={label} onClick={() => setInput(label)}><span><Icon /></span>{label}<ArrowRight /></button>)}</div><small>Grounded in your current anatomy context</small></div> : visibleMessages.map((message) => (
               <div key={message.id} className={`chat-row ${message.role} ${message.pending ? 'pending' : ''}`}><span>{message.role === 'mentor' ? <Bot size={15} /> : 'YOU'}</span><MentorText text={message.text} /></div>
             ))}
             {typing && <div className="typing"><i /><i /><i /><span>Mentor is responding</span></div>}
@@ -150,8 +148,8 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
           </div>
           {actionError && !actionError.needsCredits && <div className="mentor-action-error"><span>{actionError.message}</span></div>}
           <form className="mentor-input" onSubmit={submit}>
-            <div><Textarea ref={inputRef} id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${noteContext?.section || selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button variant="ai" size="icon" aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><Send size={16} /></Button></div>
-            <small>{user ? `${balance ? `${balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance} credits` : 'Loading credits'} | ` : ''}Enter to send</small>
+            <div><Textarea ref={inputRef} id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${noteContext?.section || selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button variant="ai" className="mentor-send" aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><span>Send</span><b><Sparkles size={11} />1</b><Send className="mentor-send-mobile" size={16} /></Button></div>
+            <small><span>{user ? (balance ? `${balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance} credits available` : 'Loading credits') : 'Sign in to ask'}</span><span>Each reply costs 1 credit</span></small>
           </form>
         </TabsContent>
         <TabsContent value="voice" className="assistant-tab-content assistant-voice-tab"><VoiceDock key={`${voiceMode}:${model.id}`} embedded mode={voiceMode} modelId={model.id} context={voiceContext} onAction={onVoiceAction} onInsufficientCredits={onVoiceInsufficientCredits} /></TabsContent>

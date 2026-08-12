@@ -13,6 +13,7 @@ import type { ResolvedTheme } from '../theme-utils'
 import { usePreferences } from '../preferences-context'
 import { Button } from '@/components/ui/button'
 import type { VoiceAction, VoiceActionResult } from '../lib/voiceActions'
+import { cameraViewOffset } from '../lib/cameraViewOffset'
 
 const EMPTY_STRUCTURES: Hotspot[] = []
 
@@ -178,10 +179,57 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
   )
 }
 
+function OpticalCameraCenter({ canvasWrapRef, dissectDockRef, panelState }: { canvasWrapRef: RefObject<HTMLDivElement | null>; dissectDockRef: RefObject<HTMLElement | null>; panelState: string }) {
+  const { camera, gl, invalidate } = useThree()
+
+  useEffect(() => {
+    if (!('setViewOffset' in camera) || !('clearViewOffset' in camera)) return
+    let frame = 0
+    const measure = () => {
+      window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        const canvas = gl.domElement.getBoundingClientRect()
+        const panels = [dissectDockRef.current, document.getElementById('stranerd-mentor')]
+          .filter((element): element is HTMLElement => Boolean(element && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden'))
+          .map((element) => element.getBoundingClientRect())
+        const offset = cameraViewOffset(canvas, panels)
+        if (offset.x === 0 && offset.y === 0) camera.clearViewOffset()
+        else camera.setViewOffset(Math.max(1, Math.round(canvas.width)), Math.max(1, Math.round(canvas.height)), offset.x, offset.y, Math.max(1, Math.round(canvas.width)), Math.max(1, Math.round(canvas.height)))
+        camera.updateProjectionMatrix()
+        invalidate()
+      })
+    }
+    const elements = [canvasWrapRef.current, dissectDockRef.current, document.getElementById('stranerd-mentor')].filter((element): element is HTMLElement => Boolean(element))
+    const resizeObserver = new ResizeObserver(measure)
+    elements.forEach((element) => resizeObserver.observe(element))
+    const mutationObserver = new MutationObserver(measure)
+    elements.forEach((element) => mutationObserver.observe(element, { attributes: true, attributeFilter: ['class', 'style', 'hidden'] }))
+    window.addEventListener('resize', measure)
+    window.visualViewport?.addEventListener('resize', measure)
+    measure()
+    const transitionTimer = window.setInterval(measure, 32)
+    const stopTimer = window.setTimeout(() => window.clearInterval(transitionTimer), 320)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearInterval(transitionTimer)
+      window.clearTimeout(stopTimer)
+      resizeObserver.disconnect()
+      mutationObserver.disconnect()
+      window.removeEventListener('resize', measure)
+      window.visualViewport?.removeEventListener('resize', measure)
+      camera.clearViewOffset()
+      camera.updateProjectionMatrix()
+    }
+  }, [camera, canvasWrapRef, dissectDockRef, gl.domElement, invalidate, panelState])
+  return null
+}
+
 export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(function AnatomyViewer(props, ref) {
   const { resolvedTheme } = useTheme()
   const { reducedMotion } = usePreferences()
   const controlsRef = useRef<ViewerControls | null>(null)
+  const canvasWrapRef = useRef<HTMLDivElement>(null)
+  const dissectDockRef = useRef<HTMLElement>(null)
   const onDissectionStateRef = useRef(props.onDissectionState)
   const onVoiceStateRef = useRef(props.onVoiceState)
   const defaults = anatomyLayers.filter((layer) => layer.defaultVisible).map((layer) => layer.id)
@@ -264,6 +312,10 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
 
   function toggleDissectMode() {
     if (dissectMode) {
+      if (props.activityLayout) {
+        setDissectPanelOpen((open) => !open)
+        return
+      }
       setDissectMode(false)
       setDissectPanelOpen(false)
       setTouchMoveEnabled(false)
@@ -275,7 +327,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
     else if (props.model.viewer !== 'segmented-body') return
     dispatchDissection({ type: 'clear' })
     setDissectMode(true)
-    setDissectPanelOpen(false)
+    setDissectPanelOpen(true)
     setTouchMoveEnabled(false)
   }
 
@@ -408,37 +460,43 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
     },
   }))
 
+  function renderViewerTools() {
+    return <div className="viewer-tools" aria-label="Viewer controls">
+      <Button variant={props.settings.autoRotate ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('autoRotate')} title="Toggle auto rotate" aria-pressed={props.settings.autoRotate}><ScanLine size={17} /><span>Rotate</span></Button>
+      <Button variant="tool" size="tool" onClick={() => controlsRef.current?.reset()} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></Button>
+      {props.model.viewer !== 'segmented-body' && <Button variant={props.settings.labels ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('labels')} title="Toggle labels" aria-pressed={props.settings.labels}><Tags size={17} /><span>Labels</span></Button>}
+      <Button variant={props.settings.wireframe ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('wireframe')} title="Toggle wireframe" aria-pressed={props.settings.wireframe}><Grid3X3 size={17} /><span>Wireframe</span></Button>
+      {props.model.viewer !== 'segmented-body' && <Button variant={props.settings.layers ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('layers')} title="Toggle reference layers" aria-pressed={props.settings.layers}><Layers3 size={17} /><span>Reference</span></Button>}
+      {canDissect && <Button variant={dissectMode && (!props.activityLayout || dissectPanelOpen) ? 'tool-active' : 'tool'} size="tool" onClick={toggleDissectMode} title={props.activityLayout ? 'Toggle dissection tools' : 'Toggle Dissect Mode'} aria-pressed={dissectMode && (!props.activityLayout || dissectPanelOpen)}><Scissors size={17} /><span>{props.activityLayout ? 'Structures' : 'Dissect'}</span></Button>}
+    </div>
+  }
+
   return (
-    <section className={`viewer ${props.model.viewer === 'segmented-body' ? 'segmented' : 'standard'} ${props.activityLayout ? 'activity-layout' : ''} panel anim`} aria-label={`${props.model.name} 3D viewer`}>
-      <div className="viewer-head">
-        <div><span className="eyebrow">{dissectMode ? 'Virtual dissection' : props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p>{props.model.viewer !== 'segmented-body' && <div className="variant-control"><label htmlFor={`variant-${props.model.id}`}>Specimen</label><select id={`variant-${props.model.id}`} value={variant.id} onChange={(event) => changeVariant(event.target.value)}>{props.model.variants.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select>{variant.note && <small>{variant.note}</small>}</div>}</div>
-        <div className="viewer-tools" aria-label="Viewer controls">
-          <Button variant={props.settings.autoRotate ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('autoRotate')} title="Toggle auto rotate"><ScanLine size={17} /><span>Rotate</span></Button>
-          <Button variant="tool" size="tool" onClick={() => controlsRef.current?.reset()} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></Button>
-          {props.model.viewer !== 'segmented-body' && <Button variant={props.settings.labels ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('labels')} title="Toggle labels"><Tags size={17} /><span>Labels</span></Button>}
-          <Button variant={props.settings.wireframe ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('wireframe')} title="Toggle wireframe"><Grid3X3 size={17} /><span>Wire</span></Button>
-          <Button variant={props.settings.layers ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('layers')} title="Toggle reference layers"><Layers3 size={17} /><span>Layers</span></Button>
-          {canDissect && <Button variant={dissectMode ? 'tool-active' : 'tool'} size="tool" onClick={toggleDissectMode} title="Toggle Dissect Mode" aria-pressed={dissectMode}><Scissors size={17} /><span>Dissect</span></Button>}
-        </div>
-      </div>
-      <div className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
+    <section className={`viewer explore-viewer ${props.model.viewer === 'segmented-body' ? 'segmented' : 'standard'} ${props.activityLayout ? 'activity-layout' : ''} ${dissectMode ? 'is-dissecting' : ''} ${touchMoveEnabled ? 'move-armed' : ''} panel anim`} aria-label={`${props.model.name} 3D viewer`}>
+      <header className="viewer-head">
+        <div className="explore-heading"><span className="eyebrow">{dissectMode ? 'Virtual dissection' : props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p><div className="variant-control"><span>Specimen</span><div className="specimen-selector" role="radiogroup" aria-label={`${props.model.name} specimens`}>{props.model.variants.map((entry, index) => <button key={entry.id} type="button" role="radio" aria-checked={entry.id === variant.id} className={entry.id === variant.id ? 'active' : ''} onClick={() => changeVariant(entry.id)} title={entry.label}><b>{String(index + 1).padStart(2, '0')}</b><span>{entry.label}</span></button>)}</div>{variant.note && <small>{variant.note}</small>}</div></div>
+        {!props.activityLayout && renderViewerTools()}
+      </header>
+      {props.activityLayout && renderViewerTools()}
+      <div ref={canvasWrapRef} className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
         <Canvas onPointerMissed={props.onClearSelection} frameloop={props.settings.autoRotate && !reducedMotion ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, props.activityLayout ? 6.3 : 4.7], fov: 42 }} gl={{ antialias: true, alpha: true }}>
+          <OpticalCameraCenter canvasWrapRef={canvasWrapRef} dissectDockRef={dissectDockRef} panelState={`${dissectMode}:${dissectPanelOpen}:${props.activityLayout}`} />
           <Scene {...props} theme={resolvedTheme} reducedMotion={reducedMotion} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={receiveStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} touchMoveEnabled={touchMoveEnabled} />
         </Canvas>
         {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
         <div className="axis"><span>Y</span><i /><b>X</b></div>
         <p className="viewer-help">{dissectMode ? 'Drag a structure to pull it out · drag empty space to orbit' : 'Select a structure to inspect · drag to orbit'}</p>
       </div>
-      {dissectMode && (variant.segmentedSystem || props.model.viewer === 'segmented-body') && <aside className={`dissect-dock ${dissectPanelOpen ? 'sheet-open' : 'sheet-collapsed'}`}>
-          <header><button className="mobile-sheet-toggle" onClick={() => setDissectPanelOpen((value) => !value)} aria-expanded={dissectPanelOpen}>{dissectPanelOpen ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button><div><span>Dissect Mode</span><b>{structures.length} structures · tap to {dissectPanelOpen ? 'collapse' : 'open'}</b></div><button onClick={toggleDissectMode} title="Exit Dissect Mode"><X size={14} /></button></header>
+      {dissectMode && (variant.segmentedSystem || props.model.viewer === 'segmented-body') && <aside ref={dissectDockRef} className={`dissect-dock ${dissectPanelOpen ? 'sheet-open' : 'sheet-collapsed'}`}>
+          <header><button className="mobile-sheet-toggle" onClick={() => setDissectPanelOpen((value) => !value)} aria-expanded={dissectPanelOpen}>{dissectPanelOpen ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button><div><span>Dissect tools</span><b>{structures.length} structures · tap to {dissectPanelOpen ? 'collapse' : 'open'}</b></div><button onClick={props.activityLayout ? () => setDissectPanelOpen(false) : toggleDissectMode} title={props.activityLayout ? 'Close dissection tools' : 'Exit Dissect Mode'}><X size={14} /></button></header>
           <div className="dissect-sheet-content">
           <div className="dissect-search"><Search size={13} /><input value={structureQuery} onChange={(event) => setStructureQuery(event.target.value)} placeholder="Search structures" aria-label="Search digestive structures" /></div>
           <div className="dissect-actions">
             <button disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'hide', ids: selectedStructureIds }); recordAction('hide', selectedStructureIds) }}><EyeOff size={13} />Hide</button>
             <button disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'show', ids: selectedStructureIds }); recordAction('show', selectedStructureIds) }}><Eye size={13} />Show</button>
-            <button className={selectedStructureIds.some((id) => dissection.transparentIds.includes(id)) ? 'active' : ''} disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'toggle-transparent', ids: selectedStructureIds }); recordAction('transparent', selectedStructureIds) }}>Fade</button>
-            <button className={dissection.isolate ? 'active' : ''} disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'toggle-isolate' }); recordAction('isolate', selectedStructureIds) }}>Isolate</button>
-            <button className={`touch-move-action ${touchMoveEnabled ? 'active' : ''}`} onClick={() => setTouchMoveEnabled((value) => !value)}>Move</button>
+            <button className={selectedStructureIds.some((id) => dissection.transparentIds.includes(id)) ? 'active' : ''} disabled={selectedStructureIds.length === 0} aria-pressed={selectedStructureIds.some((id) => dissection.transparentIds.includes(id))} onClick={() => { dispatchDissection({ type: 'toggle-transparent', ids: selectedStructureIds }); recordAction('transparent', selectedStructureIds) }}>Fade</button>
+            <button className={dissection.isolate ? 'active' : ''} disabled={selectedStructureIds.length === 0} aria-pressed={dissection.isolate} onClick={() => { dispatchDissection({ type: 'toggle-isolate' }); recordAction('isolate', selectedStructureIds) }}>Isolate</button>
+            <button className={`touch-move-action ${touchMoveEnabled ? 'active' : ''}`} aria-pressed={touchMoveEnabled} onClick={() => setTouchMoveEnabled((value) => !value)} title="Arm structure dragging on touch screens">Move</button>
           </div>
           <div className="dissect-structures">{structureGroups.map(([group, entries]) => <section key={group}><h3>{group}<span>{entries.length}</span></h3>{entries.map((structure) => <button key={structure.id} className={`${props.selectedIds.includes(structure.id) ? 'selected' : ''} ${dissection.hiddenIds.includes(structure.id) ? 'hidden' : ''}`} onClick={(event) => selectStructure(structure, event.shiftKey || window.matchMedia('(pointer: coarse)').matches)}><i />{structure.label}{dissection.hiddenIds.includes(structure.id) && <EyeOff size={11} />}</button>)}</section>)}</div>
           <footer><button disabled={dissection.history.length === 0} onClick={() => dispatchDissection({ type: 'undo' })}><Undo2 size={13} />Undo</button><button disabled={dissection.hiddenIds.length === 0} onClick={() => { const ids = dissection.hiddenIds; dispatchDissection({ type: 'show-all' }); recordAction('show', ids) }}>Show all</button><button onClick={resetDissection}>Reset</button></footer>

@@ -36,6 +36,7 @@ app.post('/api/realtime/session', realtimeSessionHandler)
 app.post('/api/realtime/extend', extendRealtimeSessionHandler)
 app.post('/api/email/welcome', welcomeEmailHandler)
 app.post('/api/billing/checkout', billingCheckoutHandler)
+app.get('/api/billing/checkout', billingCheckoutHandler)
 app.get('/api/billing/status', billingStatusHandler)
 app.post('/api/billing/cancel', billingCancelHandler)
 

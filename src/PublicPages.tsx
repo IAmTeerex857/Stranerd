@@ -1,10 +1,10 @@
 import { lazy, Suspense } from 'react'
-import { ArrowRight, Check, CircleAlert } from 'lucide-react'
+import { ArrowRight, Check, CircleAlert, Sparkles } from 'lucide-react'
 import { Page } from './PublicLayout'
 import { BillingButton } from './components/BillingButton'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useBillingOptions } from './lib/billing'
+import { checkoutRail, useBillingOptions } from './lib/billing'
 
 const LandingPage = lazy(() => import('./LandingPage').then((module) => ({ default: module.LandingPage })))
 const LoginPage = lazy(() => import('./AuthPages').then((module) => ({ default: module.LoginPage })))
@@ -17,12 +17,20 @@ const legalPaths = new Set(['/legal/privacy', '/legal/terms', '/legal/refunds'])
 
 function PricingPage() {
   const options = useBillingOptions()
-  const subscriptionRails = options?.rails.subscription ?? []
-  const packRails = options?.rails.payg_100 ?? []
   const nigeria = options?.country === 'NG'
-  const subscriptionRail = subscriptionRails[0]
-  const packRail = nigeria ? packRails.find((rail) => rail === 'ngn') : packRails.find((rail) => rail === 'usd_card')
-  return <Page><main className="public-page"><header className="public-title"><h1>Learn freely. Use AI when it helps.</h1><p>Core anatomy models, guided Labs, free dissection, verified assessments, and default flashcards remain available without AI credits.</p></header><section className="pricing-grid"><Card><span>Free</span><h2>{nigeria ? '₦0' : '$0'}</h2><p>Explore the complete anatomy learning workspace.</p><ul><li><Check size={15} />20 one-time signup credits</li><li><Check size={15} />All anatomy models and Labs</li><li><Check size={15} />Verified assessments and flashcards</li></ul><Button variant="outline" asChild><a href="/app">Start learning</a></Button></Card><Card className="featured"><span>Stranerd Plus</span><h2>{nigeria ? '₦2,500' : '$5'} <small>/ month</small></h2><p>A monthly AI allowance for regular study.</p><ul><li><Check size={15} />500 credits each billing cycle</li><li><Check size={15} />Cost shown before every AI action</li><li><Check size={15} />Cancel with access through the period</li></ul><div className="billing-actions">{!options && <Button disabled>Loading payment options...</Button>}{options?.unavailable && <Button disabled>Payment options unavailable</Button>}{subscriptionRail && <BillingButton className="public-cta" productId="subscription" rail={subscriptionRail}>Pay {nigeria ? '₦2,500' : '$5'}</BillingButton>}</div></Card><Card><span>Credit pack</span><h2>{nigeria ? '₦500' : '$2'}</h2><p>Add 100 non-expiring credits without a subscription.</p><ul><li><Check size={15} />100 purchased credits</li><li><Check size={15} />Credits do not expire</li><li><Check size={15} />Buy packs repeatedly</li></ul><div className="billing-actions">{!options && <Button disabled>Loading payment options...</Button>}{options?.unavailable && <Button disabled>Payment options unavailable</Button>}{packRail && <BillingButton productId="payg_100" rail={packRail}>Pay {nigeria ? '₦500' : '$2'}</BillingButton>}</div></Card></section></main></Page>
+  const subscriptionRail = checkoutRail(options, 'subscription')
+  const packRail = checkoutRail(options, 'payg_100')
+  const unavailable = options?.unavailable || (options && (!subscriptionRail || !packRail))
+
+  return <Page><main className="public-page pricing-page">
+    <header className="public-title pricing-title"><span>Simple pricing</span><h1>Learn anatomy freely.<br /><em>Use AI when it helps.</em></h1><p>Models, Labs, dissection, verified assessments, and included flashcards remain free. Credits power only Mentor and generated AI help.</p></header>
+    <section className="pricing-grid" aria-label="Pricing plans">
+      <Card className="pricing-free"><span>Always free</span><h2>{nigeria ? '₦0' : '$0'}</h2><p>The complete anatomy learning workspace, with a small AI allowance to begin.</p><ul><li><Check size={15} />20 one-time signup credits</li><li><Check size={15} />All anatomy models and guided Labs</li><li><Check size={15} />Verified assessments and flashcards</li></ul><Button variant="outline" asChild><a href="/app">Start learning<ArrowRight size={15} /></a></Button></Card>
+      <Card className="featured"><span className="pricing-recommended"><Sparkles size={12} />For regular study</span><h2>{nigeria ? '₦2,500' : '$5'} <small>/ month</small></h2><p>500 AI credits refreshed each billing cycle, while your anatomy workspace stays free.</p><ul><li><Check size={15} />500 credits each billing cycle</li><li><Check size={15} />Every AI cost shown before you act</li><li><Check size={15} />Cancel with access through the period</li></ul><div className="billing-actions">{!options && <Button disabled>Loading checkout...</Button>}{unavailable && <Button disabled>Checkout currently unavailable</Button>}{subscriptionRail && <BillingButton productId="subscription" rail={subscriptionRail}>Get Plus · {nigeria ? '₦2,500' : '$5'}</BillingButton>}</div></Card>
+      <Card><span>Top up anytime</span><h2>{nigeria ? '₦500' : '$2'}</h2><p>100 purchased credits for occasional AI help. No recurring commitment.</p><ul><li><Check size={15} />100 purchased credits</li><li><Check size={15} />Credits never expire</li><li><Check size={15} />Purchased credits are spent last</li></ul><div className="billing-actions">{!options && <Button disabled>Loading checkout...</Button>}{unavailable && <Button disabled>Checkout currently unavailable</Button>}{packRail && <BillingButton productId="payg_100" rail={packRail}>Buy 100 credits · {nigeria ? '₦500' : '$2'}</BillingButton>}</div></Card>
+    </section>
+    <p className="pricing-footnote">One clear price for your region. Available payment choices are presented in secure checkout.</p>
+  </main></Page>
 }
 
 function StatusPage({ kind }: { kind: 'success' | 'cancelled' }) {

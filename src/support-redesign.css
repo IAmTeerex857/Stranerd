@@ -1,0 +1,261 @@
+/* New Design support surfaces. Kept separate so the workspace token layer remains canonical. */
+.assistant-panel,
+.account-redesign,
+.pricing-page,
+.billing-status-page,
+.credit-modal {
+  --support-ai: var(--ai, #6d3be8);
+  --support-ai-soft: var(--ai-subtle, #f2ecfe);
+  --support-ai-border: var(--ai-border, #e1d3fb);
+  --support-line: var(--border-ui, var(--border));
+  --support-muted: var(--muted-ui, var(--muted));
+}
+
+/* Mentor */
+.assistant-panel .mentor-head {
+  min-height: 56px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--support-line);
+  background: var(--card);
+}
+
+.assistant-panel .mentor-avatar {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--support-ai-border);
+  border-radius: 9px;
+  color: var(--support-ai);
+  background: var(--support-ai-soft);
+}
+
+.assistant-panel .mentor-head strong { font-size: 15px; letter-spacing: -.02em; }
+.assistant-panel .mentor-head small { display: none; }
+.assistant-panel .assistant-tabs { padding: 0; }
+.assistant-panel .assistant-tabs-list {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 16px;
+  width: auto;
+  height: 36px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--support-muted);
+}
+.assistant-panel .assistant-tabs-list [data-slot="tabs-trigger"] { min-width: 68px; height: 28px; padding-inline: 10px; font-size: 12px; }
+.assistant-panel .assistant-tabs-list svg { display: none; }
+.assistant-panel .assistant-tab-content { margin: 0; border: 0; border-radius: 0; background: var(--card); }
+.assistant-panel .mentor-context { margin: 14px 18px 0; border-color: var(--support-ai-border); border-radius: 12px; background: var(--support-ai-soft); }
+.assistant-panel .transcript { gap: 14px; padding: 18px; }
+.assistant-panel .chat-row {
+  width: fit-content;
+  max-width: 88%;
+  padding: 11px 13px;
+  border: 1px solid var(--support-ai-border);
+  box-shadow: none;
+}
+.assistant-panel .chat-row.mentor { align-self: flex-start; border-radius: 15px 15px 15px 5px; background: var(--support-ai-soft); }
+.assistant-panel .chat-row.student { align-self: flex-end; border-color: var(--primary-border, var(--support-line)); border-radius: 15px 15px 5px 15px; background: var(--secondary); }
+.assistant-panel .chat-row > span { min-width: 24px; color: var(--support-ai); font-size: 9px; }
+.assistant-panel .chat-row.student > span { color: var(--primary); }
+.assistant-panel .mentor-copy p,
+.assistant-panel .mentor-copy li { margin: 0; font-size: 13.5px; line-height: 1.55; }
+.assistant-panel .mentor-input { padding: 14px 18px; background: var(--card); }
+.assistant-panel .mentor-input > div { min-height: 50px; padding: 7px 8px 7px 13px; border-radius: 12px; background: var(--support-muted); }
+.assistant-panel .mentor-input textarea { min-height: 34px; padding: 8px 0; background: transparent; font-size: 13.5px; }
+.assistant-panel .mentor-input .mentor-send { width: auto; min-width: 91px; height: 34px; gap: 6px; padding-inline: 11px; }
+.mentor-send b,
+.voice-entry > button b { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 5px; background: rgb(255 255 255 / 20%); font: 600 10px/1.3 "IBM Plex Mono", ui-monospace, monospace; }
+.mentor-send-mobile { display: none; }
+.assistant-panel .mentor-input > small { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; font-size: 10.5px; }
+.assistant-panel .mentor-input > small span:last-child { color: var(--support-ai); }
+.mentor-welcome { max-width: 320px; }
+.mentor-welcome-mark { color: var(--support-ai); background: var(--support-ai-soft); }
+
+/* Voice is deliberately compact in the desktop rail and expands in the mobile sheet. */
+.voice-entry.embedded,
+.voice-dock.embedded {
+  gap: 12px;
+  justify-content: flex-start;
+  padding: 24px 18px 18px;
+  border: 0;
+  border-radius: 0;
+  background: radial-gradient(circle at 50% 24%, color-mix(in srgb, var(--support-ai-soft) 80%, transparent), transparent 44%), var(--card);
+}
+.voice-entry.embedded .voice-orb,
+.voice-dock.embedded .voice-orb { width: 96px; height: 96px; flex: 0 0 96px; }
+.voice-orb > i { background: linear-gradient(135deg, #79a2ff, var(--support-ai) 62%, #d38bdb); }
+.voice-orb > span { width: 48px; height: 48px; }
+.voice-kicker,
+.voice-cost,
+.voice-renewal { color: var(--muted-foreground); font: 600 10px/1.4 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .07em; text-transform: uppercase; }
+.voice-intro h2,
+.voice-state h2 { margin: 7px 0 5px; font-size: 19px; }
+.voice-entry.embedded > button { gap: 8px; min-width: 160px; }
+.voice-dock.embedded > header { align-items: center; }
+.voice-dock [data-slot="badge"] { gap: 7px; text-transform: capitalize; }
+.voice-dock [data-slot="badge"] i { width: 7px; height: 7px; border-radius: 50%; background: var(--support-ai); }
+.voice-dock time { color: var(--support-ai); font: 600 12px "IBM Plex Mono", ui-monospace, monospace; }
+.voice-state { text-align: center; }
+.voice-captions { min-height: 52px; }
+.voice-captions p { margin: 0 0 6px; border: 1px solid var(--support-line); background: var(--support-muted); font-size: 12px; }
+.voice-captions p span { color: var(--support-ai); }
+.voice-dock.embedded > footer { margin-top: auto; gap: 9px; }
+.voice-renewal { letter-spacing: 0; text-transform: none; }
+
+/* Account */
+.account-redesign { width: min(1100px, 100%); padding: 32px 36px 80px; }
+.account-redesign .account-heading { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; padding: 0 0 10px; border: 0; background: transparent; box-shadow: none; }
+.account-redesign .account-heading img { width: 46px; height: 46px; }
+.account-redesign .account-heading h1 { margin: 2px 0 1px; font-size: 27px; letter-spacing: -.035em; }
+.account-redesign .account-heading p { margin: 0; }
+.account-kicker,
+.section-kicker,
+.credit-meter > header,
+.current-plan > header > span:first-child {
+  color: var(--muted-foreground);
+  font: 600 10.5px/1.4 "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.account-kicker { color: var(--support-ai); }
+.account-dashboard { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-top: 10px; }
+.account-dashboard > [data-slot="card"] { display: flex; min-width: 0; padding: 24px; border: 1px solid var(--support-line); border-radius: 16px; background: var(--card); box-shadow: var(--shadow-card, 0 1px 2px rgb(14 21 38 / 6%)); }
+.credit-meter > header,
+.current-plan > header { display: flex; align-items: center; justify-content: space-between; }
+.credit-meter-total { display: flex; align-items: baseline; gap: 9px; margin-top: 13px; }
+.credit-meter-total strong { font: 500 42px/1 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: -.04em; }
+.credit-meter-total span { color: var(--muted-foreground); font-size: 14px; }
+.credit-meter-bar { display: flex; height: 9px; gap: 2px; margin: 17px 0; overflow: hidden; border-radius: 5px; background: var(--support-muted); }
+.credit-meter-bar i { min-width: 0; height: 100%; }
+.credit-meter .free { background: var(--success, #0e9f6e); }
+.credit-meter .plan { background: var(--primary); }
+.credit-meter .purchased { background: var(--support-ai); }
+.credit-meter dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 0; }
+.credit-meter dt { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 12px; }
+.credit-meter dt i { width: 8px; height: 8px; border-radius: 2px; }
+.credit-meter dd { margin: 4px 0 1px; font: 500 18px "IBM Plex Mono", ui-monospace, monospace; }
+.credit-meter dl small { color: var(--muted-foreground); font-size: 10.5px; }
+.credit-meter > p { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--support-line); color: var(--muted-foreground); font-size: 12px; line-height: 1.55; }
+.current-plan h2 { margin: 17px 0 6px; font-size: 22px; letter-spacing: -.025em; }
+.current-plan > p { margin: 0 0 18px; color: var(--muted-foreground); font-size: 13px; line-height: 1.55; }
+.current-plan .billing-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: auto; }
+.billing-button-wrap { min-width: 0; }
+.billing-button-wrap > button { width: 100%; }
+.billing-inline-error { display: block; margin-top: 6px; color: var(--destructive); line-height: 1.4; }
+.current-plan > [data-slot="button"]:last-child { align-self: flex-start; margin: 8px 0 -8px -12px; }
+.account-lower-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; margin-top: 16px; }
+.account-redesign .account-section[data-slot="card"] { padding: 22px; border-radius: 16px; box-shadow: var(--shadow-card, 0 1px 2px rgb(14 21 38 / 6%)); }
+.account-redesign .account-section > header { margin-bottom: 14px; }
+.account-redesign .account-section > header h2 { margin: 3px 0 0; font-size: 20px; }
+.account-redesign .account-activity-grid { grid-template-columns: 1fr; }
+.account-redesign .transaction-list { overflow: hidden; border: 1px solid var(--support-line); border-radius: 12px; background: var(--card); }
+.account-redesign .transaction-list > header { padding: 13px 15px; background: var(--support-muted); }
+.account-redesign .transaction-list > div { grid-template-columns: minmax(0, 1fr) auto; padding: 11px 15px; }
+.account-redesign .transaction-list > div time { grid-column: 1 / -1; }
+.account-side-stack { display: grid; gap: 16px; }
+.account-redesign .preferences-grid { display: grid; grid-template-columns: 1fr; }
+.account-redesign .preferences-grid > article { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border: 0; border-radius: 0; background: transparent; }
+.account-redesign .preferences-grid > article + article { border-top: 1px solid var(--support-line); }
+.account-redesign .preferences-grid h3 { margin: 0 0 3px; font-size: 13.5px; }
+.account-redesign .preferences-grid p { margin: 0; font-size: 11.5px; }
+.voice-privacy .section-kicker { display: flex; align-items: center; gap: 7px; color: var(--support-ai); }
+.voice-privacy p,
+.data-controls p { margin: 12px 0; color: var(--muted-foreground); font-size: 12.5px; line-height: 1.6; }
+.voice-privacy > a { display: inline-flex; align-items: center; gap: 5px; color: var(--primary); font-size: 12px; font-weight: 600; }
+
+/* Pricing */
+.pricing-page { width: min(1180px, 100%); padding: 72px 28px 88px; }
+.pricing-title { max-width: 760px; margin: 0 auto 42px; text-align: center; }
+.pricing-title > span { color: var(--support-ai); font: 600 11px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.pricing-title h1 { margin: 12px 0 16px; font-size: clamp(42px, 6vw, 72px); line-height: 1.02; letter-spacing: -.06em; }
+.pricing-title h1 em { color: var(--support-ai); font-style: normal; }
+.pricing-title p { max-width: 650px; margin: auto; font-size: 15px; line-height: 1.65; }
+.pricing-page .pricing-grid { align-items: stretch; gap: 16px; }
+.pricing-page .pricing-grid > [data-slot="card"] { min-height: 450px; padding: 28px; border-radius: 16px; box-shadow: var(--shadow-card, 0 1px 2px rgb(14 21 38 / 6%)); }
+.pricing-page .pricing-grid > [data-slot="card"].featured { position: relative; border-color: var(--support-ai-border); background: linear-gradient(180deg, var(--support-ai-soft), var(--card) 44%); box-shadow: 0 20px 50px -30px color-mix(in srgb, var(--support-ai) 55%, transparent); }
+.pricing-page .pricing-grid > [data-slot="card"] > span { color: var(--muted-foreground); }
+.pricing-page .pricing-grid .pricing-recommended { display: flex; align-items: center; gap: 6px; color: var(--support-ai); }
+.pricing-page .pricing-grid h2 { margin: 24px 0 10px; font: 600 clamp(35px, 4vw, 48px)/1 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: -.05em; }
+.pricing-page .pricing-grid h2 small { color: var(--muted-foreground); font: 400 13px system-ui, sans-serif; letter-spacing: 0; }
+.pricing-page .pricing-grid p { min-height: 63px; color: var(--muted-foreground); font-size: 13px; line-height: 1.6; }
+.pricing-page .pricing-grid ul { display: grid; gap: 12px; margin: 21px 0 28px; padding: 19px 0 0; border-top: 1px solid var(--support-line); }
+.pricing-page .pricing-grid li { color: var(--foreground); font-size: 13px; }
+.pricing-page .pricing-grid li svg { color: var(--success, #0e9f6e); }
+.pricing-page .pricing-grid > [data-slot="card"] > [data-slot="button"],
+.pricing-page .pricing-grid .billing-actions { width: 100%; margin-top: auto; }
+.pricing-page .pricing-grid .billing-actions button { width: 100%; }
+.pricing-page .pricing-grid .featured .billing-actions button { background: var(--support-ai); }
+.pricing-footnote { margin: 24px auto 0; color: var(--muted-foreground); font-size: 11.5px; text-align: center; }
+
+/* Billing states */
+.billing-status-card { align-items: flex-start; }
+.billing-status-icon { display: grid; width: 46px; height: 46px; margin-bottom: 20px; place-items: center; border: 1px solid var(--support-line); border-radius: 14px; }
+.billing-status-icon svg { width: 21px; }
+.billing-status-icon.success { color: var(--success, #0e9f6e); background: var(--success-subtle, #e7f7f0); }
+.billing-status-icon.waiting { color: var(--support-ai); background: var(--support-ai-soft); }
+.billing-status-icon.attention { color: var(--destructive); background: var(--destructive-subtle, #fdecec); }
+.billing-status-card h1 { margin: 8px 0 10px; font-size: clamp(29px, 5vw, 42px); letter-spacing: -.045em; }
+.billing-status-card > p { line-height: 1.6; }
+.billing-status-card > small { color: var(--muted-foreground); line-height: 1.5; }
+.billing-status-progress { width: 100%; height: 5px; margin: 20px 0; overflow: hidden; border-radius: 999px; background: var(--support-muted); }
+.billing-status-progress i { display: block; width: 35%; height: 100%; border-radius: inherit; background: var(--support-ai); animation: support-status-progress 1.4s ease-in-out infinite; }
+.billing-status-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+@keyframes support-status-progress { from { transform: translateX(-110%); } to { transform: translateX(300%); } }
+
+/* Credit dialog */
+[data-slot="dialog-content"].credit-modal { width: min(calc(100vw - 28px), 440px); padding: 24px; border-radius: 20px; }
+.credit-modal .dialog-icon { width: 42px; height: 42px; border: 1px solid var(--support-ai-border); border-radius: 12px; color: var(--support-ai); background: var(--support-ai-soft); }
+.credit-modal dl { gap: 10px; border: 0; }
+.credit-modal dl > div { display: block; border: 1px solid var(--support-line); border-radius: 12px; background: var(--support-muted); }
+.credit-modal dl > div + div { border-left: 1px solid var(--support-line); }
+.credit-modal dt { font: 600 10px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; }
+.credit-modal dd { margin-top: 5px; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.credit-modal dl > div:first-child dd { color: var(--support-ai); }
+.credit-modal-actions > * { flex: 1; }
+.credit-modal > small { text-align: center; }
+
+@media (max-width: 820px) {
+  .account-dashboard,
+  .account-lower-grid { grid-template-columns: 1fr; }
+  .pricing-page .pricing-grid { grid-template-columns: 1fr; max-width: 540px; margin-inline: auto; }
+  .pricing-page .pricing-grid > [data-slot="card"] { min-height: 0; }
+  .pricing-page .pricing-grid p { min-height: 0; }
+}
+
+@media (max-width: 760px) {
+  .assistant-panel .mentor-head { min-height: 62px; padding-inline: 16px; }
+  .assistant-panel .assistant-tabs-list { position: static; width: calc(100% - 32px); height: 42px; margin: 10px 16px 0; }
+  .assistant-panel .assistant-tabs-list [data-slot="tabs-trigger"] { flex: 1; }
+  .assistant-panel .mentor-input { padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); }
+  .assistant-panel .mentor-input .mentor-send { width: 40px; min-width: 40px; height: 40px; padding: 0; }
+  .mentor-send > span,
+  .mentor-send > b { display: none; }
+  .mentor-send-mobile { display: block; }
+  .assistant-panel .mentor-input > small { font-size: 10px; }
+  .voice-entry.embedded,
+  .voice-dock.embedded { justify-content: center; gap: 18px; padding: 28px 22px; }
+  .voice-entry.embedded .voice-orb,
+  .voice-dock.embedded .voice-orb { width: 148px; height: 148px; flex-basis: 148px; }
+  .voice-orb > span { width: 58px; height: 58px; }
+  .voice-captions { min-height: 76px; }
+  .account-redesign { padding: 24px 14px 72px; }
+  .account-redesign .account-heading { grid-template-columns: auto minmax(0, 1fr); }
+  .account-heading-actions { grid-column: 1 / -1; }
+  .account-heading-actions button { width: 100%; }
+  .account-dashboard > [data-slot="card"] { padding: 20px 18px; }
+  .credit-meter dl { gap: 8px; }
+  .credit-meter dl small { display: none; }
+  .current-plan .billing-actions { grid-template-columns: 1fr; }
+  .pricing-page { padding: 48px 14px 72px; }
+  .pricing-title { margin-bottom: 28px; }
+  .pricing-title h1 { font-size: clamp(38px, 12vw, 54px); }
+  .credit-modal-actions { flex-direction: column; }
+  .billing-status-actions { align-items: stretch; flex-direction: column; width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .billing-status-progress i { animation: none; width: 100%; opacity: .55; }
+}

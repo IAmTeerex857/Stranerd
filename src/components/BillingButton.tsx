@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth-context'
 import { startCheckout, type BillingProductId, type BillingRail } from '../lib/billing'
 import { Button } from '@/components/ui/button'
+import { ArrowRight } from 'lucide-react'
 
 export function BillingButton({ productId, rail = 'ngn', children, className }: { productId: BillingProductId; rail?: BillingRail; children: ReactNode; className?: string }) {
   const { user } = useAuth()
@@ -33,5 +34,5 @@ export function BillingButton({ productId, rail = 'ngn', children, className }: 
     }
   }
 
-  return <><Button className={className} onClick={checkout} disabled={loading}>{loading ? 'Opening checkout...' : children}</Button>{error && <small className="billing-inline-error">{error}</small>}</>
+  return <div className="billing-button-wrap"><Button className={className} onClick={checkout} disabled={loading}>{loading ? 'Opening secure checkout...' : <>{children}<ArrowRight size={15} /></>}</Button>{error && <small className="billing-inline-error" role="alert">{error}</small>}</div>
 }

@@ -184,7 +184,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!menuOpen || window.innerWidth > 760) return
+    if (!menuOpen || window.innerWidth >= 1200) return
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = previous }
@@ -278,14 +278,6 @@ export default function App() {
       setActivityQuizChoice(undefined)
       setActivityQuizPassed(undefined)
     }
-    const target = context.structures.join(', ') || `the ${model.name.toLowerCase()} model`
-    const completed = Boolean(context.guidedStep)
-    setMessages((current) => [...current, {
-      id: crypto.randomUUID(),
-      role: 'engine',
-      text: `${completed ? 'STEP COMPLETE' : 'DISSECTION'} · ${context.action.toUpperCase()} · ${target}`,
-      status: completed ? 'pass' : 'neutral',
-    }])
   }
 
   function chooseView(next: ViewId) {
@@ -636,7 +628,7 @@ export default function App() {
     }
     if (view === 'lab') {
       const lab = <DissectionActivitiesView mode={labMode} activeActivityId={activeActivityId} onGuided={launchDissectionActivity} onCatalog={returnToLabCatalog} guidedStep={guidedActivityStep} quizChoice={activityQuizChoice} quizPassed={activityQuizPassed} onStartGuide={() => { setGuidedActivityStep(0); setActivityQuizChoice(undefined); setActivityQuizPassed(undefined) }} onQuizChoice={(choice) => { setActivityQuizChoice(choice); setActivityQuizPassed(undefined) }} onQuizCheck={checkActivityQuestion} onStepContinue={continueActivity} />
-      return labMode === 'catalog' ? lab : <div className="lesson-workspace activity-workspace">{viewer}<div className="activity-pane">{lab}</div></div>
+      return labMode === 'catalog' ? lab : <div className="lesson-workspace activity-workspace lab-guided-workspace">{viewer}<div className="activity-pane">{lab}</div></div>
     }
     return <div className="explore-view">{viewer}{detail}</div>
   }
@@ -647,7 +639,9 @@ export default function App() {
       <div className="side-brand"><Brand /><button onClick={() => setSidebarCollapsed((value) => !value)} aria-label={effectiveSidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>{effectiveSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div>
       <nav>{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined} title={effectiveSidebarCollapsed ? item.label : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
       <div className="side-section"><header><span>Anatomy models</span></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}<ChevronRight size={14} /></Button>)}</div></div>
+      <Button variant="ghost" className="sidebar-account" asChild><a href="/account"><CircleUserRound size={18} /><span>Account</span><ChevronRight size={14} /></a></Button>
     </aside>
+    {menuOpen && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label="Close navigation" />}
     <main className="workspace">
       <header className="topbar"><div><span>{view === 'library' ? 'Learn' : view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions">{flashcardSyncError && <Button variant="outline" role="alert" onClick={() => setFlashcardSyncRetry((value) => value + 1)}>Progress not synced · Retry</Button>}<Button variant="outline" asChild><a href="/account"><CircleUserRound size={16} />Account</a></Button>{view !== 'lab' && <Button onClick={() => chooseView('lab')}><FlaskConical size={16} />Open Lab</Button>}</div></header>
       <div className="center-pane"><Suspense fallback={<ViewLoading />}>{renderCenter()}</Suspense></div>

@@ -29,6 +29,7 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
   const toolbarInteraction = useRef(false)
   const [selection, setSelection] = useState<{ text: string; style?: CSSProperties }>()
   const [guidance, setGuidance] = useState('')
+  const [copied, setCopied] = useState(false)
   const selectionEnabled = Boolean(noteContext)
   const emitSelection = useEffectEvent((text: string) => onSelection?.(text))
 
@@ -37,6 +38,7 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
     function dismiss(clearBrowserSelection = false) {
       setSelection(undefined)
       setGuidance('')
+      setCopied(false)
       savedRange.current = undefined
       emitSelection('')
       if (clearBrowserSelection) window.getSelection()?.removeAllRanges()
@@ -94,6 +96,7 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
   async function copySelection() {
     if (!selection) return
     await navigator.clipboard.writeText(selection.text)
+    setCopied(true)
   }
 
   return <div ref={root} className="material-markdown">{parseMaterialMarkdown(markdown).map((part, index) => {
@@ -106,7 +109,7 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
       img: ({ src, alt, title }) => { const safeSrc = safeMaterialUrl(src ?? ''); return safeSrc ? <figure><img src={safeSrc} alt={alt?.trim() || fallbackAlt(safeSrc)} loading="lazy" decoding="async" />{title && <figcaption>{title}</figcaption>}</figure> : null },
     }}>{part.content}</ReactMarkdown>
   })}{selection && <div ref={toolbar} className="note-selection-toolbar" role="dialog" aria-label="Selected note actions" style={selection.style} onPointerDownCapture={() => { toolbarInteraction.current = true; window.setTimeout(() => { toolbarInteraction.current = false }, 0) }}>
-    <div className="note-selection-actions"><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => request('explain')} aria-label="Prepare an explanation of selected text"><Sparkles />Explain</Button><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => void copySelection()} aria-label="Copy selected text"><Copy />Copy</Button></div>
+    <div className="note-selection-actions"><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => request('explain')} aria-label="Prepare an explanation of selected text"><Sparkles />Explain</Button><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => void copySelection()} aria-label="Copy selected text"><Copy />{copied ? 'Copied' : 'Copy'}</Button><span aria-live="polite">{copied ? 'Copied' : 'Selected'}</span></div>
     <form onSubmit={(event) => { event.preventDefault(); if (guidance.trim()) request('ask') }}><label><span className="sr-only">Ask Mentor about selected text</span><Input value={guidance} onChange={(event) => setGuidance(event.target.value)} placeholder="Ask Mentor..." maxLength={240} /></label><Button type="submit" size="icon-sm" variant="ai" disabled={!guidance.trim()} aria-label="Prepare question for Mentor"><Send /></Button></form>
   </div>}</div>
 }
