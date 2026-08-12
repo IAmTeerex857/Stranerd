@@ -1,11 +1,28 @@
-alter table public.payment_intents drop constraint payment_intents_credits_check;
+do $$
+declare
+  constraint_name text;
+begin
+  for constraint_name in
+    select constraint_row.conname
+    from pg_constraint constraint_row
+    join pg_attribute column_row
+      on column_row.attrelid = constraint_row.conrelid
+      and column_row.attnum = any (constraint_row.conkey)
+    where constraint_row.conrelid = 'public.payment_intents'::regclass
+      and constraint_row.contype = 'c'
+      and column_row.attname = 'credits'
+  loop
+    execute format('alter table public.payment_intents drop constraint %I', constraint_name);
+  end loop;
+end;
+$$;
 alter table public.payment_intents add constraint payment_intents_credits_check check (
   (product_type = 'subscription' and credits = 500)
   or (product_type = 'payg_100' and credits between 100 and 2000 and credits % 100 = 0)
 ) not valid;
 alter table public.payment_intents validate constraint payment_intents_credits_check;
 
-alter table public.payment_intents drop constraint payment_intents_catalog_amount_check;
+alter table public.payment_intents drop constraint if exists payment_intents_catalog_amount_check;
 alter table public.payment_intents add constraint payment_intents_catalog_amount_check check (
   (provider = 'spotflow' and currency = 'NGN' and product_type = 'subscription' and amount_minor = 250000)
   or (provider = 'spotflow' and currency = 'NGN' and product_type = 'payg_100' and amount_minor = credits::bigint * 500)
