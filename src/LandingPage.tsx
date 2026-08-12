@@ -2,6 +2,7 @@ import { ArrowRight, Bot, Check, ChevronRight, EyeOff, Layers3, Library, Move3d,
 import { LandingHeart, LandingLayeredBody, LandingSpecimen } from './components/LandingHeart'
 import { LandingTimeline } from './components/LandingTimeline'
 import { Page } from './PublicLayout'
+import { useBillingOptions } from './lib/billing'
 
 const subjects = [
   ['heart', 'Heart'], ['brain', 'Brain'], ['lungs', 'Lungs'], ['kidney', 'Kidney'], ['eye', 'Eye'],
@@ -68,10 +69,12 @@ function OrganShowcase() {
 }
 
 function LandingPricing() {
+  const options = useBillingOptions()
+  const nigeria = options?.country === 'NG'
   return <div className="landing-pricing-grid">
-    <article><span>Free account</span><h3>NGN 0</h3><p>Full anatomy learning workspace, with 20 signup credits.</p><ul><li><Check />All anatomy studies</li><li><Check />Guided Labs and free dissection</li><li><Check />Verified assessments and flashcards</li></ul><a href="/app">Start learning <ArrowRight /></a></article>
-    <article className="featured"><span>Stranerd Plus</span><h3>NGN 2,500 <small>/ month</small></h3><p>500 AI credits after every successful billing cycle.</p><ul><li><Check />Explicit AI actions</li><li><Check />Credits reset each cycle</li><li><Check />Cancel at period end</li></ul><a href="/pricing">Choose Plus <ArrowRight /></a></article>
-    <article><span>Credit pack</span><h3>NGN 500</h3><p>100 purchased credits that do not expire.</p><ul><li><Check />No subscription required</li><li><Check />Buy repeatedly</li><li><Check />Spent after included credits</li></ul><a href="/pricing">Buy credits <ArrowRight /></a></article>
+    <article><span>Free account</span><h3>{nigeria ? '₦0' : '$0'}</h3><p>Full anatomy learning workspace, with 20 signup credits.</p><ul><li><Check />All anatomy studies</li><li><Check />Guided Labs and free dissection</li><li><Check />Verified assessments and flashcards</li></ul><a href="/app">Start learning <ArrowRight /></a></article>
+    <article className="featured"><span>Stranerd Plus</span><h3>{nigeria ? '₦2,500' : '$5'} <small>/ month</small></h3><p>500 AI credits after every successful billing cycle.</p><ul><li><Check />Explicit AI actions</li><li><Check />Credits reset each cycle</li><li><Check />Cancel at period end</li></ul><a href="/pricing">Pay {nigeria ? '₦2,500' : '$5'} <ArrowRight /></a></article>
+    <article><span>Credit pack</span><h3>{nigeria ? '₦500' : '$2'}</h3><p>100 purchased credits that do not expire.</p><ul><li><Check />No subscription required</li><li><Check />Buy repeatedly</li><li><Check />Spent after included credits</li></ul><a href="/pricing">Pay {nigeria ? '₦500' : '$2'} <ArrowRight /></a></article>
   </div>
 }
 

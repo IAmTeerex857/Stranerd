@@ -149,7 +149,7 @@ export function buildBachsCheckoutPayload(options: {
       ? { product_cart: [{ product_id: options.plusProductId, quantity: 1 }] }
       : { pricing: { currency: 'USD', amount: product.amount, price_type: 'fixed' } }),
     billing_currency: 'USD',
-    allowed_payment_method_types: [options.rail === 'usd_card' ? 'card' : 'crypto'],
+    allowed_payment_method_types: options.productId === 'payg_100' ? ['card', 'crypto'] : ['card'],
     reference: options.reference,
     metadata: { paymentIntentId: options.paymentIntentId, userId: options.userId, productType: product.productType },
     success_url: `${options.baseUrl}/billing/success?intent=${options.paymentIntentId}`,

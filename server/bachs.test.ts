@@ -54,9 +54,9 @@ describe('Bachs configuration and checkout', () => {
     })
   })
 
-  it('formats raw PAYG USD pricing and crypto rail', () => {
+  it('lets Bachs present card and crypto methods for the USD pack', () => {
     const payload = buildBachsCheckoutPayload({ productId: 'payg_100', rail: 'stablecoin', paymentIntentId: 'intent-2', reference: 'intent-2', userId: 'user-1', email: 'a@example.com', name: 'A User', baseUrl: 'https://app.example.com' })
-    expect(payload).toMatchObject({ pricing: { currency: 'USD', amount: '2.00', price_type: 'fixed' }, allowed_payment_method_types: ['crypto'] })
+    expect(payload).toMatchObject({ pricing: { currency: 'USD', amount: '2.00', price_type: 'fixed' }, allowed_payment_method_types: ['card', 'crypto'] })
     expect(() => buildBachsCheckoutPayload({ productId: 'subscription', rail: 'stablecoin', paymentIntentId: 'i', reference: 'i', userId: 'u', email: 'a@example.com', name: 'A', plusProductId: 'prod_plus', baseUrl: 'https://app.example.com' })).toThrow(/card/i)
   })
 
