@@ -30,6 +30,20 @@ export type AnatomyLayer = {
   defaultVisible: boolean
 }
 
+/**
+ * Canonical framing for one subject, authored against the 3.15-unit normalization at fov 42.
+ * Orbit is stored as azimuth/elevation rather than a world position so the entry survives
+ * any re-centering, and the clamp replaces the former global 2.2-8 for this subject.
+ */
+export type CanonicalCamera = {
+  azimuth: number
+  elevation: number
+  distance: number
+  minDistance: number
+  maxDistance: number
+  view: string
+}
+
 export type ModelEntry = {
   id: string
   name: string
@@ -43,6 +57,7 @@ export type ModelEntry = {
   hotspots: Hotspot[]
   anatomy: boolean
   viewer?: 'standard' | 'segmented-body'
+  camera: CanonicalCamera
 }
 
 export type LessonState = { selectedIds: string[] }
@@ -137,7 +152,6 @@ export type PersistedState = {
   favoriteModelIds: string[]
   bookmarkedHotspotRefs: string[]
   notes: Note[]
-  chatByModel: Record<string, ChatItem[]>
   selectedHotspotIds: Record<string, string>
   dissectionActionsByModel: Record<string, DissectionHistoryItem[]>
   dissectionByModel: Record<string, PersistedDissectionSession>

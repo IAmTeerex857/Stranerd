@@ -440,7 +440,7 @@
   border-radius: 999px;
   color: var(--ink);
   background: var(--app-violet-soft);
-  font: 600 7px/1.1 "Geist Variable", "DM Sans", system-ui, sans-serif;
+  font: 600 7px/1.1 "DM Sans", system-ui, sans-serif;
   box-shadow: 0 4px 14px var(--app-shadow);
   pointer-events: none;
 }

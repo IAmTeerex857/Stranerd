@@ -16,10 +16,11 @@ export function noteSelectionPrompt(action: 'explain' | 'ask', context: ActiveNo
 
 type Rect = { left: number; right: number; top: number; bottom: number; width: number }
 
-export function noteToolbarPosition(rect: Rect, viewportWidth: number, viewportHeight: number, toolbarWidth = 360, toolbarHeight = 112) {
+export function noteToolbarPosition(rect: Rect, workspaceLeft: number, workspaceRight: number, viewportHeight: number, toolbarWidth = 360, toolbarHeight = 112) {
   const margin = 12
-  const left = Math.min(viewportWidth - toolbarWidth - margin, Math.max(margin, rect.left + rect.width / 2 - toolbarWidth / 2))
+  const leftEdge = workspaceLeft + margin
+  const left = Math.min(workspaceRight - toolbarWidth - margin, Math.max(leftEdge, rect.left + rect.width / 2 - toolbarWidth / 2))
   const above = rect.top - toolbarHeight - 10
   const top = above >= margin ? above : Math.min(viewportHeight - toolbarHeight - margin, rect.bottom + 10)
-  return { left: Math.max(margin, left), top: Math.max(margin, top) }
+  return { left: Math.max(leftEdge, left), top: Math.max(margin, top) }
 }

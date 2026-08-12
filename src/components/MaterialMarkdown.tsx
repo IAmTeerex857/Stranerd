@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
 import { Copy, Send, Sparkles } from 'lucide-react'
 import type { ActiveNoteContext, MaterialMnemonic } from '../types/materials'
@@ -57,7 +58,10 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
       const rect = range.getBoundingClientRect()
       if (!rect.width && !rect.height) { dismiss(); return }
       savedRange.current = range.cloneRange()
-      const style = window.innerWidth <= 640 ? undefined : noteToolbarPosition(rect, window.innerWidth, window.innerHeight)
+      const workspace = root.current?.closest('.center-pane')?.getBoundingClientRect()
+      const mentor = document.getElementById('stranerd-mentor')?.getBoundingClientRect()
+      const workspaceRight = mentor && mentor.width > 0 && mentor.left > (workspace?.left ?? 0) ? Math.min(workspace?.right ?? window.innerWidth, mentor.left) : workspace?.right ?? window.innerWidth
+      const style = window.innerWidth <= 640 ? undefined : noteToolbarPosition(rect, workspace?.left ?? 0, workspaceRight, window.innerHeight)
       setSelection({ text, style })
       emitSelection(text)
     }
@@ -99,7 +103,12 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
     setCopied(true)
   }
 
-  return <div ref={root} className="material-markdown">{parseMaterialMarkdown(markdown).map((part, index) => {
+  const selectionToolbar = selection && <div className="learn-redesign note-selection-portal"><div ref={toolbar} className="note-selection-toolbar" role="dialog" aria-label="Selected note actions" style={selection.style} onPointerDownCapture={() => { toolbarInteraction.current = true; window.setTimeout(() => { toolbarInteraction.current = false }, 0) }}>
+    <div className="note-selection-actions"><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => request('explain')} aria-label="Prepare an explanation of selected text"><Sparkles />Explain</Button><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => void copySelection()} aria-label="Copy selected text"><Copy />{copied ? 'Copied' : 'Copy'}</Button><span aria-live="polite">{copied ? 'Copied' : 'Selected'}</span></div>
+    <form onSubmit={(event) => { event.preventDefault(); if (guidance.trim()) request('ask') }}><label><span className="sr-only">Ask Mentor about selected text</span><Input value={guidance} onChange={(event) => setGuidance(event.target.value)} placeholder="Ask Mentor..." maxLength={240} /></label><Button type="submit" size="icon-sm" variant="ai" disabled={!guidance.trim()} aria-label="Prepare question for Mentor"><Send /></Button></form>
+  </div></div>
+
+  return <><div ref={root} className="material-markdown">{parseMaterialMarkdown(markdown).map((part, index) => {
     if (part.kind === 'mnemonic') {
       const mnemonic = mnemonics.get(part.id)
       return mnemonic ? <aside className="material-mnemonic" key={`${part.id}-${index}`}><span>Mnemonic</span><h3>{mnemonic.title}</h3><MaterialMarkdown markdown={mnemonic.body} mnemonics={noMnemonics} /></aside> : <aside className="material-mnemonic missing" key={`${part.id}-${index}`}>Mnemonic unavailable</aside>
@@ -108,8 +117,5 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
       a: ({ href, children }) => <a href={safeMaterialUrl(href ?? '')} target={href?.startsWith('http') ? '_blank' : undefined} rel={href?.startsWith('http') ? 'noreferrer' : undefined}>{children}</a>,
       img: ({ src, alt, title }) => { const safeSrc = safeMaterialUrl(src ?? ''); return safeSrc ? <figure><img src={safeSrc} alt={alt?.trim() || fallbackAlt(safeSrc)} loading="lazy" decoding="async" />{title && <figcaption>{title}</figcaption>}</figure> : null },
     }}>{part.content}</ReactMarkdown>
-  })}{selection && <div ref={toolbar} className="note-selection-toolbar" role="dialog" aria-label="Selected note actions" style={selection.style} onPointerDownCapture={() => { toolbarInteraction.current = true; window.setTimeout(() => { toolbarInteraction.current = false }, 0) }}>
-    <div className="note-selection-actions"><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => request('explain')} aria-label="Prepare an explanation of selected text"><Sparkles />Explain</Button><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => void copySelection()} aria-label="Copy selected text"><Copy />{copied ? 'Copied' : 'Copy'}</Button><span aria-live="polite">{copied ? 'Copied' : 'Selected'}</span></div>
-    <form onSubmit={(event) => { event.preventDefault(); if (guidance.trim()) request('ask') }}><label><span className="sr-only">Ask Mentor about selected text</span><Input value={guidance} onChange={(event) => setGuidance(event.target.value)} placeholder="Ask Mentor..." maxLength={240} /></label><Button type="submit" size="icon-sm" variant="ai" disabled={!guidance.trim()} aria-label="Prepare question for Mentor"><Send /></Button></form>
-  </div>}</div>
+  })}</div>{selectionToolbar && createPortal(selectionToolbar, document.body)}</>
 }

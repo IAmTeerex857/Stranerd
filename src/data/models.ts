@@ -72,7 +72,26 @@ const eyeVariants: ModelEntry['variants'] = [
   ...variants('eye.glb', 'eye-v2.glb').map((variant, index) => ({ ...variant, id: `other-${index + 1}`, label: `Other specimen ${index + 1}` })),
 ]
 
-export const models: ModelEntry[] = [
+/**
+ * Canonical camera table — one row per subject, authored against the 3.15-unit normalization
+ * at fov 42. Distance fits the full specimen inside the usable canvas with the breakpoint's
+ * safe padding; the per-subject clamp replaces the former global 2.2-8, which could not frame
+ * both the eye and the whole-body atlas well. Reset restores its row exactly.
+ */
+const canonicalCameras: Record<string, ModelEntry['camera']> = {
+  heart: { azimuth: 8, elevation: 6, distance: 4.5, minDistance: 1.6, maxDistance: 7, view: 'Anterior, great vessels up' },
+  brain: { azimuth: -75, elevation: 8, distance: 4.6, minDistance: 1.8, maxDistance: 7, view: 'Left lateral, cerebellum visible' },
+  lungs: { azimuth: 0, elevation: 4, distance: 4.8, minDistance: 1.8, maxDistance: 7.5, view: 'Anterior, trachea centred' },
+  kidney: { azimuth: 0, elevation: 0, distance: 4.4, minDistance: 1.4, maxDistance: 6.5, view: 'Anterior pair, hila inward' },
+  eye: { azimuth: -20, elevation: 6, distance: 4, minDistance: 0.9, maxDistance: 6, view: 'Three-quarter, optical axis readable' },
+  liver: { azimuth: 12, elevation: 10, distance: 4.5, minDistance: 1.5, maxDistance: 7, view: 'Anteroinferior, porta hepatis in view' },
+  'nervous-system': { azimuth: 0, elevation: 0, distance: 5.4, minDistance: 2, maxDistance: 8.5, view: 'Full height, CNS axis vertical' },
+  skin: { azimuth: 0, elevation: 0, distance: 4.2, minDistance: 1.2, maxDistance: 6, view: 'Block face-on, layers stacked' },
+  anatomy: { azimuth: 0, elevation: 0, distance: 6.3, minDistance: 2.6, maxDistance: 9.5, view: 'Anatomical position, fixed group transform' },
+  'digestive-system': { azimuth: 0, elevation: 6, distance: 4.9, minDistance: 1.6, maxDistance: 7.5, view: 'Anterior, oesophagus to colon' },
+}
+
+const modelEntries: Omit<ModelEntry, 'camera'>[] = [
   {
     id: 'heart', name: 'Heart', scientificName: 'Cor', system: 'Cardiovascular', file: 'heart-realistic.glb', variants: specimenVariants('heart', 'cardiovascular', 'Named chambers, valves, vessels, and coronary structures.', true, 'heart.glb', 'heart-v2.glb', 'heart-v3.glb'), anatomy: true,
     description: 'A four-chambered muscular pump that maintains pulmonary and systemic circulation.',
@@ -152,6 +171,8 @@ export const models: ModelEntry[] = [
     hotspots: [spot('esophagus', 'Esophagus', 'Muscular conduit moving a swallowed bolus to the stomach by peristalsis.', [0, 0.9, 0.25]), spot('stomach', 'Stomach', 'Reservoir that mixes food with acid and proteases to form chyme.', [-0.34, 0.18, 0.4]), spot('small-intestine', 'Small intestine', 'Primary site of enzymatic digestion and nutrient absorption.', [0.12, -0.62, 0.45])],
   },
 ]
+
+export const models: ModelEntry[] = modelEntries.map((entry) => ({ ...entry, camera: canonicalCameras[entry.id] }))
 
 export const anatomyModels = models
 export const modelById = (id: string) => models.find((model) => model.id === id) ?? models[0]

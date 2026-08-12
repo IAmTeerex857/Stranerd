@@ -10,6 +10,7 @@
   --primary: #2e64f0;
   --primary-foreground: #ffffff;
   --primary-subtle: #edf3ff;
+  --primary-border: #cbdafb;
   --secondary: #edf1f8;
   --secondary-foreground: #3a4457;
   --muted-ui: #edf1f8;
@@ -17,11 +18,17 @@
   --accent-ui: #f2ecfe;
   --accent-foreground: #5a2ccb;
   --ai: #6d3be8;
+  --ai-hover: #5a2ccb;
   --ai-subtle: #f4effe;
+  --ai-border: #e1d3fb;
   --success: #0e9f6e;
+  --success-subtle: #e7f7f0;
   --warning: #c77706;
+  --warning-subtle: #fcf3e4;
   --destructive: #dc2626;
+  --destructive-subtle: #fdecec;
   --border-ui: #e4e9f2;
+  --border-strong: #d5ddea;
   --input: #e4e9f2;
   --ring: #2e64f0;
   --canvas-bg: #eaeef4;
@@ -43,6 +50,7 @@
   --primary: #5b8cff;
   --primary-foreground: #0c1728;
   --primary-subtle: #182235;
+  --primary-border: #2b3d66;
   --secondary: #171c27;
   --secondary-foreground: #c4cddc;
   --muted-ui: #171c27;
@@ -50,10 +58,17 @@
   --accent-ui: #201a3a;
   --accent-foreground: #b198ff;
   --ai: #9a79ff;
+  --ai-hover: #b198ff;
   --ai-subtle: #241c47;
+  --ai-border: #392e62;
   --success: #34d399;
+  --success-subtle: #0f2a21;
   --warning: #fbbf24;
+  --warning-subtle: #2e2410;
+  --destructive: #f87171;
+  --destructive-subtle: #361b1b;
   --border-ui: #242b39;
+  --border-strong: #313a4b;
   --input: #242b39;
   --ring: #5b8cff;
   --canvas-bg: #070a11;
@@ -758,6 +773,16 @@ button, input, textarea, select { font-family: inherit; }
   .material-card-inner { transition: none; }
 }
 
+@keyframes dissect-sheet-in {
+  from { transform: translateY(105%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes dissect-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* New workspace shell: desktop, tablet, and mobile share one geometry contract. */
 .app-shell,
 .app-shell.sidebar-collapsed,
@@ -971,21 +996,61 @@ button, input, textarea, select { font-family: inherit; }
 .app-shell .variant-control { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 10px; max-width: 600px; margin: 14px 0 0; }
 .app-shell .variant-control > span { color: var(--muted-foreground); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
 .app-shell .variant-control > small { grid-column: 2; overflow: hidden; color: var(--muted-foreground); font-size: 10px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
-.app-shell .specimen-selector { display: flex; min-width: 0; gap: 5px; overflow-x: auto; scrollbar-width: none; }
-.app-shell .specimen-selector::-webkit-scrollbar { display: none; }
-.app-shell .specimen-selector button { display: inline-flex; min-width: 38px; height: 34px; flex: 0 0 auto; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid var(--border-ui); border-radius: 9px; color: var(--muted-foreground); background: var(--overlay-surface); font-size: 10px; backdrop-filter: blur(12px); }
-.app-shell .specimen-selector button b { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 9px; font-weight: 500; }
-.app-shell .specimen-selector button span { max-width: 0; overflow: hidden; opacity: 0; white-space: nowrap; transition: max-width var(--motion-ui) var(--ease-standard), opacity var(--motion-ui) var(--ease-standard); }
-.app-shell .specimen-selector button:hover span,
-.app-shell .specimen-selector button.active span { max-width: 160px; opacity: 1; }
-.app-shell .specimen-selector button.active { border-color: color-mix(in srgb, var(--primary) 55%, var(--border-ui)); color: var(--primary); background: var(--primary-subtle); }
-.app-shell .explore-viewer .viewer-tools { display: grid; grid-template-columns: repeat(2, minmax(104px, 1fr)); gap: 5px; width: min(270px, 40%); padding: 5px; border-radius: 14px; }
-.app-shell .explore-viewer .viewer-tools [data-slot="button"] { width: auto; min-height: 44px; justify-content: flex-start; gap: 8px; padding-inline: 12px; border-radius: 10px; font-family: "Inter", system-ui, sans-serif; font-size: 11px; }
-.app-shell .explore-viewer .viewer-tools [data-slot="button"][aria-pressed="true"] { color: var(--primary-foreground); background: var(--primary); }
-.app-shell .explore-viewer .canvas-wrap { transition: margin-right var(--motion-panel) var(--ease-standard); }
-.app-shell .explore-viewer.is-dissecting .canvas-wrap { margin-right: 300px; border-right: 1px solid var(--border-ui); }
+.app-shell .specimen-selector[data-slot="select-trigger"] { width: min(190px, calc(100vw - 92px)); min-width: 0; height: 32px; padding-inline: 10px 8px; border-color: var(--border-ui); border-radius: 8px; color: var(--foreground); background: var(--overlay-surface); font-size: 10px; backdrop-filter: blur(12px); }
+.app-shell .specimen-selector[data-slot="select-trigger"]:hover { background: var(--muted-ui); }
+.app-shell .specimen-selector [data-slot="select-value"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.specimen-selector-content[data-slot="select-content"] { min-width: var(--radix-select-trigger-width); border: 1px solid var(--border-ui); background: var(--card); }
+.specimen-selector-content [data-slot="select-item"] { min-height: 32px; font-size: 11px; }
+/* Canvas tool rail — floating, left edge, vertically centred. Icon-only at 42x42 inside a
+   44px hit area; the name is carried by aria-label and a tooltip. Sits inside the 64px left
+   inset reserved in canvasInsets.ts, so the specimen never sits under it. */
+.app-shell .explore-viewer .viewer-tool-rail {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--border-ui);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  box-shadow: 0 16px 40px -16px rgb(14 21 38 / 28%);
+  backdrop-filter: blur(12px);
+  transform: translateY(-50%);
+}
+.app-shell .explore-viewer .viewer-tool-rail [data-slot="button"] {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 10px;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+.app-shell .explore-viewer .viewer-tool-rail [data-slot="button"]:hover { color: var(--foreground); background: var(--muted-ui); }
+.app-shell .explore-viewer .viewer-tool-rail [data-slot="button"][aria-pressed="true"] { color: var(--primary-foreground); background: var(--primary); }
+.app-shell .explore-viewer .viewer-tool-rail .tool-rail-divider { height: 1px; margin: 2px 4px; background: var(--border-ui); }
+
+/* Below desktop the rail moves to the right edge at 40px, per the mobile prototype, so it
+   never sits under the title block or the specimen selector. */
+@media (max-width: 1199px) {
+  .app-shell .explore-viewer .viewer-tool-rail { right: 12px; left: auto; gap: 5px; padding: 6px; }
+  .app-shell .explore-viewer .viewer-tool-rail [data-slot="button"] { width: 40px; min-width: 40px; height: 40px; }
+}
+
 .app-shell .explore-viewer .specimen-bar { min-height: 56px; background: color-mix(in srgb, var(--card) 84%, transparent); backdrop-filter: blur(14px); }
-.app-shell .explore-viewer .dissect-dock { top: 132px; right: 12px; bottom: 68px; width: 288px; padding: 12px; border: 1px solid var(--border-ui); border-radius: 14px; background: var(--overlay-surface); box-shadow: 0 6px 16px -6px rgb(12 18 32 / 14%); backdrop-filter: blur(18px); }
+/* Flex items default to min-width:auto, so these three cells refused to shrink below their
+   text and forced the whole viewer (and its canvas) wider than a phone viewport, pushing the
+   specimen and the tool rail off-screen. */
+.app-shell .explore-viewer { min-width: 0; }
+.app-shell .explore-viewer .specimen-bar span { min-width: 0; }
+.app-shell .explore-viewer .specimen-bar span b,
+.app-shell .explore-viewer .specimen-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The dock floats over a full-bleed canvas rather than shrinking it; the camera view offset
+   re-centres the specimen against the remaining usable rect. */
+.app-shell .explore-viewer .dissect-dock { top: 64px; right: 20px; bottom: 12px; left: auto; width: 288px; padding: 12px; border: 1px solid var(--border-ui); border-radius: 16px; background: color-mix(in srgb, var(--card) 92%, transparent); box-shadow: 0 16px 40px -16px rgb(14 21 38 / 28%); backdrop-filter: blur(12px); }
 .app-shell .explore-viewer .dissect-dock > header { min-height: 42px; }
 .app-shell .explore-viewer .dissect-dock > header span { color: var(--primary); }
 .app-shell .explore-viewer .dissect-actions { grid-template-columns: repeat(4, 1fr); gap: 5px; }
@@ -997,7 +1062,6 @@ button, input, textarea, select { font-family: inherit; }
 .app-shell .explore-viewer .canvas-wrap canvas { touch-action: none; }
 
 @media (min-width: 1600px) {
-  .app-shell .explore-viewer.is-dissecting .canvas-wrap { margin-right: 320px; }
   .app-shell .explore-viewer .dissect-dock { width: 308px; }
 }
 
@@ -1033,9 +1097,7 @@ button, input, textarea, select { font-family: inherit; }
   .app-shell .variant-control { grid-template-columns: 1fr; gap: 6px; margin-top: 10px; }
   .app-shell .variant-control > span,
   .app-shell .variant-control > small { display: none; }
-  .app-shell .specimen-selector { grid-column: 1; width: calc(100vw - 92px); }
-  .app-shell .specimen-selector button { min-width: 40px; height: 40px; padding-inline: 10px; }
-  .app-shell .specimen-selector button span { display: none; }
+  .app-shell .specimen-selector[data-slot="select-trigger"] { grid-column: 1; width: min(210px, calc(100vw - 92px)); height: 36px; }
   .app-shell .explore-viewer .viewer-tools,
   .app-shell .explore-viewer.activity-layout .viewer-tools { position: absolute; z-index: 8; top: 132px; right: 10px; display: flex; width: 48px; max-height: calc(100% - 220px); flex-direction: column; padding: 2px; overflow-y: auto; border-radius: 12px; }
   .app-shell .explore-viewer .viewer-tools [data-slot="button"] { width: 44px; height: 44px; min-height: 44px; justify-content: center; padding: 0; }
@@ -1058,4 +1120,324 @@ button, input, textarea, select { font-family: inherit; }
   .app-shell .explore-viewer .dissect-structures button { min-height: 44px; }
   .app-shell .explore-viewer .body-layer-dock { top: auto; bottom: 64px; left: 10px; width: 155px; max-height: 42%; overflow-y: auto; }
   .app-shell .model-detail.brief-only { margin: 8px; }
+}
+
+/* Workspace shell and Explore stage, aligned to the workspace design document. */
+@media (min-width: 1200px) {
+  .app-shell,
+  .app-shell.mentor-hidden {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr) 384px;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .app-shell.mentor-hidden { grid-template-columns: 264px minmax(0, 1fr); }
+  .app-shell .sidebar { width: 264px; }
+  .app-shell .center-pane { height: calc(100dvh - 64px); overflow: auto; }
+  .app-shell .center-pane:has(.explore-view),
+  .app-shell .center-pane:has(.lab-guided-workspace) { overflow: hidden; padding: 0; }
+  .app-shell .explore-view,
+  .app-shell .explore-viewer { width: 100%; height: 100%; min-height: 0; }
+  .app-shell .explore-viewer { border: 0; border-radius: 0; }
+  .app-shell aside.mentor {
+    height: calc(100dvh - 64px);
+    margin-top: 64px;
+  }
+  .app-shell .mentor-top-actions {
+    position: fixed;
+    z-index: 80;
+    top: 0;
+    right: 0;
+    display: flex;
+    width: 384px;
+    height: 64px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border-ui);
+    border-left: 1px solid var(--border-ui);
+    background: var(--card);
+  }
+}
+
+.app-shell .sidebar {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  padding: 0;
+  box-shadow: none;
+}
+.app-shell .side-brand { height: 64px; min-height: 64px; padding: 0 20px; border-bottom: 1px solid var(--border-ui); }
+.app-shell .mobile-sidebar-close { display: none; }
+.app-shell .mobile-drawer-brand { display: none; }
+.app-shell .dissect-backdrop { display: none; }
+.app-shell .side-brand .brand { height: 64px; }
+.app-shell .side-brand .brand-full { width: 150px; filter: brightness(0) invert(1); }
+:root[data-theme="light"] .app-shell .side-brand .brand-full { filter: none; }
+.app-shell .side-brand .brand span { display: none; }
+.app-shell .sidebar nav { padding: 16px 12px 6px; gap: 3px; }
+.app-shell .sidebar nav > button { height: 40px; min-height: 40px; padding: 0 12px; border-radius: 10px; font-size: 14px; }
+.app-shell .side-section { display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 14px 12px 8px; }
+.app-shell .side-section > header { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 8px; color: var(--muted-foreground); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.app-shell .side-section > header b { font-weight: 500; }
+.app-shell .model-list { min-height: 0; overflow-y: auto; }
+.app-shell .model-list button { height: 34px; min-height: 34px; gap: 10px; padding: 0 8px; border-radius: 8px; }
+.app-shell .model-list button > i { width: 9px; height: 9px; border-radius: 3px; background: #e5484d; }
+.app-shell .model-list button:nth-child(2n) > i { background: #4361e8; }
+.app-shell .model-list button:nth-child(3n) > i { background: #0e93bc; }
+.app-shell .model-list button:nth-child(4n) > i { background: #d98a20; }
+.app-shell .model-list button > span { min-width: 0; flex: 1; overflow: hidden; font-size: 13px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell .model-list button > small { color: var(--muted-foreground); font-size: 10px; white-space: nowrap; }
+.app-shell .sidebar-account { min-height: 59px; margin: 0; padding: 12px; border-top: 1px solid var(--border-ui); border-radius: 0; }
+.app-shell .sidebar-account > svg:first-child { padding: 7px; border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border-ui)); border-radius: 50%; color: var(--primary); background: var(--primary-subtle); }
+.app-shell .sidebar-account > span { display: grid; min-width: 0; flex: 1; text-align: left; }
+.app-shell .sidebar-account b { overflow: hidden; color: var(--foreground); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell .sidebar-account small { color: var(--muted-foreground); font-size: 10px; }
+
+.app-shell .topbar { display: grid; height: 64px; min-height: 64px; grid-template-columns: minmax(190px, 1fr) minmax(300px, 460px) minmax(190px, 1fr); gap: 20px; padding: 0 24px; }
+.app-shell .topbar > div:first-child > span { color: var(--primary); font: 600 10px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+.app-shell .topbar > div:first-child b { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+.app-shell .workspace-search { display: flex; height: 40px; align-items: center; gap: 9px; padding: 0 14px; border: 1px solid var(--border-ui); border-radius: 11px; color: var(--muted-foreground); background: var(--muted-ui); }
+.app-shell .workspace-search input { min-width: 0; flex: 1; border: 0; outline: 0; color: var(--foreground); background: transparent; font-size: 13px; }
+.app-shell .top-actions { justify-content: flex-end; }
+.app-shell .mentor-top-actions { display: none; }
+@media (min-width: 1200px) { .app-shell .mentor-top-actions { display: flex; } }
+.app-shell .credit-pill, .app-shell .mobile-credits { display: inline-flex; height: 40px; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid color-mix(in srgb, var(--ai) 38%, var(--border-ui)); border-radius: 11px; color: var(--ai); background: var(--card); }
+.app-shell .credit-pill b, .app-shell .mobile-credits b { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; }
+.app-shell .credit-pill span { font-size: 11px; }
+.app-shell .top-actions > button:last-child { border-color: var(--border-ui); color: var(--foreground); background: var(--card); }
+.app-shell .top-actions > button:last-child:hover { border-color: var(--border-ui); color: var(--foreground); background: var(--muted-ui); }
+.app-shell .top-actions > .credit-pill:hover { border-color: var(--ai); color: var(--ai); background: var(--ai-subtle); }
+
+.app-shell .explore-view { display: block; }
+.app-shell .explore-viewer .viewer-head { height: 64px; padding: 0 20px; border-bottom: 1px solid var(--border-ui); background: color-mix(in srgb, var(--card) 70%, transparent); backdrop-filter: blur(8px); }
+.app-shell .explore-viewer .viewer-head { display: flex; align-items: center; justify-content: space-between; }
+.app-shell .explore-heading { display: flex; max-width: none; align-items: center; gap: 10px; }
+.app-shell .explore-heading::before { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 3px; background: var(--primary); content: ""; }
+.app-shell .explore-heading .eyebrow { display: none; }
+.app-shell .explore-heading h1 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+.app-shell .explore-heading > p { margin: 2px 0 0; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10px; font-style: normal; }
+.app-shell .viewer-mode-pill { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; border: 1px solid var(--border-ui); border-radius: 999px; color: var(--muted-foreground); background: color-mix(in srgb, var(--card) 82%, transparent); font: 500 10px "IBM Plex Mono", ui-monospace, monospace; }
+.app-shell .mobile-inline-mode { display: none; }
+.app-shell .variant-control { position: absolute; z-index: 7; top: 72px; left: 82px; display: block; max-width: calc(100% - 180px); margin: 0; }
+.app-shell .variant-control > span, .app-shell .variant-control > small { display: none; }
+.app-shell .explore-viewer .canvas-wrap { height: 100%; }
+.app-shell .explore-viewer .viewer-help { bottom: 72px; }
+.app-shell .explore-viewer .specimen-bar { height: 64px; min-height: 64px; padding-inline: 22px; background: color-mix(in srgb, var(--card) 70%, transparent); }
+.app-shell .explore-viewer .dissect-dock { top: 64px; right: 16px; bottom: 68px; }
+
+.app-shell .activity-tools-menu { position: absolute; z-index: 11; top: 20px; right: 20px; }
+.app-shell .activity-tools-fab { display: none; }
+.app-shell .activity-tools-popover > .viewer-tools { display: flex; }
+
+.app-shell .hotspot-label,
+.app-shell .dissection-structure-label {
+  transform: translate(5px, -50%) scale(.76);
+  transform-origin: left center;
+}
+
+.app-shell [data-slot="button"][data-variant="default"],
+.app-shell .material-subject-body > button.started,
+.app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] > button { color: #fff; }
+
+@media (max-width: 1199px) {
+  .app-shell .mobile-context { display: grid; min-width: 0; flex: 1; }
+  .app-shell .mobile-context b { overflow: hidden; font-family: "DM Sans", sans-serif; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+  .app-shell .mobile-context span { overflow: hidden; color: var(--muted-foreground); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+  .app-shell .mobile-credits { height: 34px; padding-inline: 10px; }
+  .app-shell .center-pane:has(.explore-view), .app-shell .center-pane:has(.lab-guided-workspace) { overflow: hidden; padding: 0; }
+  .app-shell .explore-view, .app-shell .explore-viewer { height: 100%; min-height: 0; }
+  .app-shell .explore-viewer { border: 0; border-radius: 0; }
+}
+
+@media (max-width: 767px) {
+  .app-shell { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+  .app-shell .mobile-head { position: fixed; z-index: 75; inset: 0 0 auto; display: flex; gap: 4px; background: color-mix(in srgb, var(--card) 92%, transparent); }
+  .app-shell .mobile-head > button { flex: 0 0 38px; width: 38px; height: 38px; border: 0; background: transparent; }
+  .app-shell .mobile-head > button svg { width: 19px; }
+  .app-shell .mobile-head .mobile-credits { flex: 0 0 auto; }
+  .app-shell .workspace { height: calc(100dvh - 114px - env(safe-area-inset-bottom)); margin-top: 54px; }
+  .app-shell .center-pane { height: 100%; overflow-y: auto; }
+  .app-shell .mobile-tabs { position: fixed; z-index: 74; display: grid; height: calc(60px + env(safe-area-inset-bottom)); grid-template-columns: repeat(4, 1fr); }
+  .app-shell .mobile-tabs button, .app-shell .mobile-tabs a { display: flex; width: 100%; min-width: 0; align-items: center; justify-content: center; flex-direction: column; gap: 3px; color: var(--muted-foreground); }
+  .app-shell .mobile-tabs button.active { background: transparent; }
+  .app-shell .mobile-mentor-button { display: grid; width: 56px; min-width: 56px; height: 56px; min-height: 56px; place-items: center; padding: 0; font-size: 0; }
+  .app-shell .mobile-mentor-button i { position: absolute; top: 5px; right: 5px; }
+  .app-shell .sidebar, .app-shell .sidebar.collapsed { inset: 54px auto 60px 0; width: min(270px, 86vw); padding: 0; }
+  .app-shell .sidebar .side-brand { display: none; }
+  .app-shell .explore-viewer .viewer-head { height: auto; padding: 10px 68px 8px 14px; border: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--card) 78%, transparent), transparent); }
+  .app-shell .viewer-mode-pill { display: none; }
+  .app-shell .explore-viewer .viewer-head > div.explore-heading:first-child { display: inline-flex; width: fit-content; align-items: center; padding: 0; border: 0; border-radius: 0; background: transparent; backdrop-filter: none; }
+  .app-shell .explore-heading h1 { font-size: 14px; }
+  .app-shell .explore-heading > p { display: none; }
+  .app-shell .variant-control { position: static; width: calc(100vw - 82px); max-width: none; margin-top: 8px; }
+  .app-shell .specimen-selector[data-slot="select-trigger"] { width: min(210px, 100%); height: 36px; border-radius: 9px; }
+  .app-shell .explore-viewer .viewer-tool-rail { right: 12px; }
+  .app-shell .explore-viewer .canvas-wrap { min-height: 0; height: 100%; }
+  .app-shell .explore-viewer .specimen-bar { position: absolute; right: 12px; bottom: 12px; left: 12px; min-height: 52px; height: 52px; padding: 8px 13px; border: 1px solid var(--border-ui); border-radius: 13px; box-shadow: 0 1px 2px rgb(14 21 38 / 6%); }
+  .app-shell .explore-viewer .specimen-bar span:nth-child(3) { display: none; }
+  .app-shell .explore-viewer .viewer-help { bottom: 76px; }
+  .app-shell .explore-viewer .axis { bottom: 76px; }
+  .app-shell .explore-viewer .dissect-dock,
+  .app-shell .explore-viewer.activity-layout .dissect-dock {
+    position: fixed;
+    z-index: 78;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: min(72dvh, 640px);
+    margin: 0;
+    padding: 18px 16px calc(16px + env(safe-area-inset-bottom));
+    border-radius: 22px 22px 0 0;
+    background: var(--card);
+    box-shadow: 0 -24px 60px -24px rgb(12 18 32 / 34%);
+    transform: translateY(0);
+    transition: transform var(--motion-panel) var(--ease-standard), visibility var(--motion-panel);
+  }
+  .app-shell .explore-viewer .dissect-dock::before {
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border-strong);
+    content: "";
+    transform: translateX(-50%);
+  }
+  .app-shell .explore-viewer .dissect-dock.sheet-open { animation: dissect-sheet-in var(--motion-panel) var(--ease-standard); }
+  .app-shell .explore-viewer .dissect-dock.sheet-collapsed { visibility: hidden; pointer-events: none; transform: translateY(105%); }
+  .app-shell .dissect-backdrop { position: fixed; z-index: 77; inset: 0; display: block; width: 100%; height: 100%; border: 0; background: rgb(4 7 12 / 48%); backdrop-filter: blur(2px); animation: dissect-backdrop-in var(--motion-ui) ease-out; }
+  .app-shell .explore-viewer .dissect-dock > header { display: grid; grid-template-columns: minmax(0, 1fr) 44px; margin-top: 4px; padding: 8px 0 12px; }
+  .app-shell .explore-viewer .dissect-dock > header .mobile-sheet-toggle { display: none !important; }
+  .app-shell .explore-viewer .dissect-dock > header div { min-width: 0; }
+  .app-shell .explore-viewer .dissect-dock > header span { color: var(--muted-foreground); font-size: 10px; }
+  .app-shell .explore-viewer .dissect-dock > header b { margin-top: 3px; color: var(--foreground); font: 600 18px "DM Sans", sans-serif; }
+  .app-shell .explore-viewer .dissect-sheet-content { overflow: hidden; }
+  .app-shell .explore-viewer .dissect-search { display: none; }
+  .app-shell .explore-viewer .dissect-actions { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; margin: 4px 0 16px; overflow: visible; }
+  .app-shell .explore-viewer .dissect-actions button { min-height: 72px; flex-direction: column; gap: 8px; color: var(--foreground); font-size: 11px; font-weight: 650; }
+  .app-shell .explore-viewer .dissect-actions .touch-move-action { display: flex !important; }
+  .app-shell .explore-viewer .dissect-structures { overscroll-behavior: contain; }
+  .app-shell .explore-viewer .dissect-structures h3 { padding-block: 8px; font-size: 9px; }
+  .app-shell .explore-viewer .dissect-structures button { min-height: 44px; margin-bottom: 4px; padding-inline: 10px; border-radius: 10px; background: var(--muted-ui); font-size: 13px; }
+  .app-shell .explore-viewer .dissect-sheet-content > footer { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px -16px -16px; padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .app-shell .explore-viewer .dissect-sheet-content > footer button { color: var(--foreground); font-size: 11px; font-weight: 650; }
+  .app-shell .activity-tools-menu { position: absolute; z-index: 30; top: 10px; right: 12px; display: flex; align-items: flex-end; flex-direction: column; gap: 8px; }
+  .app-shell .activity-tools-fab { display: inline-flex; width: 42px; height: 42px; border-radius: 12px; background: color-mix(in srgb, var(--card) 94%, transparent); box-shadow: 0 8px 24px rgb(14 21 38 / 16%); }
+  .app-shell .activity-tools-popover { display: none; }
+  .app-shell .activity-tools-menu.open .activity-tools-popover { display: block; }
+  .app-shell .activity-tools-popover > .viewer-tools { position: static !important; display: flex !important; width: 176px !important; max-height: none !important; flex-direction: column; gap: 2px; padding: 6px; overflow: visible; border-radius: 14px; }
+  .app-shell .activity-tools-popover .viewer-tools [data-slot="button"] { width: 100%; height: 40px; min-height: 40px; justify-content: flex-start; gap: 10px; padding: 0 10px; }
+  .app-shell .activity-tools-popover .viewer-tools [data-slot="button"] span { position: static; width: auto; height: auto; overflow: visible; clip: auto; clip-path: none; }
+}
+
+/* Mobile workspace chrome follows the dedicated mobile design document. */
+@media (max-width: 767px) {
+  .app-shell .mobile-head {
+    height: 54px;
+    min-height: 54px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border-ui);
+  }
+  .app-shell .mobile-head > button { border-radius: 10px; }
+  .app-shell .mobile-head .mobile-back { margin-left: -6px; }
+  .app-shell .mobile-context b { font-size: 16px; line-height: 1.1; letter-spacing: -.02em; }
+  .app-shell .mobile-context span { margin-top: 2px; font-size: 10px; }
+  .app-shell .sidebar,
+  .app-shell .sidebar.collapsed {
+    z-index: 100;
+    top: 0;
+    bottom: 0;
+    width: min(310px, 78vw);
+    max-width: 78vw;
+    border-right: 1px solid var(--border-ui);
+    background: var(--card);
+  }
+  .app-shell .sidebar .side-brand {
+    display: none;
+  }
+  .app-shell .sidebar .mobile-drawer-brand { display: flex; height: 64px; min-height: 64px; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border-ui); }
+  .app-shell .sidebar .mobile-drawer-brand img { display: block; width: 148px; height: auto; }
+  :root[data-theme="dark"] .app-shell .sidebar .mobile-drawer-brand img { filter: brightness(0) invert(1); }
+  .app-shell .sidebar nav { padding: 14px 16px 6px; }
+  .app-shell .sidebar nav > button,
+  .app-shell .sidebar nav > a { min-height: 44px; font-size: 15px; }
+  .app-shell .side-section { padding-inline: 16px; }
+  .app-shell .model-list button { min-height: 42px; }
+  .app-shell .sidebar-account { display: none; }
+  .app-shell .sidebar-backdrop { display: block; }
+  .app-shell .mobile-tabs { border-top: 1px solid var(--border-ui); background: color-mix(in srgb, var(--card) 96%, transparent); }
+  .app-shell .mobile-tabs button,
+  .app-shell .mobile-tabs a { font-size: 10.5px; font-weight: 500; }
+  .app-shell .mobile-tabs > [data-slot="button"] { height: 100%; min-height: 60px; padding: 6px 0 4px; line-height: 1; }
+  .app-shell .mobile-tabs > [data-slot="button"] svg { width: 21px; height: 21px; flex: 0 0 21px; margin: 0; }
+  .app-shell .mobile-tabs > [data-slot="button"] span { line-height: 1.1; }
+  .app-shell .mobile-tabs .active { color: var(--primary); font-weight: 600; }
+  .app-shell .mobile-model-chips {
+    position: absolute;
+    z-index: 9;
+    top: 62px;
+    right: 0;
+    left: 0;
+    display: flex;
+    gap: 7px;
+    padding: 0 14px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .app-shell .mobile-model-chips::-webkit-scrollbar { display: none; }
+  .app-shell .mobile-model-chips button {
+    display: inline-flex;
+    height: 34px;
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    padding: 0 14px;
+    border: 1px solid var(--border-ui);
+    border-radius: 999px;
+    color: var(--foreground);
+    background: color-mix(in srgb, var(--card) 90%, transparent);
+    font-size: 13px;
+    font-weight: 600;
+    backdrop-filter: blur(8px);
+  }
+  .app-shell .mobile-model-chips button.active { border-color: var(--primary); color: var(--primary); background: var(--primary-subtle); }
+  .app-shell .mobile-model-chips i { width: 8px; height: 8px; border-radius: 3px; background: #e5484d; }
+  .app-shell .mobile-model-chips button:nth-child(2n) i { background: #4361e8; }
+  .app-shell .mobile-model-chips button:nth-child(3n) i { background: #0e93bc; }
+  .app-shell .mobile-model-chips button:nth-child(4n) i { background: #d98a20; }
+  .app-shell .mobile-model-chips button:nth-child(5n) i { background: #109684; }
+  .app-shell .explore-view { position: relative; }
+  .app-shell .explore-viewer .viewer-head { position: absolute; inset: 0 0 auto; display: block; height: 54px; padding: 10px 14px; }
+  .app-shell .explore-viewer .desktop-viewer-mode { display: none; }
+  .app-shell .explore-viewer .mobile-inline-mode { position: static; display: inline-flex; flex: 0 0 auto; margin-left: 2px; }
+  .app-shell .explore-heading { max-width: calc(100vw - 28px); }
+  .app-shell .explore-heading h1 { max-width: min(42vw, 180px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app-shell .explore-viewer .variant-control { display: none; }
+  .app-shell aside.mentor {
+    top: 0;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+  }
+  .app-shell aside.mentor::before {
+    position: absolute;
+    z-index: 2;
+    top: 8px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border-ui);
+    content: "";
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 768px) {
+  .app-shell .mobile-model-chips { display: none; }
 }

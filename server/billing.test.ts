@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { billingCountry, billingRails, BillingError, spotflowRequest } from './billing.js'
+import { billingCountry, billingQuantity, billingRails, BillingError, spotflowRequest } from './billing.js'
 
 const originalSecret = process.env.SPOTFLOW_SECRET_KEY
 const originalMode = process.env.SPOTFLOW_MODE
@@ -45,5 +45,22 @@ describe('regional billing rails', () => {
     expect(billingCountry({ 'x-vercel-ip-country': 'ng' })).toBe('NG')
     expect(billingCountry({ 'x-vercel-ip-country': ['US'] })).toBe('US')
     expect(billingCountry({ 'x-vercel-ip-country': 'Nigeria' })).toBe('UNKNOWN')
+  })
+})
+
+describe('billing quantity', () => {
+  it('accepts PAYG quantities from 1 through 20 and defaults to one', () => {
+    expect(billingQuantity('payg_100', undefined)).toBe(1)
+    expect(billingQuantity('payg_100', 1)).toBe(1)
+    expect(billingQuantity('payg_100', 20)).toBe(20)
+  })
+
+  it.each([0, 21, 1.5, '2', null])('rejects invalid PAYG quantity %j', (quantity) => {
+    expect(() => billingQuantity('payg_100', quantity)).toThrow(/whole number from 1 to 20/i)
+  })
+
+  it('allows only one subscription', () => {
+    expect(billingQuantity('subscription', 1)).toBe(1)
+    expect(() => billingQuantity('subscription', 2)).toThrow(/quantity of 1/i)
   })
 })

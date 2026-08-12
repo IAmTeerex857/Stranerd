@@ -116,21 +116,25 @@ export async function processBachsEvent(event: BachsEvent, requestBachs = bachsR
     const chargeId = requiredString(data.charge_id, 'charge ID')
     const reference = requiredString(data.reference, 'reference')
     const checkoutId = requiredString(data.checkout_id, 'checkout ID')
+    const { data: intent, error: intentError } = await client.from('payment_intents')
+      .select('amount_minor,currency').eq('id', intentId).eq('provider', 'bachs').eq('product_type', 'payg_100').maybeSingle()
+    if (intentError) throw intentError
+    if (!intent) throw new BillingError(404, 'intent_not_found', 'Bachs payment intent was not found.')
     const checkout = await requestBachs(`/v1/checkout-sessions/${encodeURIComponent(checkoutId)}`)
     if (!['SUCCEEDED', 'ACCEPTED', 'OVERPAID'].includes(String(data.status))
       || String(checkout.status).toLowerCase() !== 'completed'
       || checkout.reference !== reference
-      || checkout.currency !== 'USD'
-      || usdDecimalToMinor(checkout.amount) !== 200) {
-      throw new BillingError(400, 'amount_mismatch', 'Bachs PAYG collection does not match the catalog.')
+      || checkout.currency !== intent.currency
+      || usdDecimalToMinor(checkout.amount) !== intent.amount_minor) {
+      throw new BillingError(400, 'amount_mismatch', 'Bachs PAYG collection does not match the payment intent.')
     }
     const { error } = await client.rpc('apply_bachs_payg_success', {
       p_event_id: event.eventId,
       p_payment_intent_id: intentId,
       p_provider_payment_id: chargeId,
       p_provider_reference: reference,
-      p_provider_amount_minor: 200,
-      p_provider_currency: 'USD',
+      p_provider_amount_minor: intent.amount_minor,
+      p_provider_currency: intent.currency,
     })
     if (error) throw error
     return 'processed'

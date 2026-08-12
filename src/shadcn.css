@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is([data-theme="dark"] *));
 
@@ -110,7 +109,7 @@
   --popover: #12161f;
   --popover-foreground: #f2f5fa;
   --primary: #5b8cff;
-  --primary-foreground: #0a1223;
+  --primary-foreground: #ffffff;
   --primary-subtle: #152140;
   --secondary: #171c27;
   --secondary-foreground: #c4cddc;

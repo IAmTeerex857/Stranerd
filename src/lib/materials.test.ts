@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { collectPaginated, mapMaterialFlashcard, mapMaterialQuestion, mapMaterialSubject, materialFlashcardFace, parseMaterialMarkdown, safeMaterialUrl } from './materials'
+import { collectPaginated, mapMaterialFlashcard, mapMaterialQuestion, mapMaterialSubject, materialFlashcardFace, materialTitle, parseMaterialMarkdown, safeMaterialUrl } from './materials'
 
 describe('materials mapping', () => {
   it('maps catalog counts and release identifiers', () => {
@@ -7,9 +7,14 @@ describe('materials mapping', () => {
   })
 
   it('only maps approved published A-D questions in deterministic order', () => {
-    const base = { stable_id: 'q1', ordinal: 1, question: 'Question?', options: { D: 'four', B: 'two', A: 'one', C: 'three' }, answer: 'C', explanation: 'Because.', chapter: 'One', section: 'Basics' }
-    expect(mapMaterialQuestion({ ...base, published: true, review_status: 'approved' })).toMatchObject({ options: ['one', 'two', 'three', 'four'], answerIndex: 2 })
+    const base = { stable_id: 'q1', ordinal: 1, question: '17. Question?', options: { D: 'four', B: 'two', A: 'one', C: 'three' }, answer: 'C', explanation: 'Because.', chapter: 'One', section: 'Basics' }
+    expect(mapMaterialQuestion({ ...base, published: true, review_status: 'approved' })).toMatchObject({ question: 'Question?', options: ['one', 'two', 'three', 'four'], answerIndex: 2 })
     expect(mapMaterialQuestion({ ...base, published: false, review_status: 'approved' })).toBeNull()
+  })
+
+  it('removes imported numbering from section titles', () => {
+    expect(materialTitle('  3. Heart Wall Layers: ')).toBe('Heart Wall Layers:')
+    expect(materialTitle('Chambers of the Heart')).toBe('Chambers of the Heart')
   })
 })
 

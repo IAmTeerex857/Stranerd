@@ -22,7 +22,7 @@ function PricingPage() {
   const packRail = checkoutRail(options, 'payg_100')
   const unavailable = options?.unavailable || (options && (!subscriptionRail || !packRail))
 
-  return <Page><main className="public-page pricing-page">
+  return <Page themed><main className="public-page pricing-page">
     <header className="public-title pricing-title"><span>Simple pricing</span><h1>Learn anatomy freely.<br /><em>Use AI when it helps.</em></h1><p>Models, Labs, dissection, verified assessments, and included flashcards remain free. Credits power only Mentor and generated AI help.</p></header>
     <section className="pricing-grid" aria-label="Pricing plans">
       <Card className="pricing-free"><span>Always free</span><h2>{nigeria ? '₦0' : '$0'}</h2><p>The complete anatomy learning workspace, with a small AI allowance to begin.</p><ul><li><Check size={15} />20 one-time signup credits</li><li><Check size={15} />All anatomy models and guided Labs</li><li><Check size={15} />Verified assessments and flashcards</li></ul><Button variant="outline" asChild><a href="/app">Start learning<ArrowRight size={15} /></a></Button></Card>

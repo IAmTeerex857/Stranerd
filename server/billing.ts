@@ -24,6 +24,17 @@ export const bachsCatalog = {
   payg_100: { productType: 'payg_100', amountMinor: 200, amount: '2.00', currency: 'USD', credits: 100 },
 } as const
 
+export function billingQuantity(productId: BillingProductId, value: unknown) {
+  const quantity = value === undefined ? 1 : value
+  if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
+    throw new BillingError(400, 'invalid_quantity', 'Quantity must be a whole number from 1 to 20.')
+  }
+  if (productId === 'subscription' && quantity !== 1) {
+    throw new BillingError(400, 'invalid_quantity', 'Subscriptions must have a quantity of 1.')
+  }
+  return quantity
+}
+
 export class BillingError extends Error {
   constructor(public status: number, public code: string, message: string) {
     super(message)
@@ -139,19 +150,21 @@ export function buildBachsCheckoutPayload(options: {
   name: string
   plusProductId?: string
   baseUrl: string
+  quantity?: number
 }) {
   const product = bachsCatalog[options.productId]
+  const quantity = billingQuantity(options.productId, options.quantity)
   if (options.productId === 'subscription' && options.rail === 'stablecoin') throw new BillingError(400, 'invalid_rail', 'Subscriptions require USD card checkout.')
   if (options.productId === 'subscription' && !options.plusProductId) throw new BillingError(503, 'plan_not_configured', 'The Bachs Stranerd Plus product is not configured.')
   return {
     customer: { email: options.email, name: options.name },
     ...(options.productId === 'subscription'
       ? { product_cart: [{ product_id: options.plusProductId, quantity: 1 }] }
-      : { pricing: { currency: 'USD', amount: product.amount, price_type: 'fixed' } }),
+      : { pricing: { currency: 'USD', amount: ((product.amountMinor * quantity) / 100).toFixed(2), price_type: 'fixed' } }),
     billing_currency: 'USD',
     allowed_payment_method_types: options.productId === 'payg_100' ? ['card', 'crypto'] : ['card'],
     reference: options.reference,
-    metadata: { paymentIntentId: options.paymentIntentId, userId: options.userId, productType: product.productType },
+    metadata: { paymentIntentId: options.paymentIntentId, userId: options.userId, productType: product.productType, quantity },
     success_url: `${options.baseUrl}/billing/success?intent=${options.paymentIntentId}`,
     cancel_url: `${options.baseUrl}/billing/cancelled`,
   }

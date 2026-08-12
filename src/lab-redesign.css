@@ -1,129 +1,123 @@
-/* Lab-only presentation. Kept separate so the shared application system remains unchanged. */
-.app-shell .lab-catalog-view {
-  width: min(1440px, 100%);
-  margin: 0 auto;
-  padding: clamp(28px, 4vw, 64px);
-}
+/* Lab catalog and runner, matching the workspace and mobile reference geometry. */
+.app-shell .lab-catalog-view { width: min(1040px, 100%); margin: 0; padding: 34px 40px 80px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.app-shell .lab-catalog-hero { margin-bottom: 26px; }
+.app-shell .lab-catalog-hero > div > span { color: var(--primary); font: 600 10px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.app-shell .lab-catalog-hero h1 { margin: 10px 0 8px; font-family: "DM Sans", sans-serif; font-size: 34px; font-weight: 600; line-height: 1.05; letter-spacing: -.03em; }
+.app-shell .lab-catalog-hero p { max-width: 56ch; margin: 0; color: var(--muted-foreground); font-size: 15px; line-height: 1.55; }
+.app-shell .lab-catalog-view .activity-catalog { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] { display: flex; min-height: 210px; flex-direction: column; gap: 14px; padding: 20px; border: 1px solid var(--border-ui); border-radius: 16px; background: var(--card); box-shadow: 0 1px 2px rgb(14 21 38 / 6%); }
+.app-shell .lab-catalog-view .activity-catalog > [data-slot="card"]:hover { border-color: color-mix(in srgb, var(--border-ui), var(--foreground) 18%); box-shadow: 0 10px 28px -18px rgb(14 21 38 / 35%); }
+.app-shell .lab-catalog-view .activity-catalog > [data-accent="green"] { --lab-accent: #279A5E; }
+.app-shell .lab-catalog-view .activity-catalog > [data-accent="red"] { --lab-accent: #E5484D; }
+.app-shell .lab-catalog-view .activity-catalog > [data-accent="amber"] { --lab-accent: #D98A20; }
+.app-shell .lab-catalog-view .activity-catalog > [data-accent="terracotta"] { --lab-accent: #C97852; }
+.app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] > header { display: flex; align-items: center; justify-content: space-between; }
+.app-shell .lab-catalog-view .activity-catalog header i { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 11px; color: var(--lab-accent); background: color-mix(in srgb, var(--lab-accent) 13%, transparent); }
+.app-shell .lab-catalog-view .activity-catalog header span { color: var(--muted-foreground); font: 500 11px "IBM Plex Mono", ui-monospace, monospace; }
+.app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] > div { flex: 1; }
+.app-shell .lab-catalog-view .activity-catalog small { color: var(--lab-accent); font: 600 9px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.app-shell .lab-catalog-view .activity-catalog h2 { margin: 6px 0 4px; font-size: 16px; line-height: 1.25; letter-spacing: -.01em; }
+.app-shell .lab-catalog-view .activity-catalog p { margin: 0; color: var(--muted-foreground); font-size: 12.5px; line-height: 1.5; }
+.app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] > button { width: 100%; min-height: 38px; }
 
-.app-shell .lab-catalog-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 40px;
-  margin-bottom: 42px;
-  padding-bottom: 30px;
-  border-bottom: 1px solid var(--border-ui);
-}
-
-.app-shell .lab-catalog-hero > div > span,
-.app-shell .lab-runner-title > span {
-  color: var(--primary);
-  font: 600 10px "IBM Plex Mono", ui-monospace, monospace;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-
-.app-shell .lab-catalog-hero h1 {
-  max-width: 830px;
-  margin: 14px 0 16px;
-  font-family: "DM Sans", sans-serif;
-  font-size: clamp(46px, 6vw, 82px);
-  font-weight: 600;
-  line-height: .94;
-  letter-spacing: -.055em;
-}
-
-.app-shell .lab-catalog-hero p {
-  max-width: 660px;
-  margin: 0;
-  color: var(--muted-foreground);
-  font-size: 14px;
-  line-height: 1.65;
-}
-
-.app-shell .lab-catalog-hero aside {
-  display: grid;
-  min-width: 150px;
-  padding: 22px;
-  border: 1px solid var(--border-ui);
-  border-radius: 16px;
-  background: var(--card);
-}
-
-.app-shell .lab-catalog-hero aside strong {
-  font: 500 clamp(38px, 4vw, 60px) "IBM Plex Mono", ui-monospace, monospace;
-  line-height: 1;
-}
-
-.app-shell .lab-catalog-hero aside span { margin-top: 8px; color: var(--muted-foreground); font-size: 11px; }
-.app-shell .lab-catalog-view .activity-catalog { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] { min-height: 250px; padding: 22px; border-radius: 16px; }
-.app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] > header { display: flex; align-items: center; justify-content: space-between; color: var(--primary); }
-.app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] > header span { font: 600 9px "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
-.app-shell .lab-catalog-view .activity-catalog h2 { margin: 24px 0 9px; font-size: clamp(19px, 1.5vw, 24px); line-height: 1.12; letter-spacing: -.025em; }
-.app-shell .lab-catalog-view .activity-catalog p { flex: 1; margin: 0; font-size: 11px; line-height: 1.6; }
-.app-shell .lab-catalog-view .activity-catalog footer { margin: 18px -22px -22px; padding: 14px 22px; }
-.app-shell .lab-catalog-view .activity-catalog footer button { gap: 7px; padding-inline: 10px; }
-
-.app-shell .lab-guided-workspace {
-  height: 100%;
-  min-height: 0;
-  grid-template-columns: minmax(520px, 1fr) minmax(300px, 360px);
-  gap: 12px;
-}
-
-.app-shell .lab-guided-workspace > .viewer,
-.app-shell .lab-guided-workspace > .activity-pane { min-height: 0; height: 100%; }
-.app-shell .lab-guided-workspace .activity-pane > .content-view { overflow-y: auto; padding: 22px; border: 1px solid var(--border-ui); border-radius: 16px; background: var(--card); }
-.app-shell .lab-runner-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.app-shell .lab-runner-header > span { color: var(--muted-foreground); font: 500 9px "IBM Plex Mono", ui-monospace, monospace; text-transform: uppercase; }
-.app-shell .lab-runner-title { margin-top: clamp(28px, 5vh, 52px); }
-.app-shell .lab-runner-title h1 { margin: 11px 0 10px; font-size: clamp(28px, 3vw, 42px); line-height: 1; letter-spacing: -.045em; }
-.app-shell .lab-runner-title p { margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.55; }
-.app-shell .lab-step-track { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 24px 0 18px; }
-.app-shell .lab-step-track i { height: 4px; border-radius: 5px; background: var(--border-ui); }
-.app-shell .lab-step-track i.complete { background: var(--green); }
-.app-shell .lab-step-track i.current { background: var(--primary); }
-.app-shell .lab-runner-view .activity-runner { margin: 0; padding: 20px; border-color: var(--border-ui); background: var(--muted-ui); }
-.app-shell .lab-runner-view .activity-runner > h2 { margin-top: 11px; font-size: clamp(19px, 2vw, 26px); line-height: 1.25; }
-.app-shell .lab-runner-view .activity-runner fieldset label { min-height: 44px; }
-.app-shell .lab-action-status { display: flex; align-items: flex-start; gap: 9px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-ui); color: var(--primary); }
+/* Desktop runner is one full canvas with the deterministic activity panel docked over its left edge. */
+.app-shell .lab-guided-workspace { position: relative; display: block; width: 100%; height: 100%; min-height: 0; padding: 0; }
+.app-shell .lab-guided-workspace > .viewer { width: 100%; height: 100%; min-height: 0; border: 0; border-radius: 0; }
+.app-shell .lab-guided-workspace > .activity-pane { position: absolute; z-index: 12; top: 20px; bottom: 20px; left: 20px; width: 308px; min-height: 0; }
+.app-shell .lab-guided-workspace .activity-pane > .content-view { display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; padding: 0; border: 1px solid var(--border-ui); border-radius: 16px; background: var(--card); box-shadow: 0 16px 40px -16px rgb(14 21 38 / 28%); }
+.app-shell .lab-guided-workspace .viewer-head,
+.app-shell .lab-guided-workspace .specimen-bar,
+.app-shell .lab-guided-workspace .viewer-help,
+.app-shell .lab-guided-workspace .axis { display: none; }
+.app-shell .lab-guided-workspace .viewer .canvas-wrap { height: 100%; }
+.app-shell .lab-guided-workspace .viewer.activity-layout .canvas-wrap.dissecting { margin-right: 0; border-right: 0; }
+.app-shell .lab-runner-header { display: flex; flex-direction: column; align-items: flex-start; gap: 0; padding: 16px 18px; border-bottom: 1px solid var(--border-ui); }
+.app-shell .lab-runner-header .library-back { min-height: 36px; margin: 0 0 8px; padding: 0 10px; color: var(--muted-foreground); font-size: 12.5px; }
+.app-shell .lab-runner-header .library-back:hover { background: transparent; color: var(--foreground); }
+.app-shell .lab-runner-header h1 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.25; letter-spacing: -.01em; }
+.app-shell .lab-step-list { display: flex; flex-direction: column; gap: 8px; padding: 14px 18px; border-bottom: 1px solid var(--border-ui); }
+.app-shell .lab-step-list > div { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.app-shell .lab-step-list i { display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 50%; color: var(--muted-foreground); background: var(--muted-ui); font: 600 11px "IBM Plex Mono", ui-monospace, monospace; font-style: normal; }
+.app-shell .lab-step-list span { color: var(--muted-foreground); font-size: 12.5px; line-height: 1.35; }
+.app-shell .lab-step-list .complete i { color: white; background: #279A5E; }
+.app-shell .lab-step-list .current i { color: var(--primary-foreground); background: var(--primary); }
+.app-shell .lab-step-list .current span { color: var(--foreground); font-weight: 500; }
+.app-shell .lab-runner-view .activity-runner { display: flex; min-height: 0; flex: 1; flex-direction: column; margin: 0; padding: 18px; overflow-y: auto; border: 0; border-radius: 0; background: var(--card); box-shadow: none; }
+.app-shell .lab-runner-view .activity-runner > span { font-size: 9px; }
+.app-shell .lab-runner-view .activity-runner > h2 { margin: 8px 0 10px; font-size: 17px; line-height: 1.3; }
+.app-shell .lab-runner-view .activity-runner > p { font-size: 12px; }
+.app-shell .lab-runner-view .activity-runner fieldset label { min-height: 40px; padding: 8px; font-size: 11px; }
+.app-shell .lab-runner-view .activity-runner > button { width: 100%; min-height: 40px; margin-top: auto; }
+.app-shell .lab-action-status { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-ui); color: var(--primary); }
 .app-shell .lab-action-status p { margin: 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.5; }
-
-/* The guided session remains active; this dock is independently opened from Structures. */
-.app-shell .lab-guided-workspace .viewer.activity-layout:not(:has(.dissect-dock.sheet-open)) .canvas-wrap { margin-right: 0; border-right: 0; }
 .app-shell .lab-guided-workspace .viewer.activity-layout .touch-move-action { display: flex !important; }
-.app-shell .lab-guided-workspace .viewer.activity-layout .viewer-tools { position: absolute; z-index: 10; top: 20px; right: 20px; }
-
-@media (min-width: 1200px) {
-  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock.sheet-collapsed { display: none; }
-  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-actions { grid-template-columns: repeat(5, 1fr); }
+.app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock { top: 64px; right: 20px; bottom: 12px; }
+.app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock.sheet-collapsed { display: none; }
+.app-shell .lab-guided-workspace .viewer.activity-layout .dissect-actions { grid-template-columns: repeat(5, 1fr); }
+@media (min-width: 768px) {
+.app-shell .lab-guided-workspace .activity-tools-popover > .viewer-tools {
+  display: flex;
+  width: auto;
+  max-width: none;
+  gap: 4px;
+  padding: 6px;
+  overflow: visible;
+  border-radius: 14px;
+}
+.app-shell .lab-guided-workspace .activity-tools-popover .viewer-tools [data-slot="button"] {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 10px;
+}
+.app-shell .lab-guided-workspace .activity-tools-popover .viewer-tools [data-slot="button"] span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+}
+.app-shell .lab-guided-workspace .activity-tools-popover .viewer-tools [data-variant="tool-active"] {
+  color: #fff;
+  background: var(--primary);
+}
+.app-shell .lab-guided-workspace .activity-tools-popover .viewer-tools [data-variant="tool-active"] svg { color: #fff; }
 }
 
 @media (min-width: 768px) and (max-width: 1199px) {
   .app-shell .lab-catalog-view .activity-catalog { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .app-shell .lab-guided-workspace { display: grid; height: auto; grid-template-columns: 1fr; grid-template-rows: minmax(520px, 62dvh) auto; }
-  .app-shell .lab-guided-workspace > .viewer { height: auto; min-height: 520px; overflow: visible; }
-  .app-shell .lab-guided-workspace > .activity-pane { height: auto; min-height: 0; }
-  .app-shell .lab-guided-workspace .viewer.activity-layout .viewer-tools { position: absolute; top: 142px; right: 14px; }
-  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock { position: fixed; z-index: 70; right: 16px; bottom: 16px; left: 16px; max-height: min(68dvh, 620px); }
+  .app-shell .lab-guided-workspace > .activity-pane { width: min(308px, 40vw); }
+  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock { position: fixed; z-index: 78; right: 16px; bottom: 16px; left: 16px; max-height: min(68dvh, 620px); }
 }
 
 @media (max-width: 767px) {
   .app-shell .center-pane:has(.lab-catalog-view),
   .app-shell .center-pane:has(.lab-guided-workspace) { padding: 0; }
-  .app-shell .lab-catalog-view { padding: 28px 14px 100px; }
-  .app-shell .lab-catalog-hero { grid-template-columns: 1fr; gap: 22px; margin-bottom: 22px; }
-  .app-shell .lab-catalog-hero h1 { font-size: clamp(43px, 14vw, 62px); }
-  .app-shell .lab-catalog-hero aside { grid-template-columns: auto 1fr; align-items: end; gap: 12px; min-width: 0; }
-  .app-shell .lab-catalog-hero aside strong { font-size: 38px; }
-  .app-shell .lab-catalog-view .activity-catalog { grid-template-columns: 1fr; }
-  .app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] { min-height: 220px; }
-  .app-shell .lab-guided-workspace { display: grid; height: auto; grid-template-columns: 1fr; grid-template-rows: minmax(430px, 58dvh) auto; gap: 0; padding-bottom: 84px; }
-  .app-shell .lab-guided-workspace > .viewer { height: auto; min-height: 430px; overflow: visible; border-radius: 0; }
-  .app-shell .lab-guided-workspace > .activity-pane { height: auto; min-height: 0; }
-  .app-shell .lab-guided-workspace .activity-pane > .content-view { padding: 22px 16px 30px; border-inline: 0; border-radius: 0; }
-  .app-shell .lab-guided-workspace .viewer.activity-layout .viewer-tools { position: absolute; top: 126px; right: 8px; }
-  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock { position: fixed; z-index: 70; right: 8px; bottom: 74px; left: 8px; max-height: min(68dvh, 580px); }
-  .app-shell .lab-runner-title { margin-top: 28px; }
+  .app-shell .lab-catalog-view { width: 100%; padding: 16px 16px 28px; }
+  .app-shell .lab-catalog-hero { margin-bottom: 18px; }
+  .app-shell .lab-catalog-hero h1 { margin-block: 6px; font-size: 26px; }
+  .app-shell .lab-catalog-hero p { font-size: 13.5px; }
+  .app-shell .lab-catalog-view .activity-catalog { grid-template-columns: 1fr; gap: 12px; }
+  .app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] { min-height: 0; gap: 13px; padding: 16px; }
+  .app-shell .lab-catalog-view .activity-catalog > [data-slot="card"] > button { min-height: 44px; }
+
+  .app-shell .lab-guided-workspace { display: grid; height: 100%; grid-template-rows: 44% 56%; overflow: hidden; }
+  .app-shell .lab-guided-workspace > .viewer { position: relative; grid-row: 1; height: 100%; overflow: hidden; border-bottom: 1px solid var(--border-ui); animation: none; transform: none; }
+  .app-shell .lab-guided-workspace > .activity-pane { position: relative; z-index: 2; inset: auto; grid-row: 2; width: auto; height: 100%; overflow: hidden; background: var(--card); }
+  .app-shell .lab-guided-workspace .activity-pane > .content-view { height: 100%; overflow: hidden; border: 0; border-radius: 0; box-shadow: none; }
+  .app-shell .lab-guided-workspace .viewer.activity-layout .canvas-wrap { height: 100%; min-height: 0; }
+  .app-shell .lab-runner-header { display: none; }
+  .app-shell .lab-step-list { gap: 8px; padding: 12px 16px; }
+  .app-shell .lab-step-list > div { padding: 9px 11px; border: 1px solid var(--border-ui); border-radius: 12px; background: var(--card); }
+  .app-shell .lab-step-list { max-height: 48%; overflow-y: auto; }
+  .app-shell .lab-runner-view .activity-runner { padding: 16px 16px 20px; border-top: 1px solid var(--border-ui); }
+  .app-shell .lab-runner-view .activity-runner > h2 { font-size: 19px; }
+  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock { position: fixed; z-index: 78; top: auto; right: 0; bottom: 0; left: 0; width: auto; max-height: min(72dvh, 640px); margin: 0; border-radius: 22px 22px 0 0; }
+  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock.sheet-collapsed { display: flex; visibility: hidden; pointer-events: none; transform: translateY(105%); }
+  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-actions { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .app-shell .lab-guided-workspace .activity-tools-menu.open .activity-tools-popover { display: block; }
 }

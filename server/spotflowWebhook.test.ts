@@ -1,6 +1,9 @@
 import { createHmac } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
-import { normalizeSpotflowEvent, safeWebhookPayload, verifySpotflowSignature } from './spotflowWebhook.js'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { setBillingClientForTests } from './billing.js'
+import { normalizeSpotflowEvent, processSpotflowEvent, safeWebhookPayload, verifySpotflowSignature } from './spotflowWebhook.js'
+
+afterEach(() => setBillingClientForTests())
 
 describe('Spotflow webhooks', () => {
   it('verifies a fresh standard webhook signature', () => {
@@ -44,5 +47,15 @@ describe('Spotflow webhooks', () => {
     }, 'event-1')
     expect(event).toMatchObject({ eventType: 'subscription_successful', providerPaymentId: 'pay-1', providerReference: 'ref-1', providerSubscriptionId: 'sub-1', providerPlanId: 'plan-1', amount: 2500, currency: 'NGN' })
     expect(JSON.stringify(safeWebhookPayload(event))).not.toContain('do-not-store')
+  })
+
+  it('validates a multi-pack PAYG event against its stored intent', async () => {
+    const rpc = vi.fn(async () => ({ error: null }))
+    const query = { eq: vi.fn().mockReturnThis(), maybeSingle: vi.fn(async () => ({ data: { product_type: 'payg_100', amount_minor: 250000, currency: 'NGN', credits: 500 }, error: null })) }
+    setBillingClientForTests({ from: vi.fn(() => ({ select: vi.fn(() => query) })), rpc } as never)
+    const event = { eventId: 'event-multi', eventType: 'payment_successful', paymentIntentId: 'intent-multi', providerReference: 'ref-multi', providerPaymentId: 'pay-multi', amount: 2500, currency: 'NGN', metadata: {} }
+    await expect(processSpotflowEvent(event)).resolves.toBe('processed')
+    expect(rpc).toHaveBeenCalledWith('apply_spotflow_payg_success', expect.objectContaining({ p_provider_amount: 250000 }))
+    await expect(processSpotflowEvent({ ...event, amount: 500 })).rejects.toThrow(/payment intent/i)
   })
 })

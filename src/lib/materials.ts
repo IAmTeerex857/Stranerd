@@ -48,6 +48,10 @@ function text(value: unknown) { return typeof value === 'string' ? value : '' }
 function integer(value: unknown) { return Number.isInteger(value) ? Number(value) : 0 }
 function stringArray(value: unknown) { return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [] }
 
+export function materialTitle(value: string) {
+  return value.replace(/^\s*\d+\s*[.)-]\s*/, '').trim()
+}
+
 export function mapMaterialSubject(row: CatalogRow): MaterialSubject {
   return {
     id: text(row.id), slug: text(row.slug), title: text(row.title), releaseId: text(row.release_id),
@@ -62,7 +66,8 @@ export function mapMaterialQuestion(row: CatalogRow): MaterialQuestion | null {
   const options = ['A', 'B', 'C', 'D'].map((key) => text(source[key])) as [string, string, string, string]
   const answerIndex = ['A', 'B', 'C', 'D'].indexOf(text(row.answer))
   if (!text(row.stable_id) || options.some((option) => !option) || answerIndex < 0) return null
-  return { id: text(row.stable_id), ordinal: integer(row.ordinal), question: text(row.question), options, answerIndex, explanation: text(row.explanation), chapter: text(row.chapter), section: text(row.section) }
+  const question = text(row.question).replace(/^\s*(?:question\s*)?\d+\s*[.)-]\s*/i, '')
+  return { id: text(row.stable_id), ordinal: integer(row.ordinal), question, options, answerIndex, explanation: text(row.explanation), chapter: text(row.chapter), section: text(row.section) }
 }
 
 export function mapMaterialFlashcard(row: CatalogRow): MaterialFlashcard {
@@ -96,7 +101,7 @@ export async function listMaterialSections(releaseId: string) {
     if (error) throw error
     return (data ?? []) as CatalogRow[]
   })
-  return rows.map((row): MaterialSectionSummary => ({ id: text(row.stable_id), ordinal: integer(row.ordinal), title: text(row.title), headingPath: stringArray(row.heading_path), pageStart: integer(row.source_page_start), pageEnd: integer(row.source_page_end) }))
+  return rows.map((row): MaterialSectionSummary => ({ id: text(row.stable_id), ordinal: integer(row.ordinal), title: materialTitle(text(row.title)), headingPath: stringArray(row.heading_path), pageStart: integer(row.source_page_start), pageEnd: integer(row.source_page_end) }))
 }
 
 export async function getMaterialSection(releaseId: string, sectionId: string) {
@@ -108,7 +113,7 @@ export async function getMaterialSection(releaseId: string, sectionId: string) {
   })
   const row = rows[0]
   if (!row) throw new Error('This notes section is no longer available.')
-  return { id: text(row.stable_id), ordinal: integer(row.ordinal), title: text(row.title), headingPath: stringArray(row.heading_path), content: text(row.content), pageStart: integer(row.source_page_start), pageEnd: integer(row.source_page_end) } satisfies MaterialSection
+  return { id: text(row.stable_id), ordinal: integer(row.ordinal), title: materialTitle(text(row.title)), headingPath: stringArray(row.heading_path), content: text(row.content), pageStart: integer(row.source_page_start), pageEnd: integer(row.source_page_end) } satisfies MaterialSection
 }
 
 export async function listMaterialMnemonics(releaseId: string) {

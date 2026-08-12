@@ -1,5 +1,5 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { ArrowRight, BookOpenCheck, Bot, CornerDownRight, GalleryVerticalEnd, GitCompareArrows, Mic, Send, Sparkles, X } from 'lucide-react'
+import { ArrowRight, BookOpenCheck, Bot, ChevronDown, CornerDownRight, GalleryVerticalEnd, GitCompareArrows, Mic, Send, Sparkles } from 'lucide-react'
 import type { ChatItem, DissectionHistoryItem, Hotspot, ModelEntry } from '../types'
 import { askMentor } from '../lib/mentor'
 import { anatomyGraph, anatomyLayers } from '../data/anatomyGraph'
@@ -43,7 +43,7 @@ function MentorText({ text }: { text: string }) {
 }
 
 export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose, onInsufficientCredits, noteContext, draftRequest, voiceMode, voiceContext, onVoiceAction, onVoiceInsufficientCredits }: Props) {
-  const { user, balance, setBalance } = useAuth()
+  const { user, setBalance } = useAuth()
   const [input, setInput] = useState('')
   const [actionError, setActionError] = useState<{ message: string; needsCredits: boolean }>()
   const [assistantTab, setAssistantTab] = useState(new URLSearchParams(window.location.search).get('assistant') === 'voice' ? 'voice' : 'text')
@@ -134,7 +134,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
   return <>
     {mobileOpen && <button className="mentor-backdrop" onClick={onMobileClose} aria-label="Close Mentor" />}
     <aside id="stranerd-mentor" className={`mentor assistant-panel ${mobileOpen ? 'mobile-open' : ''} panel anim3`} aria-label="Stranerd Mentor" role={mobileOpen ? 'dialog' : undefined} aria-modal={mobileOpen || undefined}>
-      <header className="mentor-head"><span className="mentor-avatar"><Bot size={17} /></span><div><strong>Stranerd Mentor</strong><small><i /> anatomy learning assistant</small></div>{onMobileClose && <Button variant="ghost" size="icon-sm" className="mentor-mobile-close" onClick={onMobileClose} aria-label="Close mentor"><X size={17} /></Button>}</header>
+      <header className="mentor-head"><span className="mentor-avatar"><Sparkles size={18} /></span><div><strong>AI Mentor</strong><small>{noteContext?.subject || model.name} · grounded in context</small></div>{onMobileClose && <Button variant="ghost" size="icon-sm" className="mentor-mobile-close" onClick={onMobileClose} aria-label="Close mentor"><ChevronDown size={17} /></Button>}</header>
       <Tabs value={assistantTab} onValueChange={setAssistantTab} className="assistant-tabs">
         <TabsList className="assistant-tabs-list"><TabsTrigger value="text"><Bot />Text</TabsTrigger><TabsTrigger value="voice"><Mic />Voice</TabsTrigger></TabsList>
         <TabsContent value="text" className="assistant-tab-content assistant-text-tab">
@@ -149,7 +149,6 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
           {actionError && !actionError.needsCredits && <div className="mentor-action-error"><span>{actionError.message}</span></div>}
           <form className="mentor-input" onSubmit={submit}>
             <div><Textarea ref={inputRef} id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${noteContext?.section || selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button variant="ai" className="mentor-send" aria-label={user ? 'Ask AI Mentor for 1 credit' : 'Sign in to ask AI Mentor'} disabled={!input.trim() || typing}><span>Send</span><b><Sparkles size={11} />1</b><Send className="mentor-send-mobile" size={16} /></Button></div>
-            <small><span>{user ? (balance ? `${balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance} credits available` : 'Loading credits') : 'Sign in to ask'}</span><span>Each reply costs 1 credit</span></small>
           </form>
         </TabsContent>
         <TabsContent value="voice" className="assistant-tab-content assistant-voice-tab"><VoiceDock key={`${voiceMode}:${model.id}`} embedded mode={voiceMode} modelId={model.id} context={voiceContext} onAction={onVoiceAction} onInsufficientCredits={onVoiceInsufficientCredits} /></TabsContent>

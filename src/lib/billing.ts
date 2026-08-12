@@ -54,8 +54,8 @@ async function billingFetch(path: string, init: RequestInit = {}) {
   return body
 }
 
-export async function startCheckout(productId: BillingProductId, rail: BillingRail) {
-  const body = await billingFetch('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ productId, rail }) })
+export async function startCheckout(productId: BillingProductId, rail: BillingRail, quantity = 1) {
+  const body = await billingFetch('/api/billing/checkout', { method: 'POST', body: JSON.stringify({ productId, rail, quantity }) })
   if (typeof body.checkoutUrl !== 'string' || typeof body.paymentIntentId !== 'string') throw new Error('Checkout details were not returned.')
   window.localStorage.setItem('stranerd.billing.pendingIntent', body.paymentIntentId)
   window.location.assign(body.checkoutUrl)

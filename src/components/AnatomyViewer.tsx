@@ -2,8 +2,8 @@ import { Component, forwardRef, Suspense, useCallback, useEffect, useImperativeH
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
 import { Box3, Mesh, MeshStandardMaterial, Spherical, Vector3 } from 'three'
-import { Box, ChevronDown, ChevronUp, Eye, EyeOff, Grid3X3, Layers3, LoaderCircle, RotateCcw, ScanLine, Scissors, Search, Tags, Undo2, X } from 'lucide-react'
-import type { Hotspot, ModelEntry, PersistedDissectionSession, Settings } from '../types'
+import { Box, ChevronDown, ChevronUp, Eye, EyeOff, Grid3X3, Layers3, LoaderCircle, Move3D, RotateCcw, RotateCw, Scissors, Search, SlidersHorizontal, Tags, Undo2, X } from 'lucide-react'
+import type { CanonicalCamera, Hotspot, ModelEntry, PersistedDissectionSession, Settings } from '../types'
 import { anatomyLayers } from '../data/anatomyGraph'
 import { ProgressiveBodyModel } from './ProgressiveBodyModel'
 import { SegmentedSpecimenModel } from './SegmentedSpecimenModel'
@@ -12,16 +12,23 @@ import { useTheme } from '../theme-context'
 import type { ResolvedTheme } from '../theme-utils'
 import { usePreferences } from '../preferences-context'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { VoiceAction, VoiceActionResult } from '../lib/voiceActions'
-import { cameraViewOffset } from '../lib/cameraViewOffset'
+import { measuredInsets, offsetForInsets } from '../lib/cameraViewOffset'
+import { canonicalCameraPosition, fitDistance, framedDistance } from '../lib/canonicalCamera'
+import { reservedInsets, safePadding, unionInsets } from '../lib/canvasInsets'
 
 const EMPTY_STRUCTURES: Hotspot[] = []
 
 type ViewerControls = {
   reset: () => void
   update: () => void
+  saveState?: () => void
   object: { position: Vector3 }
   target: Vector3
+  minDistance?: number
+  maxDistance?: number
 }
 
 export type ViewerVoiceState = {
@@ -135,6 +142,10 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
   const variant = model.variants.find((entry) => entry.id === selectedVariantId) ?? model.variants[0]
   const hotspots = variant.hotspots ?? model.hotspots
   const light = theme === 'light'
+  const size = useThree((state) => state.size)
+  // A portrait canvas needs the camera further back than the subject's authored ceiling, so the
+  // zoom clamp has to grow with it or the specimen is pulled back in and crops at the sides.
+  const maxDistance = Math.max(model.camera.maxDistance, fitDistance(size.width / size.height, 42, 0.14))
   return (
     <>
       <ambientLight intensity={light ? 1.2 : 1.6} />
@@ -174,13 +185,16 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
           )
         })}
       </group>
-      <OrbitControls ref={controlsRef as never} makeDefault autoRotate={settings.autoRotate && !reducedMotion} autoRotateSpeed={0.8} enableDamping minDistance={2.2} maxDistance={8} />
+      <OrbitControls ref={controlsRef as never} makeDefault autoRotate={settings.autoRotate && !reducedMotion} autoRotateSpeed={0.8} enableDamping minDistance={model.camera.minDistance} maxDistance={maxDistance} />
     </>
   )
 }
 
-function OpticalCameraCenter({ canvasWrapRef, dissectDockRef, panelState }: { canvasWrapRef: RefObject<HTMLDivElement | null>; dissectDockRef: RefObject<HTMLElement | null>; panelState: string }) {
+function OpticalCameraCenter({ canvasWrapRef, dissectDockRef, panelState, subjectCamera, controlsRef }: { canvasWrapRef: RefObject<HTMLDivElement | null>; dissectDockRef: RefObject<HTMLElement | null>; panelState: string; subjectCamera: CanonicalCamera; controlsRef: RefObject<ViewerControls | null> }) {
   const { camera, gl, invalidate } = useThree()
+  const framingKey = useRef('')
+
+  useEffect(() => { framingKey.current = '' }, [subjectCamera])
 
   useEffect(() => {
     if (!('setViewOffset' in camera) || !('clearViewOffset' in camera)) return
@@ -189,10 +203,32 @@ function OpticalCameraCenter({ canvasWrapRef, dissectDockRef, panelState }: { ca
       window.cancelAnimationFrame(frame)
       frame = window.requestAnimationFrame(() => {
         const canvas = gl.domElement.getBoundingClientRect()
-        const panels = [dissectDockRef.current, document.getElementById('stranerd-mentor')]
+        const panels = [dissectDockRef.current, document.querySelector<HTMLElement>('.lab-guided-workspace > .activity-pane'), document.getElementById('stranerd-mentor')]
           .filter((element): element is HTMLElement => Boolean(element && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden'))
           .map((element) => element.getBoundingClientRect())
-        const offset = cameraViewOffset(canvas, panels)
+        const captionsVisible = Boolean(document.querySelector('[data-voice-captions]:not([hidden])'))
+        const reserved = reservedInsets(window.innerWidth, captionsVisible)
+        const insets = unionInsets(measuredInsets(canvas, panels), reserved)
+        const offset = offsetForInsets(canvas, insets)
+
+        // Reframe when the usable canvas changes. Preserve the learner's orbit direction after
+        // the initial canonical view, but keep the current reset state aligned with the layout.
+        const controls = controlsRef.current
+        const nextFramingKey = `${Math.round(canvas.width - insets.left - insets.right)}:${Math.round(canvas.height - insets.top - insets.bottom)}`
+        if (controls && framingKey.current !== nextFramingKey && canvas.width > 1 && canvas.height > 1) {
+          const usableWidth = Math.max(1, canvas.width - insets.left - insets.right)
+          const usableHeight = Math.max(1, canvas.height - insets.top - insets.bottom)
+          const distance = framedDistance(subjectCamera, usableWidth / usableHeight, safePadding(window.innerWidth))
+          const currentOffset = camera.position.clone().sub(controls.target)
+          const [x, y, z] = canonicalCameraPosition({ ...subjectCamera, distance })
+          if (framingKey.current && currentOffset.lengthSq() > 0) camera.position.copy(controls.target).add(currentOffset.setLength(distance))
+          else camera.position.set(x, y, z)
+          controls.target.set(0, 0, 0)
+          controls.update()
+          controls.saveState?.()
+          framingKey.current = nextFramingKey
+        }
+
         if (offset.x === 0 && offset.y === 0) camera.clearViewOffset()
         else camera.setViewOffset(Math.max(1, Math.round(canvas.width)), Math.max(1, Math.round(canvas.height)), offset.x, offset.y, Math.max(1, Math.round(canvas.width)), Math.max(1, Math.round(canvas.height)))
         camera.updateProjectionMatrix()
@@ -220,7 +256,7 @@ function OpticalCameraCenter({ canvasWrapRef, dissectDockRef, panelState }: { ca
       camera.clearViewOffset()
       camera.updateProjectionMatrix()
     }
-  }, [camera, canvasWrapRef, dissectDockRef, gl.domElement, invalidate, panelState])
+  }, [camera, canvasWrapRef, controlsRef, dissectDockRef, gl.domElement, invalidate, panelState, subjectCamera])
   return null
 }
 
@@ -248,6 +284,8 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
   const [structureQuery, setStructureQuery] = useState('')
   const [dissectPanelOpen, setDissectPanelOpen] = useState(false)
   const [touchMoveEnabled, setTouchMoveEnabled] = useState(false)
+  const [activityToolsOpen, setActivityToolsOpen] = useState(false)
+  const [cameraResetToken, setCameraResetToken] = useState(0)
   const toggle = (key: keyof Settings) => props.onSettings({ ...props.settings, [key]: !props.settings[key] })
   const variant = props.model.variants.find((entry) => entry.id === props.selectedVariantId) ?? props.model.variants[0]
   const canDissect = props.model.anatomy && (props.model.viewer === 'segmented-body' || props.model.variants.some((entry) => entry.segmentedSystem))
@@ -281,6 +319,17 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
   }, [props.onVoiceState])
 
   useEffect(() => {
+    if (cameraResetToken > 0) controlsRef.current?.reset()
+  }, [cameraResetToken])
+
+  useEffect(() => {
+    if (!dissectPanelOpen || window.innerWidth > 767) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previous }
+  }, [dissectPanelOpen])
+
+  useEffect(() => {
     onDissectionStateRef.current?.({
       active: dissectMode,
       hiddenIds: dissection.hiddenIds,
@@ -312,7 +361,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
 
   function toggleDissectMode() {
     if (dissectMode) {
-      if (props.activityLayout) {
+      if (props.activityLayout || window.matchMedia('(max-width: 767px)').matches) {
         setDissectPanelOpen((open) => !open)
         return
       }
@@ -391,7 +440,9 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
     if (operation === 'reset') controls.reset()
     else if (operation === 'zoom_in' || operation === 'zoom_out') {
       const offset = controls.object.position.clone().sub(controls.target)
-      const distance = Math.max(2.2, Math.min(8, offset.length() * (operation === 'zoom_in' ? 0.78 : 1.28)))
+       const minDistance = controls.minDistance ?? props.model.camera.minDistance
+       const maxDistance = controls.maxDistance ?? props.model.camera.maxDistance
+       const distance = Math.max(minDistance, Math.min(maxDistance, offset.length() * (operation === 'zoom_in' ? 0.78 : 1.28)))
       controls.object.position.copy(controls.target).add(offset.setLength(distance))
       controls.update()
     } else {
@@ -460,43 +511,86 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
     },
   }))
 
+  /**
+   * Explore's canvas tool rail: a floating vertical rail on the left edge, icon-only at
+   * 42x42 inside a 44px hit area. Each control carries its name through an accessible label
+   * and a tooltip rather than visible text, because the design's reserved left inset (64px)
+   * only accommodates an icon-width rail.
+   */
+  function renderToolRail() {
+    const tools: { key: string; icon: typeof RotateCw; label: string; active?: boolean; onClick: () => void }[] = [
+      { key: 'rotate', icon: RotateCw, label: 'Auto rotate', active: props.settings.autoRotate, onClick: () => toggle('autoRotate') },
+      { key: 'reset', icon: RotateCcw, label: 'Reset camera', onClick: () => setCameraResetToken((token) => token + 1) },
+      { key: 'labels', icon: Tags, label: 'Labels', active: props.model.viewer !== 'segmented-body' ? props.settings.labels : undefined, onClick: () => props.model.viewer !== 'segmented-body' && toggle('labels') },
+      { key: 'wireframe', icon: Grid3X3, label: 'Wireframe', active: props.settings.wireframe, onClick: () => toggle('wireframe') },
+      { key: 'layers', icon: Layers3, label: 'Reference layers', active: props.model.viewer !== 'segmented-body' ? props.settings.layers : undefined, onClick: () => props.model.viewer !== 'segmented-body' && toggle('layers') },
+    ]
+    const dissectActive = dissectMode && (!props.activityLayout || dissectPanelOpen)
+    return <TooltipProvider delayDuration={200}>
+      <div className="viewer-tool-rail" role="toolbar" aria-orientation="vertical" aria-label="Viewer controls">
+        {tools.map((tool) => <Tooltip key={tool.key}>
+          <TooltipTrigger asChild>
+            <Button variant={tool.active ? 'tool-active' : 'tool'} size="tool" aria-label={tool.label} disabled={(tool.key === 'labels' || tool.key === 'layers') && props.model.viewer === 'segmented-body'} {...(tool.active === undefined ? {} : { 'aria-pressed': tool.active })} onClick={tool.onClick}><tool.icon size={17} /></Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{tool.label}</TooltipContent>
+        </Tooltip>)}
+        {canDissect && <>
+          <span className="tool-rail-divider" role="separator" aria-orientation="horizontal" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant={dissectActive ? 'tool-active' : 'tool'} size="tool" aria-label="Dissect Mode" aria-pressed={dissectActive} onClick={toggleDissectMode}><Scissors size={17} /></Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Dissect Mode</TooltipContent>
+          </Tooltip>
+        </>}
+      </div>
+    </TooltipProvider>
+  }
+
   function renderViewerTools() {
     return <div className="viewer-tools" aria-label="Viewer controls">
-      <Button variant={props.settings.autoRotate ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('autoRotate')} title="Toggle auto rotate" aria-pressed={props.settings.autoRotate}><ScanLine size={17} /><span>Rotate</span></Button>
-      <Button variant="tool" size="tool" onClick={() => controlsRef.current?.reset()} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></Button>
+      <Button variant={props.settings.autoRotate ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('autoRotate')} title="Toggle auto rotate" aria-pressed={props.settings.autoRotate}><RotateCw size={17} /><span>Rotate</span></Button>
+      <Button variant="tool" size="tool" onClick={() => setCameraResetToken((token) => token + 1)} title="Reset camera"><RotateCcw size={17} /><span>Reset</span></Button>
       {props.model.viewer !== 'segmented-body' && <Button variant={props.settings.labels ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('labels')} title="Toggle labels" aria-pressed={props.settings.labels}><Tags size={17} /><span>Labels</span></Button>}
       <Button variant={props.settings.wireframe ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('wireframe')} title="Toggle wireframe" aria-pressed={props.settings.wireframe}><Grid3X3 size={17} /><span>Wireframe</span></Button>
       {props.model.viewer !== 'segmented-body' && <Button variant={props.settings.layers ? 'tool-active' : 'tool'} size="tool" onClick={() => toggle('layers')} title="Toggle reference layers" aria-pressed={props.settings.layers}><Layers3 size={17} /><span>Reference</span></Button>}
-      {canDissect && <Button variant={dissectMode && (!props.activityLayout || dissectPanelOpen) ? 'tool-active' : 'tool'} size="tool" onClick={toggleDissectMode} title={props.activityLayout ? 'Toggle dissection tools' : 'Toggle Dissect Mode'} aria-pressed={dissectMode && (!props.activityLayout || dissectPanelOpen)}><Scissors size={17} /><span>{props.activityLayout ? 'Structures' : 'Dissect'}</span></Button>}
+      {canDissect && <Button variant={dissectMode && (!props.activityLayout || dissectPanelOpen) ? 'tool-active' : 'tool'} size="tool" onClick={toggleDissectMode} title="Toggle Dissect Mode" aria-pressed={dissectMode && (!props.activityLayout || dissectPanelOpen)}><Scissors size={17} /><span>Dissect</span></Button>}
+    </div>
+  }
+
+  function renderActivityTools() {
+    return <div className={`activity-tools-menu ${activityToolsOpen ? 'open' : ''}`}>
+      <Button className="activity-tools-fab" variant="outline" size="icon" aria-label={activityToolsOpen ? 'Close tools' : 'Open tools'} aria-expanded={activityToolsOpen} onClick={() => setActivityToolsOpen((open) => !open)}>{activityToolsOpen ? <X size={18} /> : <SlidersHorizontal size={18} />}</Button>
+      <div className="activity-tools-popover">{renderViewerTools()}</div>
     </div>
   }
 
   return (
     <section className={`viewer explore-viewer ${props.model.viewer === 'segmented-body' ? 'segmented' : 'standard'} ${props.activityLayout ? 'activity-layout' : ''} ${dissectMode ? 'is-dissecting' : ''} ${touchMoveEnabled ? 'move-armed' : ''} panel anim`} aria-label={`${props.model.name} 3D viewer`}>
       <header className="viewer-head">
-        <div className="explore-heading"><span className="eyebrow">{dissectMode ? 'Virtual dissection' : props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><p>{props.model.scientificName}</p><div className="variant-control"><span>Specimen</span><div className="specimen-selector" role="radiogroup" aria-label={`${props.model.name} specimens`}>{props.model.variants.map((entry, index) => <button key={entry.id} type="button" role="radio" aria-checked={entry.id === variant.id} className={entry.id === variant.id ? 'active' : ''} onClick={() => changeVariant(entry.id)} title={entry.label}><b>{String(index + 1).padStart(2, '0')}</b><span>{entry.label}</span></button>)}</div>{variant.note && <small>{variant.note}</small>}</div></div>
-        {!props.activityLayout && renderViewerTools()}
+        <div className="explore-heading"><span className="eyebrow">{dissectMode ? 'Virtual dissection' : props.model.viewer === 'segmented-body' ? 'Segmented atlas' : 'Live specimen'}</span><h1>{props.model.name}</h1><span className="viewer-mode-pill mobile-inline-mode">{dissectMode ? 'Dissect Mode' : 'Explore mode'}</span><p>{props.model.system}{props.model.metadata.region.toLowerCase() !== props.model.system.toLowerCase() && ` · ${props.model.metadata.region}`}</p><div className="variant-control"><span>Specimen</span><Select value={variant.id} onValueChange={changeVariant}><SelectTrigger className="specimen-selector" size="sm" aria-label={`Select ${props.model.name} specimen`}><SelectValue>{variant.label}</SelectValue></SelectTrigger><SelectContent className="specimen-selector-content" position="popper" align="start">{props.model.variants.map((entry) => <SelectItem key={entry.id} value={entry.id}>{entry.label}</SelectItem>)}</SelectContent></Select>{variant.note && <small>{variant.note}</small>}</div></div><span className="viewer-mode-pill desktop-viewer-mode">{dissectMode ? 'Dissect Mode' : 'Explore mode'}</span>
       </header>
-      {props.activityLayout && renderViewerTools()}
+      {props.activityLayout ? renderActivityTools() : renderToolRail()}
       <div ref={canvasWrapRef} className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
-        <Canvas onPointerMissed={props.onClearSelection} frameloop={props.settings.autoRotate && !reducedMotion ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: [0, 0.2, props.activityLayout ? 6.3 : 4.7], fov: 42 }} gl={{ antialias: true, alpha: true }}>
-          <OpticalCameraCenter canvasWrapRef={canvasWrapRef} dissectDockRef={dissectDockRef} panelState={`${dissectMode}:${dissectPanelOpen}:${props.activityLayout}`} />
+        <Canvas onPointerMissed={props.onClearSelection} frameloop={props.settings.autoRotate && !reducedMotion ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: canonicalCameraPosition(props.model.camera), fov: 42 }} gl={{ antialias: true, alpha: true }}>
+          <OpticalCameraCenter canvasWrapRef={canvasWrapRef} dissectDockRef={dissectDockRef} panelState={`${dissectMode}:${dissectPanelOpen}:${props.activityLayout}`} subjectCamera={props.model.camera} controlsRef={controlsRef} />
           <Scene {...props} theme={resolvedTheme} reducedMotion={reducedMotion} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={receiveStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} touchMoveEnabled={touchMoveEnabled} />
         </Canvas>
         {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
         <div className="axis"><span>Y</span><i /><b>X</b></div>
         <p className="viewer-help">{dissectMode ? 'Drag a structure to pull it out · drag empty space to orbit' : 'Select a structure to inspect · drag to orbit'}</p>
       </div>
-      {dissectMode && (variant.segmentedSystem || props.model.viewer === 'segmented-body') && <aside ref={dissectDockRef} className={`dissect-dock ${dissectPanelOpen ? 'sheet-open' : 'sheet-collapsed'}`}>
-          <header><button className="mobile-sheet-toggle" onClick={() => setDissectPanelOpen((value) => !value)} aria-expanded={dissectPanelOpen}>{dissectPanelOpen ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button><div><span>Dissect tools</span><b>{structures.length} structures · tap to {dissectPanelOpen ? 'collapse' : 'open'}</b></div><button onClick={props.activityLayout ? () => setDissectPanelOpen(false) : toggleDissectMode} title={props.activityLayout ? 'Close dissection tools' : 'Exit Dissect Mode'}><X size={14} /></button></header>
+      {dissectMode && dissectPanelOpen && <button className="dissect-backdrop" onClick={() => setDissectPanelOpen(false)} aria-label="Close dissection tools" />}
+      {dissectMode && (variant.segmentedSystem || props.model.viewer === 'segmented-body') && <aside ref={dissectDockRef} className={`dissect-dock ${dissectPanelOpen ? 'sheet-open' : 'sheet-collapsed'}`} aria-label="Dissection tools">
+          <header><button className="mobile-sheet-toggle" onClick={() => setDissectPanelOpen((value) => !value)} aria-expanded={dissectPanelOpen}>{dissectPanelOpen ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button><div><span>Dissect · {structures.length} structures</span><b>{props.model.name}</b></div><button onClick={props.activityLayout || window.innerWidth <= 767 ? () => setDissectPanelOpen(false) : toggleDissectMode} title={props.activityLayout || window.innerWidth <= 767 ? 'Close dissection tools' : 'Exit Dissect Mode'}><X size={14} /></button></header>
           <div className="dissect-sheet-content">
           <div className="dissect-search"><Search size={13} /><input value={structureQuery} onChange={(event) => setStructureQuery(event.target.value)} placeholder="Search structures" aria-label="Search digestive structures" /></div>
           <div className="dissect-actions">
             <button disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'hide', ids: selectedStructureIds }); recordAction('hide', selectedStructureIds) }}><EyeOff size={13} />Hide</button>
             <button disabled={selectedStructureIds.length === 0} onClick={() => { dispatchDissection({ type: 'show', ids: selectedStructureIds }); recordAction('show', selectedStructureIds) }}><Eye size={13} />Show</button>
-            <button className={selectedStructureIds.some((id) => dissection.transparentIds.includes(id)) ? 'active' : ''} disabled={selectedStructureIds.length === 0} aria-pressed={selectedStructureIds.some((id) => dissection.transparentIds.includes(id))} onClick={() => { dispatchDissection({ type: 'toggle-transparent', ids: selectedStructureIds }); recordAction('transparent', selectedStructureIds) }}>Fade</button>
-            <button className={dissection.isolate ? 'active' : ''} disabled={selectedStructureIds.length === 0} aria-pressed={dissection.isolate} onClick={() => { dispatchDissection({ type: 'toggle-isolate' }); recordAction('isolate', selectedStructureIds) }}>Isolate</button>
-            <button className={`touch-move-action ${touchMoveEnabled ? 'active' : ''}`} aria-pressed={touchMoveEnabled} onClick={() => setTouchMoveEnabled((value) => !value)} title="Arm structure dragging on touch screens">Move</button>
+            <button className={selectedStructureIds.some((id) => dissection.transparentIds.includes(id)) ? 'active' : ''} disabled={selectedStructureIds.length === 0} aria-pressed={selectedStructureIds.some((id) => dissection.transparentIds.includes(id))} onClick={() => { dispatchDissection({ type: 'toggle-transparent', ids: selectedStructureIds }); recordAction('transparent', selectedStructureIds) }}><Eye size={13} opacity={0.55} />Fade</button>
+            <button className={dissection.isolate ? 'active' : ''} disabled={selectedStructureIds.length === 0} aria-pressed={dissection.isolate} onClick={() => { dispatchDissection({ type: 'toggle-isolate' }); recordAction('isolate', selectedStructureIds) }}><Box size={13} />Isolate</button>
+            <button className={`touch-move-action ${touchMoveEnabled ? 'active' : ''}`} aria-pressed={touchMoveEnabled} onClick={() => setTouchMoveEnabled((value) => !value)} title="Arm structure dragging on touch screens"><Move3D size={13} />Move</button>
           </div>
           <div className="dissect-structures">{structureGroups.map(([group, entries]) => <section key={group}><h3>{group}<span>{entries.length}</span></h3>{entries.map((structure) => <button key={structure.id} className={`${props.selectedIds.includes(structure.id) ? 'selected' : ''} ${dissection.hiddenIds.includes(structure.id) ? 'hidden' : ''}`} onClick={(event) => selectStructure(structure, event.shiftKey || window.matchMedia('(pointer: coarse)').matches)}><i />{structure.label}{dissection.hiddenIds.includes(structure.id) && <EyeOff size={11} />}</button>)}</section>)}</div>
           <footer><button disabled={dissection.history.length === 0} onClick={() => dispatchDissection({ type: 'undo' })}><Undo2 size={13} />Undo</button><button disabled={dissection.hiddenIds.length === 0} onClick={() => { const ids = dissection.hiddenIds; dispatchDissection({ type: 'show-all' }); recordAction('show', ids) }}>Show all</button><button onClick={resetDissection}>Reset</button></footer>

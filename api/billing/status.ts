@@ -17,7 +17,7 @@ export default async function handler(request: Request, response: Response) {
       response.status(400).json({ error: 'invalid_intent', message: 'A valid payment intent is required.' })
       return
     }
-    let intentQuery = client.from('payment_intents').select('id,provider,provider_reference,product_type,status,credits,created_at,updated_at').eq('user_id', user.id)
+    let intentQuery = client.from('payment_intents').select('id,provider,provider_reference,product_type,status,amount_minor,currency,credits,created_at,updated_at').eq('user_id', user.id)
     intentQuery = requestedIntent ? intentQuery.eq('id', requestedIntent) : intentQuery.eq('status', 'pending').order('created_at', { ascending: false }).limit(1)
     const { data: intentRows, error } = await intentQuery
     const initialIntent = intentRows?.[0]
@@ -31,8 +31,8 @@ export default async function handler(request: Request, response: Response) {
       const provider = await spotflowRequest(`/payments?reference=${encodeURIComponent(intent.provider_reference)}`)
       const payment = Array.isArray(provider.content) ? provider.content.find((entry) => entry && typeof entry === 'object' && (entry as Record<string, unknown>).reference === intent!.provider_reference) as Record<string, unknown> | undefined : undefined
       if (payment?.status === 'successful') {
-        const validAmount = intent.product_type === 'payg_100' ? payment.amount === 500 : payment.amount === 2500
-        if (!validAmount || payment.currency !== 'NGN' || typeof payment.id !== 'string') {
+        const providerAmountMinor = typeof payment.amount === 'number' ? payment.amount * 100 : NaN
+        if (providerAmountMinor !== intent.amount_minor || payment.currency !== intent.currency || typeof payment.id !== 'string') {
           await client.from('payment_intents').update({ status: 'failed', metadata: { reconciliationError: 'provider_amount_mismatch', providerAmount: payment.amount } }).eq('id', intent.id)
         } else {
           let subscription: Record<string, unknown> | undefined
@@ -66,7 +66,7 @@ export default async function handler(request: Request, response: Response) {
           if (claimError) throw claimError
           if (claim === 'claimed') await processSpotflowEvent(event)
         }
-        const refreshed = await client.from('payment_intents').select('id,provider,provider_reference,product_type,status,credits,created_at,updated_at').eq('id', intent.id).eq('user_id', user.id).single()
+        const refreshed = await client.from('payment_intents').select('id,provider,provider_reference,product_type,status,amount_minor,currency,credits,created_at,updated_at').eq('id', intent.id).eq('user_id', user.id).single()
         if (refreshed.error) throw refreshed.error
         intent = refreshed.data
       }

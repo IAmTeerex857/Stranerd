@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, type SetStateAction } from 'react'
-import { Bot, ChevronRight, CircleUserRound, FlaskConical, Library, Menu, PanelLeftClose, PanelLeftOpen, Search, Star, X } from 'lucide-react'
+import { lazy, Suspense, useEffect, useEffectEvent, useMemo, useRef, useState, type FormEvent, type SetStateAction } from 'react'
+import { ArrowLeft, BookOpen, Bot, ChevronRight, CircleUserRound, Compass, Menu, Microscope, Moon, Search, Sparkles, Star, Sun, X } from 'lucide-react'
 import { MentorPanel } from './components/MentorPanel'
 import { anatomyModels, modelById, models } from './data/models'
 import { quizzesForModel } from './data/quizzes'
@@ -22,6 +22,7 @@ import type { AnatomyViewerController, ViewerVoiceState } from './components/Ana
 import type { FlashcardsController, FlashcardVoiceState } from './components/FlashcardsView'
 import type { VoiceAction, VoiceActionResult, VoiceMode } from './lib/voiceActions'
 import type { ActiveNoteContext, LibraryContentMode, MaterialLearningController, MaterialLearningState, MaterialSubject, NoteSelectionRequest } from './types/materials'
+import { useTheme } from './theme-context'
 
 const logoUrl = '/branding/stranerd-wordmark.png'
 const iconUrl = '/branding/stranerd-icon.png'
@@ -39,9 +40,9 @@ function ViewLoading() {
 }
 
 const navItems: { id: ViewId; label: string; icon: typeof Search }[] = [
-  { id: 'explore', label: 'Explore', icon: Search },
-  { id: 'library', label: 'Learn', icon: Library },
-  { id: 'lab', label: 'Lab', icon: FlaskConical },
+  { id: 'explore', label: 'Explore', icon: Compass },
+  { id: 'library', label: 'Learn', icon: BookOpen },
+  { id: 'lab', label: 'Lab', icon: Microscope },
 ]
 
 const greeting: ChatItem = {
@@ -69,18 +70,10 @@ function Brand() {
   return <div className="brand"><img className="brand-full" src={logoUrl} alt="Stranerd" /><img className="brand-icon" src={iconUrl} alt="" /><span>Interactive anatomy</span></div>
 }
 
-type DetailProps = {
-  model: ModelEntry
-  hotspot?: Hotspot
-}
-
-function ModelDetail({ model, hotspot }: DetailProps) {
-  return <section className="model-detail brief-only panel anim2"><h2>{hotspot?.label || model.metadata.focus}</h2><p>{hotspot?.detail || model.description}</p></section>
-}
-
 export default function App() {
   const { user, balance, setBalance } = useAuth()
   const { reducedMotion } = usePreferences()
+  const { resolvedTheme, setPreference } = useTheme()
   const requestedDeckId = new URLSearchParams(window.location.search).get('deck') ?? undefined
   const requestedLibraryMode = new URLSearchParams(window.location.search).get('mode')
   const [persisted, setPersisted] = useState<PersistedState>(loadInitialState)
@@ -120,7 +113,7 @@ export default function App() {
   const [activityQuizPassed, setActivityQuizPassed] = useState<boolean>()
   const [typing, setTyping] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [workspaceSearch, setWorkspaceSearch] = useState('')
   const [mentorOpen, setMentorOpen] = useState(false)
   const [creditPrompt, setCreditPrompt] = useState<CreditPrompt>()
   const [viewerVoiceState, setViewerVoiceState] = useState<ViewerVoiceState>()
@@ -133,17 +126,29 @@ export default function App() {
   const flashcardsController = useRef<FlashcardsController>(null)
   const materialLearningController = useRef<MaterialLearningController | undefined>(undefined)
   const model = modelById(persisted.selectedModelId)
-  const messages = persisted.chatByModel[model.id] ?? [greeting]
+  const materialSession = materialLearningState?.target === 'material-flashcards' ? materialLearningState.deckId : materialLearningState?.subject
+  const chatSessionKey = view === 'explore'
+    ? `explore:${model.id}`
+    : view === 'lab'
+      ? `lab:${labMode}:${activeActivityId ?? 'catalog'}`
+      : libraryMode === 'assessment'
+        ? `library:assessment:${model.id}`
+        : libraryMode === 'flashcards'
+          ? `library:flashcards:${activeDeckId ?? 'catalog'}`
+          : `library:${libraryContentMode}:${activeNoteContext?.sectionId ?? materialSession ?? 'catalog'}`
+  const [chatSession, setChatSession] = useState<{ key: string; messages: ChatItem[] }>(() => ({ key: chatSessionKey, messages: [greeting] }))
+  if (chatSession.key !== chatSessionKey) setChatSession({ key: chatSessionKey, messages: [greeting] })
+  const messages = chatSession.key === chatSessionKey ? chatSession.messages : [greeting]
   const fallbackQuizzes = useMemo(() => quizzesForModel(model.id, quizSeed), [model.id, quizSeed])
   const modelQuizzes = generatedQuizSet?.modelId === model.id ? generatedQuizSet.quizzes : fallbackQuizzes
   const savedVariantId = persisted.selectedVariantIds[model.id]
   const selectedVariantId = model.variants.some((variant) => variant.id === savedVariantId) ? savedVariantId! : model.variants[0].id
   const favorite = persisted.favoriteModelIds.includes(model.id)
   const sideModels = anatomyModels
-  const effectiveSidebarCollapsed = sidebarCollapsed || (view === 'lab' && labMode !== 'catalog')
   const mentorAvailable = view === 'explore' || (view === 'lab' && labMode !== 'catalog')
   const assistantAvailable = mentorAvailable || (view === 'library' && (libraryMode === 'assessment' || libraryMode === 'flashcards' || Boolean(materialLearningState) || (libraryContentMode === 'notes' && Boolean(activeNoteContext))))
   const pendingFlashcardReviewKey = persisted.pendingFlashcardReviews.map((review) => review.id).join(':')
+  const creditBalance = balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0
 
   useEffect(() => {
     saveState(persisted)
@@ -195,10 +200,12 @@ export default function App() {
   }
 
   function setMessages(action: SetStateAction<ChatItem[]>) {
-    setPersisted((current) => {
-      const currentMessages = current.chatByModel[current.selectedModelId] ?? [greeting]
+    const expectedSession = chatSessionKey
+    setChatSession((current) => {
+      if (current.key !== expectedSession) return current
+      const currentMessages = current.messages
       const nextMessages = typeof action === 'function' ? action(currentMessages) : action
-      return { ...current, chatByModel: { ...current.chatByModel, [current.selectedModelId]: nextMessages.slice(-100) } }
+      return { key: expectedSession, messages: nextMessages.slice(-100) }
     })
   }
 
@@ -282,13 +289,27 @@ export default function App() {
 
   function chooseView(next: ViewId) {
     setView(next)
-    if (next === 'library') setLibraryMode('catalog')
+    if (next === 'library') {
+      setLibraryMode('catalog')
+      setActiveNoteContext(undefined)
+      setMaterialLearningState(undefined)
+      materialLearningController.current = undefined
+      setMentorOpen(false)
+    }
     if (next === 'lab') {
       setLabMode('catalog')
       setActiveActivityId(undefined)
       setGuidedActivityStep(null)
     }
     setMenuOpen(false)
+  }
+
+  function submitWorkspaceSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const query = workspaceSearch.trim().toLowerCase()
+    if (!query) return
+    const match = models.find((entry) => `${entry.name} ${entry.scientificName} ${entry.system} ${entry.metadata.region}`.toLowerCase().includes(query))
+    if (match) selectModel(match)
   }
 
   function toggleFavorite(modelId: string) {
@@ -618,8 +639,6 @@ export default function App() {
       flashcard: voiceMode === 'flashcard' ? materialLearningState?.target === 'material-flashcards' ? { deckId: materialLearningState.deckId, cardId: materialLearningState.cardId, index: materialLearningState.index, count: materialLearningState.count, side: materialLearningState.side, graded: materialLearningState.graded, question: materialLearningState.question, answer: materialLearningState.answer, hint: materialLearningState.hint } : flashcardVoiceState : undefined,
     }
   })()
-  const detail = <ModelDetail model={model} hotspot={selectedHotspot} />
-
   function renderCenter() {
     if (view === 'library') {
       if (libraryMode === 'assessment') return quizView
@@ -630,25 +649,72 @@ export default function App() {
       const lab = <DissectionActivitiesView mode={labMode} activeActivityId={activeActivityId} onGuided={launchDissectionActivity} onCatalog={returnToLabCatalog} guidedStep={guidedActivityStep} quizChoice={activityQuizChoice} quizPassed={activityQuizPassed} onStartGuide={() => { setGuidedActivityStep(0); setActivityQuizChoice(undefined); setActivityQuizPassed(undefined) }} onQuizChoice={(choice) => { setActivityQuizChoice(choice); setActivityQuizPassed(undefined) }} onQuizCheck={checkActivityQuestion} onStepContinue={continueActivity} />
       return labMode === 'catalog' ? lab : <div className="lesson-workspace activity-workspace lab-guided-workspace">{viewer}<div className="activity-pane">{lab}</div></div>
     }
-    return <div className="explore-view">{viewer}{detail}</div>
+    return <div className="explore-view"><div className="mobile-model-chips" aria-label="Choose anatomy model">{sideModels.map((entry) => <button key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i />{entry.name}</button>)}</div>{viewer}</div>
   }
 
-  return <div className={`app-shell ${effectiveSidebarCollapsed ? 'sidebar-collapsed' : ''} ${!assistantAvailable ? 'mentor-hidden' : ''}`}>
-    <header className="mobile-head"><Brand /><button onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation" aria-expanded={menuOpen} aria-controls="app-sidebar">{menuOpen ? <X /> : <Menu />}</button></header>
-    <aside id="app-sidebar" className={`sidebar ${menuOpen ? 'open' : ''} ${effectiveSidebarCollapsed ? 'collapsed' : ''}`}>
-      <div className="side-brand"><Brand /><button onClick={() => setSidebarCollapsed((value) => !value)} aria-label={effectiveSidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>{effectiveSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div>
-      <nav>{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined} title={effectiveSidebarCollapsed ? item.label : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
-      <div className="side-section"><header><span>Anatomy models</span></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}<ChevronRight size={14} /></Button>)}</div></div>
-      <Button variant="ghost" className="sidebar-account" asChild><a href="/account"><CircleUserRound size={18} /><span>Account</span><ChevronRight size={14} /></a></Button>
+  const activeActivity = anatomyActivities.find((activity) => activity.id === activeActivityId)
+  const materialScreen = materialLearningState?.target
+  const mobileNestedLibrary = view === 'library' && (libraryMode !== 'catalog' || Boolean(activeNoteContext) || Boolean(materialScreen))
+  const mobileTitle = view === 'lab' && labMode === 'guided'
+    ? activeActivity?.title ?? 'Lab'
+    : view === 'library' && libraryMode === 'flashcards' && activeDeck
+      ? `${activeDeck.title} flashcards`
+      : view === 'library' && libraryMode === 'assessment'
+        ? `${model.name} test`
+        : view === 'library' && activeNoteContext
+          ? `${activeNoteContext.subject} notes`
+          : view === 'library' && materialScreen === 'material-flashcards'
+            ? `${materialLearningState?.subject ?? 'Subject'} flashcards`
+            : view === 'library' && materialScreen === 'material-practice'
+              ? `${materialLearningState?.subject ?? 'Subject'} test`
+              : view === 'library' ? 'Learn' : view === 'lab' ? 'Lab' : model.name
+  const mobileSubtitle = view === 'explore'
+    ? `${model.system} · ${model.metadata.region}`
+    : view === 'lab' && labMode === 'guided'
+      ? `Step ${Math.min((guidedActivityStep ?? -1) + 1, activeActivity?.steps.length ?? 0)} of ${activeActivity?.steps.length ?? 0}`
+      : view === 'library' && libraryMode === 'flashcards' && activeDeck
+        ? `${flashcardVoiceState?.index !== undefined ? flashcardVoiceState.index + 1 : 1} of ${activeDeck.cards.length}`
+        : view === 'library' && libraryMode === 'assessment'
+          ? `${Object.keys(quizAnswers).length} of ${modelQuizzes.length} answered`
+          : view === 'library' && activeNoteContext
+            ? activeNoteContext.section
+            : materialLearningState
+              ? `${materialLearningState.index + 1} of ${materialLearningState.count}`
+              : undefined
+  function mobileBack() {
+    if (view === 'lab' && labMode === 'guided') returnToLabCatalog()
+    else if (view === 'library' && libraryMode !== 'catalog') setLibraryMode('catalog')
+    else document.querySelector<HTMLButtonElement>('.subject-materials-header .library-back')?.click()
+  }
+
+  return <div className={`app-shell ${!assistantAvailable ? 'mentor-hidden' : ''}`}>
+    <header className="mobile-head">
+      <button onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle navigation" aria-expanded={menuOpen} aria-controls="app-sidebar">{menuOpen ? <X /> : <Menu />}</button>
+      {(view === 'lab' && labMode === 'guided' || mobileNestedLibrary) && <button className="mobile-back" onClick={mobileBack} aria-label="Back"><ArrowLeft /></button>}
+      <div className="mobile-context"><b>{mobileTitle}</b>{mobileSubtitle && <span>{mobileSubtitle}</span>}</div>
+      <a className="mobile-credits" href="/account" aria-label={`${creditBalance} credits`}><Sparkles size={14} /><b>{creditBalance}</b></a>
+      <button onClick={() => setPreference(resolvedTheme === 'dark' ? 'light' : 'dark')} aria-label={`Use ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}>{resolvedTheme === 'dark' ? <Sun /> : <Moon />}</button>
+    </header>
+    <aside id="app-sidebar" className={`sidebar ${menuOpen ? 'open' : ''}`}>
+      <div className="side-brand"><Brand /></div>
+      <div className="mobile-drawer-brand"><img src={logoUrl} alt="Stranerd" /></div>
+      <nav>{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
+      <div className="side-section"><header><span>Subjects</span><b>{sideModels.length}</b></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span><small>{entry.system}</small>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}</Button>)}</div></div>
+      <Button variant="ghost" className="sidebar-account" asChild><a href="/account"><CircleUserRound size={34} /><span><b>{user?.email?.split('@')[0] || 'Your account'}</b><small>{creditBalance} credits</small></span><ChevronRight size={14} /></a></Button>
     </aside>
     {menuOpen && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label="Close navigation" />}
     <main className="workspace">
-      <header className="topbar"><div><span>{view === 'library' ? 'Learn' : view}</span><ChevronRight size={13} /><b>{model.name}</b></div><div className="top-actions">{flashcardSyncError && <Button variant="outline" role="alert" onClick={() => setFlashcardSyncRetry((value) => value + 1)}>Progress not synced · Retry</Button>}<Button variant="outline" asChild><a href="/account"><CircleUserRound size={16} />Account</a></Button>{view !== 'lab' && <Button onClick={() => chooseView('lab')}><FlaskConical size={16} />Open Lab</Button>}</div></header>
+      <header className="topbar">
+        <div><span>{view === 'library' ? 'Learn' : view === 'lab' ? 'Lab' : 'Explore'}</span>{(view === 'explore' || labMode === 'guided') && <><ChevronRight size={13} /><b>{view === 'lab' ? mobileTitle : model.name}</b></>}</div>
+        <form className="workspace-search" role="search" onSubmit={submitWorkspaceSearch}><Search size={16} /><input value={workspaceSearch} onChange={(event) => setWorkspaceSearch(event.target.value)} placeholder="Search subjects, notes, tests…" aria-label="Search workspace" /></form>
+        <div className="top-actions">{flashcardSyncError && <Button variant="outline" role="alert" onClick={() => setFlashcardSyncRetry((value) => value + 1)}>Progress not synced · Retry</Button>}{!assistantAvailable && <><a className="credit-pill" href="/account"><Sparkles size={15} /><b>{creditBalance}</b><span>credits</span></a><Button variant="outline" size="icon" onClick={() => setPreference(resolvedTheme === 'dark' ? 'light' : 'dark')} aria-label={`Use ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}>{resolvedTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</Button></>}</div>
+      </header>
       <div className="center-pane"><Suspense fallback={<ViewLoading />}>{renderCenter()}</Suspense></div>
     </main>
-    {assistantAvailable && <MentorPanel model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'An AI Mentor response', required: 1 })} noteContext={activeNoteContext} draftRequest={noteMentorRequest} voiceMode={voiceMode} voiceContext={voiceContext} onVoiceAction={handleVoiceAction} onVoiceInsufficientCredits={() => setCreditPrompt({ action: 'A five-minute Voice session', required: 10 })} />}
-    <nav className="mobile-tabs" aria-label="Workspace navigation">{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
-    {assistantAvailable && <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)} aria-expanded={mentorOpen} aria-controls="stranerd-mentor"><Bot size={15} />Mentor{typing && <i />}</button>}
+    {assistantAvailable && <div className="mentor-top-actions"><a className="credit-pill" href="/account"><Sparkles size={15} /><b>{creditBalance}</b><span>credits</span></a><Button variant="outline" size="icon" onClick={() => setPreference(resolvedTheme === 'dark' ? 'light' : 'dark')} aria-label={`Use ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}>{resolvedTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</Button></div>}
+    {assistantAvailable && <MentorPanel key={chatSessionKey} model={model} selectedHotspot={selectedHotspot} actionHistory={persisted.dissectionActionsByModel[model.id] ?? []} messages={messages} typing={typing} onMessages={setMessages} onTyping={setTyping} mobileOpen={mentorOpen} onMobileClose={() => setMentorOpen(false)} onInsufficientCredits={() => setCreditPrompt({ action: 'An AI Mentor response', required: 1 })} noteContext={activeNoteContext} draftRequest={noteMentorRequest} voiceMode={voiceMode} voiceContext={voiceContext} onVoiceAction={handleVoiceAction} onVoiceInsufficientCredits={() => setCreditPrompt({ action: 'A five-minute Voice session', required: 10 })} />}
+    <nav className="mobile-tabs" aria-label="Workspace navigation">{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={21} /><span>{item.label}</span></Button>)}<Button variant="ghost" asChild><a href="/account"><CircleUserRound size={21} /><span>Account</span></a></Button></nav>
+    {assistantAvailable && <button className="mobile-mentor-button" onClick={() => setMentorOpen(true)} aria-label="Open Mentor" aria-expanded={mentorOpen} aria-controls="stranerd-mentor"><Bot size={25} />{typing && <i />}</button>}
     {creditPrompt && <Suspense fallback={null}><CreditModal prompt={creditPrompt} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} onClose={() => setCreditPrompt(undefined)} /></Suspense>}
     {generateModel && <Suspense fallback={null}><GenerateDeckModal model={generateModel} balance={balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0} generating={generatingDeck} error={deckError} onClose={() => setGenerateModel(undefined)} onGenerate={createGeneratedDeck} /></Suspense>}
   </div>

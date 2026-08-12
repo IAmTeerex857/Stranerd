@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { appBaseUrl, bachsCatalog, bachsRequest, billingCatalog, billingCountry, billingErrorResponse, billingRails, buildBachsCheckoutPayload, getBillingClient, requireBillingUser, spotflowRequest, validateBachsCheckoutUrl, type BillingProductId, type BillingRail } from '../../server/billing.js'
+import { appBaseUrl, bachsCatalog, bachsRequest, billingCatalog, billingCountry, billingErrorResponse, billingQuantity, billingRails, buildBachsCheckoutPayload, getBillingClient, requireBillingUser, spotflowRequest, validateBachsCheckoutUrl, type BillingProductId, type BillingRail } from '../../server/billing.js'
 
 export default async function handler(request: Request, response: Response) {
   const country = billingCountry(request.headers)
@@ -25,12 +25,13 @@ export default async function handler(request: Request, response: Response) {
       response.status(400).json({ error: 'invalid_product', message: 'Select a valid Stranerd billing product.' })
       return
     }
+    const quantity = billingQuantity(productId, request.body?.quantity)
     if (!billingRails(country, productId).includes(rail)) {
       response.status(400).json({ error: 'rail_not_available', message: 'This payment method is not available in your region.' })
       return
     }
     if (rail !== 'ngn') {
-      await createBachsCheckout(response, user, productId, rail)
+      await createBachsCheckout(response, user, productId, rail, quantity)
       return
     }
     const product = billingCatalog[productId]
@@ -47,9 +48,9 @@ export default async function handler(request: Request, response: Response) {
       p_user_id: user.id,
       p_provider_reference: providerReference,
       p_product_type: product.productType,
-      p_amount_minor: product.amountMinor,
-      p_credits: product.credits,
-      p_metadata: { mode: process.env.SPOTFLOW_MODE },
+      p_amount_minor: product.amountMinor * quantity,
+      p_credits: product.credits * quantity,
+      p_metadata: { mode: process.env.SPOTFLOW_MODE, quantity },
     })
     if (intentError?.code === '23505' && productId === 'subscription') {
       response.status(409).json({ error: 'checkout_in_progress', message: 'A Stranerd Plus checkout is already pending for this account.' })
@@ -64,7 +65,7 @@ export default async function handler(request: Request, response: Response) {
         body: JSON.stringify({
           ...(productId === 'payg_100' ? { reference: providerReference } : {}),
           currency: product.currency,
-          ...(product.providerAmount ? { amount: product.providerAmount } : {}),
+          ...(product.providerAmount ? { amount: product.providerAmount * quantity } : {}),
           ...(productId === 'subscription' ? { planId: process.env.SPOTFLOW_PLUS_PLAN_ID } : {}),
           customer: {
             email: user.email,
@@ -76,6 +77,7 @@ export default async function handler(request: Request, response: Response) {
             productType: product.productType,
             paymentIntentId,
             userId: user.id,
+            quantity,
           },
         }),
       })
@@ -99,7 +101,7 @@ export default async function handler(request: Request, response: Response) {
   }
 }
 
-async function createBachsCheckout(response: Response, user: Awaited<ReturnType<typeof requireBillingUser>>, productId: BillingProductId, rail: Exclude<BillingRail, 'ngn'>) {
+async function createBachsCheckout(response: Response, user: Awaited<ReturnType<typeof requireBillingUser>>, productId: BillingProductId, rail: Exclude<BillingRail, 'ngn'>, quantity: number) {
   if (productId === 'subscription' && rail === 'stablecoin') {
     response.status(400).json({ error: 'invalid_rail', message: 'Subscriptions require USD card checkout.' })
     return
@@ -114,10 +116,10 @@ async function createBachsCheckout(response: Response, user: Awaited<ReturnType<
     p_provider: 'bachs',
     p_provider_reference: providerReference,
     p_product_type: product.productType,
-    p_amount_minor: product.amountMinor,
+    p_amount_minor: product.amountMinor * quantity,
     p_currency: product.currency,
-    p_credits: product.credits,
-    p_metadata: { mode: process.env.BACHS_MODE, rail, bachsProductId: productId === 'subscription' ? process.env.BACHS_PLUS_PRODUCT_ID : null },
+    p_credits: product.credits * quantity,
+    p_metadata: { mode: process.env.BACHS_MODE, rail, quantity, bachsProductId: productId === 'subscription' ? process.env.BACHS_PLUS_PRODUCT_ID : null },
   })
   if (intentError?.code === '23505' && productId === 'subscription') {
     response.status(409).json({ error: 'checkout_in_progress', message: 'A Stranerd Plus checkout is already pending for this account.' })
@@ -136,6 +138,7 @@ async function createBachsCheckout(response: Response, user: Awaited<ReturnType<
       name: user.user_metadata.full_name || user.user_metadata.name || user.email || 'Stranerd customer',
       plusProductId: process.env.BACHS_PLUS_PRODUCT_ID,
       baseUrl: appBaseUrl(),
+      quantity,
     })
     const provider = await bachsRequest('/v1/checkout-sessions', {
       method: 'POST',

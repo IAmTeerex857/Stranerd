@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { ArrowLeft, ArrowRight, Eye, RotateCcw, Shuffle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ScanLine, Shuffle } from 'lucide-react'
 import type { FlashcardDeck, FlashcardDeckProgress, FlashcardGrade } from '../types'
 import { flashcardGradeTransition, isTapGesture, shuffledIds } from '../lib/flashcards'
 import { usePreferences } from '../preferences-context'
@@ -146,12 +146,13 @@ export const FlashcardsView = forwardRef<FlashcardsController, Props>(function F
   return <section className="content-view flashcards-view learn-redesign anim" aria-labelledby="flashcard-deck-heading">
     <header className="flashcard-study-header"><Button variant="ghost" className="library-back" onClick={onBack}><ArrowLeft />All flashcards</Button><div><span className="page-kicker">Flashcards</span><h1 id="flashcard-deck-heading">{deck.title}</h1><p>{reviewed} of {deck.cards.length} reviewed</p></div><aside><div><span>Reviewed</span><strong>{reviewed}/{deck.cards.length}</strong></div><Progress value={(reviewed / deck.cards.length) * 100} aria-label={`${reviewed} of ${deck.cards.length} cards reviewed`} /></aside></header>
     <div className="flashcard-toolbar"><Button variant="ghost" size="sm" onClick={() => navigate(index - 1)} disabled={index === 0} aria-label="Previous card"><ArrowLeft /></Button><div><Button variant="ghost" size="sm" onClick={shuffle}><Shuffle />Shuffle</Button><span>Card {index + 1} of {order.length}</span></div><Button variant="ghost" size="sm" onClick={() => navigate(index + 1)} disabled={index === order.length - 1} aria-label="Next card"><ArrowRight /></Button></div>
+    <Progress className="flashcard-mobile-progress" value={(reviewed / deck.cards.length) * 100} aria-label={`${reviewed} of ${deck.cards.length} cards reviewed`} />
     <Card className={`flashcard-stage ${flipped ? 'flipped' : ''} ${reducedMotion ? 'reduced-motion' : ''}`} tabIndex={0} role="button" aria-label={`${flipped ? 'Answer' : 'Question'} side. ${flipped ? 'Tap to return to the question.' : 'Tap to reveal the answer.'}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { pointer.current = undefined }} onKeyDown={onKeyDown}>
       <div className="flashcard-inner">
-        <div className="flashcard-face flashcard-front text-only" aria-hidden={flipped} inert={flipped ? true : undefined}><div className="flashcard-copy"><span>Question</span><h2>{card.front.heading}</h2><p>{card.front.body}</p></div><small>Answer from memory, then reveal the answer.</small></div>
+        <div className="flashcard-face flashcard-front text-only" aria-hidden={flipped} inert={flipped ? true : undefined}><div className="flashcard-copy"><span>Question</span><h2>{card.front.heading}</h2><p>{card.front.body}</p></div><small><ScanLine />Tap the card to flip and reveal the answer.</small></div>
         <div className="flashcard-face flashcard-back" aria-hidden={!flipped} inert={!flipped ? true : undefined}><div className="flashcard-answer-mark">Answer</div><h2>{card.back.heading}</h2><p>{card.back.body}</p><small>Review the explanation, then continue.</small></div>
       </div>
     </Card>
-    <div className="flashcard-reveal">{flipped && <section className="study-grading" aria-labelledby="flashcard-grade-heading"><p id="flashcard-grade-heading">How well did you recall it?</p><div className="flashcard-grades">{(['again', 'hard', 'good', 'easy'] as const).map((grade) => <Button key={grade} variant="grade" disabled={graded} onClick={() => gradeCurrent(grade)}>{grade[0].toUpperCase() + grade.slice(1)}</Button>)}</div></section>}<Button size="lg" onClick={flip}>{flipped ? <><RotateCcw />Show question</> : <><Eye />Reveal answer</>}</Button></div>
+    <div className="flashcard-reveal">{flipped && <section className="study-grading" aria-labelledby="flashcard-grade-heading"><p id="flashcard-grade-heading">How well did you recall it?</p><div className="flashcard-grades">{(['again', 'hard', 'good', 'easy'] as const).map((grade) => <Button key={grade} variant="grade" disabled={graded} onClick={() => gradeCurrent(grade)}>{grade[0].toUpperCase() + grade.slice(1)}</Button>)}</div></section>}<Button variant="outline" className="mobile-flashcard-shuffle" onClick={shuffle}><Shuffle />Shuffle</Button></div>
   </section>
 })

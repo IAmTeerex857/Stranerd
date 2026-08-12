@@ -10,7 +10,6 @@ describe('persistence parsing', () => {
     const state = parsePersistedState(JSON.stringify({ selectedModelId: 'heart', completedLessonIds: ['heart-01'] }))
     expect(state.completedLessonIds).toEqual(['heart-01'])
     expect(state.completedQuizIds).toEqual([])
-    expect(state.chatByModel).toEqual({})
     expect(state.dissectionActionsByModel).toEqual({})
     expect(state.dissectionByModel).toEqual({})
     expect(state.flashcardProgressByDeck).toEqual({})
@@ -22,12 +21,10 @@ describe('persistence parsing', () => {
     expect(state.dissectionByModel.anatomy).toEqual({ active: true, hiddenIds: ['stomach'], transparentIds: ['liver'], offsets: { 'stomach::0': [1, 2, 3] }, isolate: true, selectedIds: ['stomach'], visibleLayerIds: ['organs'] })
   })
 
-  it('keeps safe model chat and selection history', () => {
+  it('keeps safe selection history', () => {
     const state = parsePersistedState(JSON.stringify({
-      chatByModel: { heart: [{ id: 'one', role: 'mentor', text: 'Saved', pending: true }, { bad: true }] },
       selectedHotspotIds: { heart: 'left-atrium', bad: 3 },
     }))
-    expect(state.chatByModel.heart).toEqual([{ id: 'one', role: 'mentor', text: 'Saved', pending: false }])
     expect(state.selectedHotspotIds).toEqual({ heart: 'left-atrium' })
   })
 

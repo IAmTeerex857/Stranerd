@@ -13,7 +13,7 @@
 
 /* Mentor */
 .assistant-panel .mentor-head {
-  min-height: 56px;
+  min-height: 64px;
   padding: 0 18px;
   border-bottom: 1px solid var(--support-line);
   background: var(--card);
@@ -24,7 +24,7 @@
   width: 30px;
   height: 30px;
   place-items: center;
-  border: 1px solid var(--support-ai-border);
+  border: 1px solid color-mix(in srgb, var(--support-ai) 12%, transparent);
   border-radius: 9px;
   color: var(--support-ai);
   background: var(--support-ai-soft);
@@ -36,7 +36,7 @@
 .assistant-panel .assistant-tabs-list {
   position: absolute;
   z-index: 2;
-  top: 10px;
+  top: 14px;
   right: 16px;
   width: auto;
   height: 36px;
@@ -47,17 +47,17 @@
 .assistant-panel .assistant-tabs-list [data-slot="tabs-trigger"] { min-width: 68px; height: 28px; padding-inline: 10px; font-size: 12px; }
 .assistant-panel .assistant-tabs-list svg { display: none; }
 .assistant-panel .assistant-tab-content { margin: 0; border: 0; border-radius: 0; background: var(--card); }
-.assistant-panel .mentor-context { margin: 14px 18px 0; border-color: var(--support-ai-border); border-radius: 12px; background: var(--support-ai-soft); }
+.assistant-panel .mentor-context { margin: 14px 18px 0; border-color: color-mix(in srgb, var(--support-ai) 12%, transparent); border-radius: 12px; background: var(--support-ai-soft); }
 .assistant-panel .transcript { gap: 14px; padding: 18px; }
 .assistant-panel .chat-row {
   width: fit-content;
   max-width: 88%;
   padding: 11px 13px;
-  border: 1px solid var(--support-ai-border);
+  border: 1px solid color-mix(in srgb, var(--support-ai) 12%, transparent);
   box-shadow: none;
 }
 .assistant-panel .chat-row.mentor { align-self: flex-start; border-radius: 15px 15px 15px 5px; background: var(--support-ai-soft); }
-.assistant-panel .chat-row.student { align-self: flex-end; border-color: var(--primary-border, var(--support-line)); border-radius: 15px 15px 5px 15px; background: var(--secondary); }
+.assistant-panel .chat-row.student { align-self: flex-end; border-color: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: 15px 15px 5px 15px; background: var(--secondary); }
 .assistant-panel .chat-row > span { min-width: 24px; color: var(--support-ai); font-size: 9px; }
 .assistant-panel .chat-row.student > span { color: var(--primary); }
 .assistant-panel .mentor-copy p,
@@ -66,6 +66,7 @@
 .assistant-panel .mentor-input > div { min-height: 50px; padding: 7px 8px 7px 13px; border-radius: 12px; background: var(--support-muted); }
 .assistant-panel .mentor-input textarea { min-height: 34px; padding: 8px 0; background: transparent; font-size: 13.5px; }
 .assistant-panel .mentor-input .mentor-send { width: auto; min-width: 91px; height: 34px; gap: 6px; padding-inline: 11px; }
+.assistant-panel .mentor-input .mentor-send:disabled { color: #fff; background: var(--support-ai); opacity: 1; }
 .mentor-send b,
 .voice-entry > button b { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 5px; background: rgb(255 255 255 / 20%); font: 600 10px/1.3 "IBM Plex Mono", ui-monospace, monospace; }
 .mentor-send-mobile { display: none; }
@@ -226,15 +227,24 @@
 }
 
 @media (max-width: 760px) {
-  .assistant-panel .mentor-head { min-height: 62px; padding-inline: 16px; }
-  .assistant-panel .assistant-tabs-list { position: static; width: calc(100% - 32px); height: 42px; margin: 10px 16px 0; }
-  .assistant-panel .assistant-tabs-list [data-slot="tabs-trigger"] { flex: 1; }
+  .assistant-panel .mentor-head { min-height: 82px; padding: 18px 214px 10px 16px; }
+  .assistant-panel .mentor-avatar { width: 38px; height: 38px; border: 0; border-radius: 12px; color: #fff; background: linear-gradient(135deg, var(--support-ai), var(--ai-hover, #5a2ccb)); }
+  .assistant-panel .mentor-head strong { font-size: 16px; }
+  .assistant-panel .mentor-head > div { min-width: 0; overflow: hidden; }
+  .assistant-panel .mentor-head strong,
+  .assistant-panel .mentor-head small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .assistant-panel .mentor-head small { max-width: 100%; font-size: 11.5px; }
+  .assistant-panel .assistant-tabs-list { position: absolute; top: 22px; right: 58px; width: 142px; height: 38px; margin: 0; }
+  .assistant-panel .assistant-tabs-list [data-slot="tabs-trigger"] { min-width: 0; flex: 1; }
+  .assistant-panel .mentor-mobile-close { position: absolute; z-index: 4; top: 22px; right: 12px; display: inline-flex; width: 38px; height: 38px; border: 1px solid var(--support-line); border-radius: 11px; background: var(--card); }
   .assistant-panel .mentor-input { padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); }
   .assistant-panel .mentor-input .mentor-send { width: 40px; min-width: 40px; height: 40px; padding: 0; }
   .mentor-send > span,
   .mentor-send > b { display: none; }
   .mentor-send-mobile { display: block; }
-  .assistant-panel .mentor-input > small { font-size: 10px; }
+  .assistant-panel .mentor-input > small { display: block; font-size: 10px; text-align: center; }
+  .assistant-panel .mentor-context { margin: 14px 16px 0; }
+  .assistant-panel .transcript { padding: 18px 16px; }
   .voice-entry.embedded,
   .voice-dock.embedded { justify-content: center; gap: 18px; padding: 28px 22px; }
   .voice-entry.embedded .voice-orb,
@@ -258,4 +268,197 @@
 
 @media (prefers-reduced-motion: reduce) {
   .billing-status-progress i { animation: none; width: 100%; opacity: .55; }
+}
+
+/* Account and billing fidelity */
+.account-shell { min-height: 100vh; background: var(--background); }
+.account-topbar {
+  position: sticky;
+  z-index: 100;
+  top: 0;
+  display: flex;
+  height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--support-line, var(--border-ui));
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter: blur(10px);
+}
+.account-topbar-path,
+.account-topbar-path a,
+.account-topbar-user { display: flex; align-items: center; }
+.account-topbar-path { gap: 10px; font-size: 13px; }
+.account-topbar-path a { gap: 7px; margin-right: 4px; color: var(--muted-foreground); }
+.account-topbar-path a:hover { color: var(--foreground); }
+.account-topbar-path svg { width: 16px; }
+.account-topbar-path i { width: 1px; height: 22px; margin-right: 4px; background: var(--border-ui); }
+.account-topbar-path span { color: var(--muted-foreground); }
+.account-topbar-path strong { font-size: 14px; }
+.account-topbar-user { gap: 10px; }
+.account-mobile-title,
+.account-mobile-credits,
+.account-mobile-nav,
+.account-mobile-drawer { display: none; }
+.account-topbar-user > button { width: 36px; height: 36px; border-radius: 999px; }
+.account-topbar-user > img,
+.account-topbar-user > span { width: 32px; height: 32px; border: 1px solid var(--primary-border); border-radius: 50%; }
+.account-topbar-user > img { object-fit: cover; }
+.account-topbar-user > span { display: grid; place-items: center; color: var(--primary); background: var(--primary-subtle); font-size: 11px; font-weight: 700; }
+
+.account-shell .account-redesign { margin: 0 auto; padding: 32px 40px 80px; font-family: Inter, system-ui, sans-serif; }
+.account-redesign .account-heading { display: block; padding: 0; }
+.account-billing-heading h1 { margin: 7px 0 0; font: 600 28px/1.1 "DM Sans", sans-serif; letter-spacing: -.03em; }
+.account-profile-mobile { display: none; }
+.account-dashboard { margin-top: 20px; }
+.account-dashboard > [data-slot="card"] { padding: 24px; }
+.account-dashboard .credit-meter { position: relative; overflow: hidden; }
+.credit-meter > header svg { display: none; }
+.credit-meter-total { margin: 0 0 16px; }
+.credit-meter-total strong { font-size: 44px; }
+.credit-meter-bar { margin: 0 0 16px; }
+.credit-meter > p { margin-top: 18px; }
+.mobile-credit-cta { display: none; }
+.current-plan > header { margin-bottom: 16px; }
+.plan-title-row { display: flex; align-items: center; gap: 10px; }
+.plan-title-row h2 { margin: 0; }
+.account-status { padding: 4px 10px; border: 1px solid var(--border-ui); border-radius: 999px; color: var(--muted-foreground); font: 500 10.5px "IBM Plex Mono", monospace; }
+.account-status.active { border-color: color-mix(in srgb, var(--success) 34%, transparent); color: var(--success); background: var(--success-subtle); }
+.plan-title-row + p { margin-top: 6px; }
+.plan-usage { display: grid; gap: 8px; margin: 0 0 18px; }
+.plan-usage > div { display: flex; justify-content: space-between; color: var(--foreground); font-size: 13px; }
+.plan-usage strong { color: var(--muted-foreground); font: 500 12px "IBM Plex Mono", monospace; }
+.plan-usage > i { height: 6px; overflow: hidden; border-radius: 3px; background: var(--support-muted); }
+.plan-usage > i span { display: block; height: 100%; background: var(--primary); }
+.current-plan .billing-actions { display: flex; grid-template-columns: none; flex-wrap: wrap; }
+.current-plan .billing-actions > * { flex: 1; }
+.current-plan .billing-actions .billing-button-wrap button { background: var(--support-ai); color: white; }
+.account-redesign .account-activity { padding: 0; overflow: hidden; }
+.account-redesign .account-activity > header { padding: 18px 22px 12px; }
+.account-redesign .account-activity-grid { gap: 0; }
+.account-redesign .transaction-list { border: 0; border-top: 1px solid var(--support-line); border-radius: 0; }
+.account-redesign .transaction-list > header { background: var(--support-muted); }
+.account-redesign .payment-list { border-top: 1px solid var(--support-line); }
+.account-redesign .preferences-section > header { margin-bottom: 0; }
+.voice-privacy > div { display: flex; flex-wrap: wrap; gap: 16px; }
+.voice-privacy .danger-link { color: var(--destructive); }
+.account-signout { width: 100%; color: var(--destructive); }
+
+[data-slot="dialog-content"].billing-confirmation {
+  width: min(calc(100vw - 28px), 520px);
+  max-height: min(90dvh, 760px);
+  gap: 0;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--border-ui);
+  border-radius: 20px;
+  color: var(--foreground);
+  background: var(--card);
+  box-shadow: 0 28px 90px rgb(8 11 18 / 30%);
+}
+.billing-confirmation > [data-slot="dialog-close"] { top: 18px; right: 18px; border: 1px solid var(--border-ui); }
+.billing-confirmation [data-slot="dialog-header"] { padding: 24px 26px 20px; border-bottom: 1px solid var(--border-ui); }
+.billing-dialog-kicker { color: var(--primary); font: 600 10.5px "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+.payg-confirmation .billing-dialog-kicker { color: var(--support-ai); }
+.billing-confirmation [data-slot="dialog-title"] { margin-top: 1px; font: 600 22px "DM Sans", sans-serif; letter-spacing: -.02em; }
+.billing-confirmation [data-slot="dialog-description"] { max-width: 440px; margin-top: 5px; font-size: 13.5px; }
+.subscription-price { display: flex; align-items: baseline; gap: 8px; padding: 0 26px 20px; margin-top: -2px; border-bottom: 1px solid var(--border-ui); }
+.subscription-price strong { font: 500 34px "IBM Plex Mono", monospace; letter-spacing: -.03em; }
+.subscription-price span { color: var(--muted-foreground); }
+.subscription-benefits { display: grid; gap: 11px; margin: 0; padding: 20px 26px; list-style: none; }
+.subscription-benefits li { display: flex; gap: 10px; color: var(--foreground); font-size: 13.5px; }
+.subscription-benefits svg { width: 15px; color: var(--success); }
+.payg-picker { padding: 20px 26px; }
+.payg-stepper-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; font-size: 13px; }
+.payg-stepper { display: flex; align-items: center; overflow: hidden; border: 1px solid var(--border-ui); border-radius: 10px; }
+.payg-stepper button { width: 38px; height: 38px; border: 0; border-radius: 0; }
+.payg-stepper output { width: 48px; border-right: 1px solid var(--border-ui); border-left: 1px solid var(--border-ui); font: 600 16px/38px "IBM Plex Mono", monospace; text-align: center; }
+.payg-picker dl { display: grid; gap: 9px; margin: 0; padding: 16px 18px; border: 1px solid var(--border-ui); border-radius: 12px; background: var(--support-muted); }
+.payg-picker dl > div { display: flex; justify-content: space-between; color: var(--muted-foreground); }
+.payg-picker dd { margin: 0; color: var(--foreground); font-family: "IBM Plex Mono", monospace; }
+.payg-picker .payg-total { align-items: baseline; padding-top: 10px; border-top: 1px solid var(--border-ui); color: var(--foreground); font-weight: 600; }
+.payg-picker .payg-total dd { font-size: 20px; }
+.billing-dialog-footer { padding: 16px 26px 24px; border-top: 1px solid var(--border-ui); }
+.billing-dialog-footer > p { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; color: var(--muted-foreground); font-size: 12px; }
+.billing-dialog-footer > p svg { width: 14px; }
+.billing-dialog-footer > button { width: 100%; }
+.billing-dialog-footer .payg-checkout { color: white; background: var(--support-ai); }
+
+@media (max-width: 760px) {
+  .account-topbar { height: 54px; padding: 0 12px; }
+  .account-mobile-title { display: flex; min-width: 0; align-items: center; gap: 10px; }
+  .account-mobile-title button { display: grid; width: 38px; height: 38px; place-items: center; padding: 0; border: 0; border-radius: 10px; color: var(--foreground); background: transparent; }
+  .account-mobile-title svg { width: 20px; }
+  .account-mobile-title strong { font: 600 16px "DM Sans", sans-serif; }
+  .account-mobile-credits { display: inline-flex; height: 34px; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid var(--ai-border); border-radius: 999px; color: var(--ai); background: var(--ai-subtle); }
+  .account-mobile-credits svg { width: 14px; }
+  .account-mobile-credits b { font: 600 13px "IBM Plex Mono", monospace; }
+  .account-topbar-path i,
+  .account-topbar-path span,
+  .account-topbar-path > svg,
+  .account-topbar-path strong { display: none; }
+  .account-topbar-path { display: none; }
+  .account-topbar-user > img,
+  .account-topbar-user > span { display: none; }
+  .account-shell .account-redesign { padding: 16px 16px 108px; }
+  .account-billing-heading { display: none; }
+  .account-profile-mobile { display: flex; align-items: center; gap: 13px; }
+  .account-redesign .account-profile-mobile > img,
+  .account-profile-mobile > span { width: 54px; height: 54px; flex: 0 0 54px; border: 1px solid var(--primary-border); border-radius: 16px; object-fit: cover; }
+  .account-profile-mobile > span { display: grid; place-items: center; color: var(--primary); background: var(--primary-subtle); font-size: 18px; font-weight: 600; }
+  .account-profile-mobile h2 { margin: 0 0 2px; font-size: 19px; }
+  .account-profile-mobile p { margin: 0; color: var(--muted-foreground); font-size: 13px; }
+  .account-dashboard { margin-top: 18px; }
+  .account-dashboard > [data-slot="card"] { padding: 16px; border-radius: 14px; }
+  .account-dashboard .credit-meter { padding: 18px; border: 0; color: white; background: linear-gradient(135deg, var(--support-ai), var(--primary)); }
+  .credit-meter::after { content: ""; position: absolute; top: -35px; right: -35px; width: 130px; height: 130px; border-radius: 50%; background: rgb(255 255 255 / 13%); }
+  .credit-meter > * { position: relative; z-index: 1; }
+  .credit-meter > header { color: rgb(255 255 255 / 90%); }
+  .credit-meter-total { display: block; margin: 7px 0 13px; }
+  .credit-meter-total strong { display: block; font-family: "DM Sans", sans-serif; font-size: 40px; font-weight: 600; }
+  .credit-meter-total span { color: rgb(255 255 255 / 82%); font-size: 12.5px; }
+  .credit-meter-bar,
+  .credit-meter > p { display: none; }
+  .credit-meter dl { gap: 8px; }
+  .credit-meter dl > div { padding: 8px 10px; border-radius: 10px; background: rgb(255 255 255 / 15%); }
+  .credit-meter dt { color: rgb(255 255 255 / 82%); }
+  .credit-meter dt i { display: none; }
+  .credit-meter dd { font-size: 16px; }
+  .mobile-credit-cta { display: block; margin-top: 14px; }
+  .mobile-credit-cta button { color: var(--primary); background: rgb(255 255 255 / 95%); }
+  .current-plan > header { margin: 0 0 8px; }
+  .current-plan .billing-actions,
+  .current-plan > [data-slot="button"]:last-child { display: none; }
+  .account-lower-grid { margin-top: 18px; }
+  .account-redesign .account-activity > header,
+  .account-redesign .preferences-section > header { padding: 0 4px 8px; margin: 0; }
+  .account-redesign .account-activity,
+  .account-redesign .preferences-section { padding: 0; overflow: visible; border: 0; background: transparent; box-shadow: none; }
+  .account-redesign .transaction-list,
+  .account-redesign .preferences-grid { overflow: hidden; border: 1px solid var(--support-line); border-radius: 14px; background: var(--card); box-shadow: var(--shadow-card); }
+  .account-redesign .payment-list { margin-top: 12px; }
+  .account-redesign .preferences-grid > article { padding: 13px 15px; }
+  .account-mobile-nav { position: fixed; z-index: 110; right: 0; bottom: 0; left: 0; display: grid; height: calc(60px + env(safe-area-inset-bottom)); grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--support-line); background: color-mix(in srgb, var(--card) 96%, transparent); }
+  .account-mobile-nav a { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 3px; color: var(--muted-foreground); font-size: 10.5px; }
+  .account-mobile-nav svg { width: 21px; }
+  .account-mobile-nav a.active { color: var(--primary); font-weight: 600; }
+  .account-mobile-drawer { position: fixed; z-index: 130; inset: 0; display: flex; min-height: 0; flex-direction: column; color: var(--foreground); background: var(--card); }
+  .account-mobile-drawer > header { display: flex; height: 64px; min-height: 64px; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--support-line); }
+  .account-mobile-drawer > header img { width: 142px; filter: none; }
+  :root[data-theme="dark"] .account-mobile-drawer > header img { filter: brightness(0) invert(1); }
+  .account-mobile-drawer > header button { display: grid; width: 38px; height: 38px; place-items: center; border: 0; border-radius: 10px; color: var(--foreground); background: transparent; }
+  .account-mobile-drawer > nav { display: grid; gap: 3px; padding: 14px 16px 8px; }
+  .account-mobile-drawer > nav a { display: flex; min-height: 44px; align-items: center; gap: 12px; padding: 0 12px; border-radius: 11px; color: var(--foreground); font-size: 15px; }
+  .account-mobile-drawer > nav a.active { color: var(--primary); background: var(--primary-subtle); font-weight: 600; }
+  .account-mobile-drawer > nav svg { width: 19px; }
+  .account-mobile-drawer > div { min-height: 0; padding: 12px 16px; overflow-y: auto; }
+  .account-mobile-drawer > div > header { display: flex; justify-content: space-between; padding: 0 8px 8px; color: var(--muted-foreground); font: 500 10px "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+  .account-mobile-drawer > div > a { display: flex; min-height: 42px; align-items: center; gap: 10px; padding: 0 8px; border-radius: 9px; color: var(--foreground); font-size: 13.5px; }
+  .account-mobile-drawer > div > a i { width: 9px; height: 9px; border-radius: 3px; background: var(--primary); }
+  .account-mobile-drawer > div > a small { margin-left: auto; color: var(--muted-foreground); }
+  .billing-confirmation [data-slot="dialog-header"],
+  .payg-picker,
+  .billing-dialog-footer { padding-right: 20px; padding-left: 20px; }
 }

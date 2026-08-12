@@ -16,6 +16,6 @@ describe('note selection helpers', () => {
   })
 
   it('clamps the desktop toolbar inside the viewport', () => {
-    expect(noteToolbarPosition({ left: -20, right: 20, top: 4, bottom: 24, width: 40 }, 400, 300, 200, 100)).toEqual({ left: 12, top: 34 })
+    expect(noteToolbarPosition({ left: 80, right: 120, top: 4, bottom: 24, width: 40 }, 64, 400, 300, 200, 100)).toEqual({ left: 76, top: 34 })
   })
 })

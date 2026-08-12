@@ -162,20 +162,21 @@ export async function processSpotflowEvent(event: SpotflowEvent) {
     if (subscriptionLookupError) throw subscriptionLookupError
     const effectiveIntentId = existingSubscription ? undefined : intentId
     const { data: intent, error: intentError } = effectiveIntentId
-      ? await client.from('payment_intents').select('product_type,amount_minor,currency,credits').eq('id', effectiveIntentId).maybeSingle()
+      ? await client.from('payment_intents').select('product_type,amount_minor,currency,credits').eq('id', effectiveIntentId).eq('provider', 'spotflow').maybeSingle()
       : { data: null, error: null }
     if (intentError) throw intentError
     const productType = intent?.product_type || (event.providerSubscriptionId ? 'subscription' : undefined)
     if (!productType) throw new BillingError(404, 'intent_not_found', 'Spotflow payment intent was not found.')
 
     if (productType === 'payg_100') {
-      if (!effectiveIntentId || !event.providerReference || event.amount !== 500) throw new BillingError(400, 'amount_mismatch', 'Spotflow PAYG payment does not match the catalog.')
+      const providerAmountMinor = typeof event.amount === 'number' ? event.amount * 100 : NaN
+      if (!effectiveIntentId || !event.providerReference || providerAmountMinor !== intent?.amount_minor || event.currency !== intent.currency) throw new BillingError(400, 'amount_mismatch', 'Spotflow PAYG payment does not match the payment intent.')
       const { error } = await client.rpc('apply_spotflow_payg_success', {
         p_event_id: event.eventId,
         p_payment_intent_id: effectiveIntentId,
         p_provider_payment_id: event.providerPaymentId,
         p_provider_reference: event.providerReference,
-        p_provider_amount: event.amount * 100,
+        p_provider_amount: providerAmountMinor,
         p_provider_currency: event.currency,
       })
       if (error) throw error
