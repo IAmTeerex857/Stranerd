@@ -897,7 +897,6 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
       onSignIn()
       return
     }
-    if (!window.confirm('Spend 2 credits to unlock correct answers and AI explanations?')) return
     setLoadingCorrections(true)
     setAiError(undefined)
     try {
