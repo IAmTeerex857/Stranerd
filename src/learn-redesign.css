@@ -715,8 +715,8 @@
 .learn-redesign .assessment-correction h3 { color: var(--ai); }
 .learn-redesign .assessment-correction p { font-size: 13px; }
 .learn-redesign .assessment-result {
-  grid-template-columns: 152px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 24px;
   padding: 28px;
   overflow: hidden;
   border-color: var(--learn-border);
@@ -728,22 +728,22 @@
 .learn-redesign .assessment-score { display: grid; place-items: center; }
 .learn-redesign .assessment-score-ring {
   display: grid;
-  width: 112px;
-  height: 112px;
+  width: 152px;
+  height: 152px;
   place-items: center;
   border-radius: 50%;
 }
 .learn-redesign .assessment-score-ring > span {
   display: grid;
-  width: 84px;
-  height: 84px;
+  width: 116px;
+  height: 116px;
   place-items: center;
   align-content: center;
   border-radius: 50%;
   background: var(--learn-card);
 }
-.learn-redesign .assessment-score-ring strong { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 27px; line-height: 1; }
-.learn-redesign .assessment-score-ring small { margin-top: 5px; color: var(--learn-fg-2); font-size: 11px; }
+.learn-redesign .assessment-score-ring strong { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 36px; line-height: 1; }
+.learn-redesign .assessment-score-ring small { margin-top: 6px; color: var(--learn-fg-2); font-size: 12px; }
 .learn-redesign .assessment-result-copy > span { color: var(--learn-fg-2); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; }
 .learn-redesign .assessment-result h2 { font-size: 20px; font-weight: 600; }
 .learn-redesign .assessment-result p { font-size: 13.5px; }
