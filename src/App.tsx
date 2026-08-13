@@ -37,6 +37,7 @@ const DissectionActivitiesView = lazy(() => import('./components/DissectionActiv
 const FlashcardsView = lazy(() => import('./components/FlashcardsView').then((module) => ({ default: module.FlashcardsView })))
 const CreditModal = lazy(() => import('./components/CreditModal').then((module) => ({ default: module.CreditModal })))
 const GenerateDeckModal = lazy(() => import('./components/GenerateDeckModal').then((module) => ({ default: module.GenerateDeckModal })))
+const SearchResultsView = lazy(() => import('./components/SearchResultsView').then((module) => ({ default: module.SearchResultsView })))
 
 function ViewLoading() {
   return <div className="view-loading" aria-label="Loading view"><span /><span /><span /></div>
@@ -126,7 +127,9 @@ export default function App() {
   const [typing, setTyping] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [workspaceSearch, setWorkspaceSearch] = useState('')
+  const initialSearch = new URLSearchParams(window.location.search).get('search') ?? ''
+  const [workspaceSearch, setWorkspaceSearch] = useState(initialSearch)
+  const [activeSearch, setActiveSearch] = useState(initialSearch.trim())
   const [mentorOpen, setMentorOpen] = useState(false)
   const [creditPrompt, setCreditPrompt] = useState<CreditPrompt>()
   const [viewerVoiceState, setViewerVoiceState] = useState<ViewerVoiceState>()
@@ -160,7 +163,7 @@ export default function App() {
   const favorite = persisted.favoriteModelIds.includes(model.id)
   const sideModels = anatomyModels
   const mentorAvailable = view === 'explore' || (view === 'lab' && labMode !== 'catalog')
-  const assistantAvailable = mentorAvailable || (view === 'library' && (libraryMode === 'assessment' || libraryMode === 'flashcards' || Boolean(materialLearningState) || (libraryContentMode === 'notes' && Boolean(activeNoteContext))))
+  const assistantAvailable = !activeSearch && (mentorAvailable || (view === 'library' && (libraryMode === 'assessment' || libraryMode === 'flashcards' || Boolean(materialLearningState) || (libraryContentMode === 'notes' && Boolean(activeNoteContext)))))
   const pendingFlashcardReviewKey = persisted.pendingFlashcardReviews.map((review) => review.id).join(':')
   const materialProgressKey = JSON.stringify(persisted.materialProgressByRelease)
   const creditBalance = balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0
@@ -244,7 +247,15 @@ export default function App() {
     })
   }
 
+  function closeWorkspaceSearch() {
+    setActiveSearch('')
+    const url = new URL(window.location.href)
+    url.searchParams.delete('search')
+    window.history.replaceState({}, '', url)
+  }
+
   function selectModel(next: ModelEntry) {
+    closeWorkspaceSearch()
     updatePersisted({ selectedModelId: next.id })
     const restoredHotspot = next.hotspots.find((hotspot) => hotspot.id === persisted.selectedHotspotIds[next.id])
     const restoredDissection = persisted.dissectionByModel[next.id]
@@ -326,6 +337,7 @@ export default function App() {
   }
 
   function chooseView(next: ViewId) {
+    closeWorkspaceSearch()
     setView(next)
     if (next === 'library') {
       setLibraryMode('catalog')
@@ -344,10 +356,13 @@ export default function App() {
 
   function submitWorkspaceSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const query = workspaceSearch.trim().toLowerCase()
+    const query = workspaceSearch.trim()
     if (!query) return
-    const match = models.find((entry) => `${entry.name} ${entry.scientificName} ${entry.system} ${entry.metadata.region}`.toLowerCase().includes(query))
-    if (match) selectModel(match)
+    setActiveSearch(query)
+    setMentorOpen(false)
+    const url = new URL(window.location.href)
+    url.searchParams.set('search', query)
+    window.history.replaceState({}, '', url)
   }
 
   function toggleFavorite(modelId: string) {
@@ -677,6 +692,7 @@ export default function App() {
     }
   })()
   function renderCenter() {
+    if (activeSearch) return <SearchResultsView key={activeSearch} query={activeSearch} materialProgressByRelease={persisted.materialProgressByRelease} progressByDeck={persisted.flashcardProgressByDeck} />
     if (view === 'library') {
       if (libraryMode === 'assessment') return quizView
       if (libraryMode === 'flashcards' && activeDeck) return <FlashcardsView key={activeDeck.id} ref={flashcardsController} deck={activeDeck} progress={persisted.flashcardProgressByDeck[activeDeck.id]} onGrade={gradeFlashcard} onVoiceState={setFlashcardVoiceState} onBack={() => setLibraryMode('catalog')} />
@@ -737,14 +753,14 @@ export default function App() {
     <aside id="app-sidebar" className={`sidebar ${menuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
       <div className="side-brand"><Brand /><button onClick={() => setSidebarCollapsed((value) => !value)} aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>{sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div>
       <div className="mobile-drawer-brand"><img src={logoUrl} alt="Stranerd" /></div>
-      <nav>{navItems.map((item) => <Button variant="ghost" key={item.id} className={view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
+      <nav>{navItems.map((item) => <Button variant="ghost" key={item.id} className={!activeSearch && view === item.id ? 'active' : ''} onClick={() => chooseView(item.id)} aria-current={!activeSearch && view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
       <div className="side-section"><header><span>Subjects</span><b>{sideModels.length}</b></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span><small>{entry.system}</small>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}</Button>)}</div></div>
       <Button variant="ghost" className="sidebar-account" asChild><a href="/account">{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : <span className="sidebar-account-avatar">{firstName[0]?.toUpperCase()}</span>}<span><b>{firstName}</b><small>{creditBalance} credits</small></span><ChevronRight size={14} /></a></Button>
     </aside>
     {menuOpen && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label="Close navigation" />}
     <main className="workspace">
       <header className="topbar">
-        <div><span>{view === 'library' ? 'Learn' : view === 'lab' ? 'Lab' : 'Explore'}</span>{(view === 'explore' || labMode === 'guided') && <><ChevronRight size={13} /><b>{view === 'lab' ? mobileTitle : model.name}</b></>}</div>
+        <div><span>{activeSearch ? 'Search' : view === 'library' ? 'Learn' : view === 'lab' ? 'Lab' : 'Explore'}</span>{!activeSearch && (view === 'explore' || labMode === 'guided') && <><ChevronRight size={13} /><b>{view === 'lab' ? mobileTitle : model.name}</b></>}</div>
         <form className="workspace-search" role="search" onSubmit={submitWorkspaceSearch}><Search size={16} /><input value={workspaceSearch} onChange={(event) => setWorkspaceSearch(event.target.value)} placeholder="Search subjects, notes, tests…" aria-label="Search workspace" /></form>
         <div className="top-actions">{flashcardSyncError && <Button variant="outline" role="alert" onClick={() => setFlashcardSyncRetry((value) => value + 1)}>Progress not synced · Retry</Button>}{!assistantAvailable && <><a className="credit-pill" href="/account"><Sparkles size={15} /><b>{creditBalance}</b><span>credits</span></a><Button variant="outline" size="icon" onClick={() => setPreference(resolvedTheme === 'dark' ? 'light' : 'dark')} aria-label={`Use ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}>{resolvedTheme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</Button></>}</div>
       </header>

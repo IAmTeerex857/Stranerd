@@ -260,7 +260,6 @@ export default function MaterialsView(props: Props) {
               const progress = materialProgressByRelease[entry.releaseId]
               const answered = progress?.contentVersion === entry.contentVersion ? Object.keys(progress.practiceAnswers).length : 0
               const total = Math.min(20, entry.counts.questions)
-              const percent = total ? Math.round((answered / total) * 100) : 0
               const action = progress?.practiceSubmitted ? 'Review' : answered > 0 ? 'Continue' : 'Start'
               return (
                 <article key={entry.id} style={{ '--subject-color': theme.from } as CSSProperties}>
@@ -275,7 +274,6 @@ export default function MaterialsView(props: Props) {
                       {progress?.practiceSubmitted ? 'Completed' : answered ? `${answered}/${total} answered` : 'Not attempted'}
                     </p>
                   </div>
-                  <div className="material-practice-progress"><Progress value={percent} aria-label={`${percent}% complete`} /></div>
                   <Button variant={answered ? 'default' : 'outline'} onClick={() => selectSubject(entry)} aria-label={`${action} ${entry.title} practice test`}>
                     <span>{action}</span>
                     <ArrowRight />
