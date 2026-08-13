@@ -3,7 +3,8 @@
 .account-redesign,
 .pricing-page,
 .billing-status-page,
-.credit-modal {
+.credit-modal,
+.billing-confirmation {
   --support-ai: var(--ai, #6d3be8);
   --support-ai-soft: var(--ai-subtle, #f2ecfe);
   --support-ai-border: var(--ai-border, #e1d3fb);
@@ -392,10 +393,10 @@
 .billing-dialog-footer > p { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--muted-foreground); font-size: 11px; }
 .billing-dialog-footer > p svg { width: 14px; }
 .billing-dialog-footer > button { width: 100%; min-height: 42px; border-radius: 10px; color: #fff; font-weight: 600; }
-.billing-dialog-footer > button.payg-checkout { background: var(--support-ai); }
-.billing-dialog-footer > button.payg-checkout:hover { color: #fff; background: color-mix(in srgb, var(--support-ai) 88%, black); }
-.billing-dialog-footer > button.subscription-checkout { background: var(--primary); }
-.billing-dialog-footer > button.subscription-checkout:hover { color: #fff; background: color-mix(in srgb, var(--primary) 88%, black); }
+.billing-dialog-footer > button.payg-checkout { color: #fff; background-color: var(--support-ai, var(--ai, #6d3be8)); }
+.billing-dialog-footer > button.payg-checkout:hover { color: #fff; background-color: color-mix(in srgb, var(--support-ai, var(--ai, #6d3be8)) 88%, black); }
+.billing-dialog-footer > button.subscription-checkout { color: #fff; background-color: var(--primary, #2e64f0); }
+.billing-dialog-footer > button.subscription-checkout:hover { color: #fff; background-color: color-mix(in srgb, var(--primary, #2e64f0) 88%, black); }
 
 @media (max-width: 760px) {
   .account-topbar { height: 54px; padding: 0 12px; }
