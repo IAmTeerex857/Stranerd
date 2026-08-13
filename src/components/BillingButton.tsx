@@ -12,8 +12,12 @@ const prices = {
 
 function money(value: number, rail: BillingRail) {
   return rail === 'ngn'
-    ? new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(value)
+    ? `NGN ${new Intl.NumberFormat('en-NG', { maximumFractionDigits: 0 }).format(value)}`
     : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value)
+}
+
+function rate(rail: BillingRail) {
+  return rail === 'ngn' ? 'NGN 5 / credit' : '$0.02 / credit'
 }
 
 export function BillingButton({ productId, rail = 'ngn', children, className }: { productId: BillingProductId; rail?: BillingRail; children: ReactNode; className?: string }) {
@@ -24,6 +28,7 @@ export function BillingButton({ productId, rail = 'ngn', children, className }: 
   const [quantity, setQuantity] = useState(1)
   const payg = productId === 'payg_100'
   const total = prices[productId][rail] * (payg ? quantity : 1)
+  const provider = rail === 'ngn' ? 'Spotflow' : 'Bachs'
 
   useEffect(() => {
     const reset = () => setLoading(false)
@@ -61,14 +66,14 @@ export function BillingButton({ productId, rail = 'ngn', children, className }: 
         <DialogHeader>
           <span className="billing-dialog-kicker">{payg ? 'Pay as you go' : 'Subscribe'}</span>
           <DialogTitle>{payg ? 'Buy credits' : 'Stranerd Plus'}</DialogTitle>
-          <DialogDescription>{payg ? 'Buy a pack when you need one. Purchased credits never expire and are spent last.' : '500 credits every billing cycle, topped back up automatically. Cancel anytime and keep access through the period.'}</DialogDescription>
+          {!payg && <div className="subscription-price"><strong>{money(total, rail)}</strong><span>/ month</span></div>}
+          <DialogDescription>{payg ? 'Buy a pack when you need one — nothing recurring. Purchased credits never expire and are spent last.' : '500 credits every billing cycle, topped back up automatically. Cancel anytime — credits stay until the cycle ends.'}</DialogDescription>
         </DialogHeader>
-        {!payg && <div className="subscription-price"><strong>{money(total, rail)}</strong><span>/ month</span></div>}
         {payg ? <div className="payg-picker">
           <div className="payg-stepper-row"><strong>Packs of 100 credits</strong><div className="payg-stepper" aria-label="Number of credit packs"><Button variant="ghost" size="icon" aria-label="Remove one pack" disabled={quantity === 1 || loading} onClick={() => setQuantity((value) => Math.max(1, value - 1))}><Minus /></Button><output aria-live="polite">{quantity}</output><Button variant="ghost" size="icon" aria-label="Add one pack" disabled={quantity === 20 || loading} onClick={() => setQuantity((value) => Math.min(20, value + 1))}><Plus /></Button></div></div>
-          <dl><div><dt>Credits</dt><dd>{quantity * 100}</dd></div><div><dt>Rate</dt><dd>{money(prices.payg_100[rail], rail)} / 100</dd></div><div className="payg-total"><dt>Total</dt><dd>{money(total, rail)}</dd></div></dl>
-        </div> : <ul className="subscription-benefits"><li><Check />500 credits monthly, about 50 Voice sessions</li><li><Check />Voice can renew mid-conversation</li><li><Check />Anatomy learning stays free</li></ul>}
-        <div className="billing-dialog-footer"><p><LockKeyhole />Secure {rail === 'ngn' ? 'NGN' : rail === 'stablecoin' ? 'stablecoin' : 'USD card'} checkout. You will confirm payment next.</p><Button className={payg ? 'payg-checkout' : undefined} onClick={checkout} disabled={loading}>{loading ? 'Opening secure checkout...' : <>Continue to payment{payg ? ` · ${money(total, rail)}` : ''}<ArrowRight /></>}</Button>{error && <small className="billing-inline-error" role="alert">{error}</small>}</div>
+          <dl><div><dt>Credits</dt><dd>{quantity * 100}</dd></div><div><dt>Rate</dt><dd>{rate(rail)}</dd></div><div className="payg-total"><dt>Total</dt><dd>{money(total, rail)}</dd></div></dl>
+        </div> : <ul className="subscription-benefits"><li><Check />500 credits monthly — about 50 Voice sessions</li><li><Check />Voice keeps renewing mid-conversation without a top-up</li><li><Check />Everything anatomy stays free — credits power only the AI</li></ul>}
+        <div className="billing-dialog-footer"><p><LockKeyhole />Secure checkout by {provider} · you'll confirm payment on the next screen</p><Button className={payg ? 'payg-checkout' : 'subscription-checkout'} onClick={checkout} disabled={loading}>{loading ? 'Opening secure checkout...' : <>Continue to payment{payg ? ` · ${money(total, rail)}` : ''}<ArrowRight /></>}</Button>{error && <small className="billing-inline-error" role="alert">{error}</small>}</div>
       </DialogContent>
     </Dialog>
   </div>
