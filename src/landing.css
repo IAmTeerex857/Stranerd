@@ -286,6 +286,198 @@
   border-right: 0;
 }
 
+.landing-offers {
+  width: 100%;
+  padding: clamp(76px, 9vw, 120px) max(var(--landing-pad), calc((100vw - var(--landing-width)) / 2 + var(--landing-pad)));
+  color: #0e1526;
+  background: #f4f7fc;
+}
+
+.offers-heading {
+  display: flex;
+  max-width: calc(var(--landing-width) - (var(--landing-pad) * 2));
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 48px;
+  margin: 0 auto 42px;
+}
+
+.offers-heading > div {
+  max-width: 680px;
+}
+
+.offers-heading > div > span,
+.offer-card > span,
+.offer-card > header > span {
+  color: #2e64f0;
+  font: 500 10px/1.2 "IBM Plex Mono", monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.offers-heading h2 {
+  margin: 14px 0 13px;
+  color: #0e1526;
+  font-size: clamp(40px, 4.2vw, 58px);
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.offers-heading p {
+  max-width: 650px;
+  margin: 0;
+  color: #5c6880;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.offers-heading aside {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 5px;
+  color: #768299;
+  font: 500 10px/1.45 "IBM Plex Mono", monospace;
+  text-align: right;
+}
+
+.offers-grid {
+  display: grid;
+  max-width: calc(var(--landing-width) - (var(--landing-pad) * 2));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 auto;
+}
+
+.offer-card {
+  display: flex;
+  min-width: 0;
+  min-height: 158px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+  border: 1px solid #e4e9f2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 24px -22px rgba(30, 52, 110, 0.45);
+}
+
+.offer-card strong {
+  display: block;
+  color: #2e64f0;
+  font-size: clamp(42px, 4vw, 58px);
+  font-weight: 500;
+  line-height: 0.92;
+  letter-spacing: -0.055em;
+}
+
+.offer-card p {
+  margin: 7px 0 0;
+  color: #5c6880;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.offer-models {
+  grid-column: span 2;
+  min-height: 300px;
+  padding: 30px;
+  border: 0;
+  color: #fff;
+  background: linear-gradient(140deg, #3659f2, #2339cc);
+  box-shadow: 0 20px 42px -22px rgba(30, 52, 201, 0.7);
+}
+
+.offer-models header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.offer-models > header > span {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.offer-models header b {
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.86);
+  font: 500 9px "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+}
+
+.offer-models > div {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.offer-models strong {
+  color: #fff;
+  font-size: clamp(68px, 7vw, 88px);
+}
+
+.offer-models h3 {
+  margin: 0 0 3px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.08;
+}
+
+.offer-models > p {
+  max-width: 460px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.17);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.offer-flashcards {
+  grid-column: span 2;
+  min-height: 300px;
+  padding: 30px;
+  border-color: #cbdafb;
+  background: #eaf0fe;
+}
+
+.offer-flashcards > div {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.offer-flashcards strong {
+  color: #1e34c9;
+  font-size: clamp(54px, 6vw, 72px);
+}
+
+.offer-flashcards p {
+  margin-bottom: 2px;
+}
+
+.offer-ai {
+  border-color: #e1d3fb;
+  background: #f5f0fe;
+}
+
+.offer-ai > span {
+  color: #6d3be8;
+}
+
+.offer-ai strong {
+  color: #3d1e86;
+  font-size: clamp(24px, 2.4vw, 31px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+}
+
+.offer-ai p {
+  color: #5b4b7a;
+}
+
 .landing-preface,
 .landing-story,
 .landing-loop,
@@ -1633,6 +1825,22 @@
     min-height: 0;
   }
 
+  .offers-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .offers-heading aside {
+    grid-template-columns: repeat(3, auto);
+    gap: 18px;
+    text-align: left;
+  }
+
+  .offers-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .explore-demo-body,
   .dissect-layout,
   .mentor-demo {
@@ -1763,6 +1971,68 @@
 
   .landing-new-hero > footer span:nth-child(-n + 2) {
     border-bottom: 1px solid var(--landing-soft-line);
+  }
+
+  .landing-offers {
+    padding: 76px 20px;
+  }
+
+  .offers-heading {
+    margin-bottom: 30px;
+  }
+
+  .offers-heading h2 {
+    font-size: 42px;
+  }
+
+  .offers-heading p {
+    font-size: 15px;
+  }
+
+  .offers-heading aside {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .offers-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .offer-card,
+  .offer-models,
+  .offer-flashcards {
+    grid-column: auto;
+  }
+
+  .offer-models,
+  .offer-flashcards {
+    min-height: 270px;
+    padding: 24px;
+  }
+
+  .offer-models > div,
+  .offer-flashcards > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .offer-models strong {
+    font-size: 72px;
+  }
+
+  .offer-models h3 {
+    font-size: 19px;
+  }
+
+  .offer-flashcards strong {
+    font-size: 55px;
+  }
+
+  .offer-stat,
+  .offer-ai {
+    min-height: 150px;
   }
 
   .landing-preface,

@@ -2,7 +2,6 @@ import { ArrowRight, Bot, Check, ChevronRight, EyeOff, Layers3, Library, Move3d,
 import { LandingHeart, LandingLayeredBody, LandingSpecimen } from './components/LandingHeart'
 import { LandingTimeline } from './components/LandingTimeline'
 import { Page } from './PublicLayout'
-import { useBillingOptions } from './lib/billing'
 
 const subjects = [
   ['heart', 'Heart'], ['brain', 'Brain'], ['lungs', 'Lungs'], ['kidney', 'Kidney'], ['eye', 'Eye'],
@@ -68,14 +67,25 @@ function OrganShowcase() {
   return <article className="organ-showcase eye-world"><div className="organ-visual"><LandingSpecimen url="/models/eye-realistic.glb" label="Rotating realistic eye specimen" fit={3.2} mobileFit={4.25} cameraZ={5.7} rotation={[0, 0.3, 0]} /><strong>Eye</strong></div><div className="organ-facts"><p><span>Eye</span> connects transparent optical structures to neural vision.</p><dl><div><dt>4</dt><dd>study specimens</dd></div><div><dt>20</dt><dd>questions per quiz set</dd></div><div><dt>1</dt><dd>guided optical pathway</dd></div></dl><aside><span>Structures in focus</span><b>Cornea</b><b>Lens</b><b>Retina</b><b>Optic nerve</b></aside><a href="/app?model=eye">Open eye study <ArrowRight /></a></div></article>
 }
 
-function LandingPricing() {
-  const options = useBillingOptions()
-  const nigeria = options?.country === 'NG'
-  return <div className="landing-pricing-grid">
-    <article><span>Free account</span><h3>{nigeria ? '₦0' : '$0'}</h3><p>Full anatomy learning workspace, with 20 signup credits.</p><ul><li><Check />All anatomy studies</li><li><Check />Guided Labs and free dissection</li><li><Check />Verified assessments and flashcards</li></ul><a href="/app">Start learning <ArrowRight /></a></article>
-    <article className="featured"><span>Stranerd Plus</span><h3>{nigeria ? '₦2,500' : '$5'} <small>/ month</small></h3><p>500 AI credits after every successful billing cycle.</p><ul><li><Check />Explicit AI actions</li><li><Check />Credits reset each cycle</li><li><Check />Cancel at period end</li></ul><a href="/pricing">Pay {nigeria ? '₦2,500' : '$5'} <ArrowRight /></a></article>
-    <article><span>Credit pack</span><h3>{nigeria ? '₦500' : '$2'}</h3><p>100 purchased credits that do not expire.</p><ul><li><Check />No subscription required</li><li><Check />Buy repeatedly</li><li><Check />Spent after included credits</li></ul><a href="/pricing">Pay {nigeria ? '₦500' : '$2'} <ArrowRight /></a></article>
-  </div>
+function StranerdOffers() {
+  const cards = [
+    ['Subject notes', '22', 'Notes across 22 medical subjects', 'notes'],
+    ['Learning sections', '6,700+', 'structured learning sections', 'sections'],
+    ['Assessments', '22', 'twenty-question subject assessments', 'assessments'],
+    ['Practice', '440', 'practice questions', 'practice'],
+    ['Mnemonics', '1,800+', 'medical mnemonics', 'mnemonics'],
+    ['Diagrams & figures', '1,400+', 'medical diagrams and figures', 'diagrams'],
+    ['Virtual labs', '10', 'guided virtual dissection labs', 'labs'],
+  ] as const
+  return <section className="landing-offers" aria-labelledby="landing-offers-title">
+    <header className="offers-heading"><div><span>What Stranerd offers</span><h2 id="landing-offers-title">One workspace.<br />Every way you learn anatomy.</h2><p>A source-grounded library, interactive 3D models, and virtual dissection labs, tied together by progress and search that follow you everywhere.</p></div><aside><span>22 medical subjects</span><span>Source-grounded learning</span><span>Synced &amp; searchable</span></aside></header>
+    <div className="offers-grid">
+      <article className="offer-card offer-models"><header><span>Interactive 3D</span><b>Flagship</b></header><div><strong>10</strong><h3>interactive 3D<br />anatomy models</h3></div><p>Structure selection, isolation, transparency, movement and exploration, layered over a whole-body anatomy atlas.</p></article>
+      <article className="offer-card offer-flashcards"><span>Flashcards</span><div><strong>16,000+</strong><p>source-grounded<br />flashcards</p></div></article>
+      {cards.map(([label, count, copy, kind]) => <article className={`offer-card offer-stat offer-${kind}`} key={kind}><span>{label}</span><div><strong>{count}</strong><p>{copy}</p></div></article>)}
+      <article className="offer-card offer-ai"><span>AI mentor</span><div><strong>Help when you ask</strong><p>Context-aware guidance, never in the way.</p></div></article>
+    </div>
+  </section>
 }
 
 const faqs = [
@@ -93,6 +103,8 @@ export function LandingPage() {
       <div className="hero-model-wrap"><LandingHeart /><span className="hero-model-label label-top">01 · Ascending aorta</span><span className="hero-model-label label-bottom">02 · Left ventricle</span><small>Drag to inspect</small></div>
       <footer><span>10 anatomy studies</span><span>Persistent dissection</span><span>Authored learning loop</span><span>Optional Nerd Bot</span></footer>
     </section>
+
+    <StranerdOffers />
 
     <section className="landing-preface landing-reveal" id="how-it-works"><SectionMarker index="01">The problem</SectionMarker><p>Flat diagrams are good for naming structures. They are less useful for understanding what sits behind, beneath, around, and through them.</p></section>
 
@@ -112,9 +124,7 @@ export function LandingPage() {
 
     <section className="landing-library landing-reveal"><SectionMarker index="07">The anatomy library</SectionMarker><div className="library-heading"><h2>Study one organ deeply.<br />Or connect the whole body.</h2><p>Each subject includes realistic and interactive specimens where the source geometry supports them.</p></div><div className="subject-index">{subjects.map(([id, subject], index) => <a key={id} href={`/app?model=${id}`}><span>{String(index + 1).padStart(2, '0')}</span><strong>{subject}</strong><ChevronRight /></a>)}</div></section>
 
-    <section className="landing-pricing landing-reveal" id="landing-pricing"><SectionMarker index="08">Simple pricing</SectionMarker><div className="story-heading"><h2>Core learning stays open.<br />AI stays transparent.</h2><p>Use the anatomy workspace freely. Add AI credits through a monthly plan or a non-expiring pack.</p></div><LandingPricing /></section>
-
-    <section className="landing-faq landing-reveal"><SectionMarker index="09">Questions</SectionMarker><div><h2>Before you begin.</h2><div className="faq-list">{faqs.map(([question, answer]) => <details key={question}><summary>{question}<span>+</span></summary><p>{answer}</p></details>)}</div></div></section>
+    <section className="landing-faq landing-reveal"><SectionMarker index="08">Questions</SectionMarker><div><h2>Before you begin.</h2><div className="faq-list">{faqs.map(([question, answer]) => <details key={question}><summary>{question}<span>+</span></summary><p>{answer}</p></details>)}</div></div></section>
 
     <section className="landing-final"><span>Ready when you are</span><h2>Open the body.<br />Build the understanding.</h2><a href="/app"><span>Start learning</span><ArrowRight /></a></section>
   </main></Page>

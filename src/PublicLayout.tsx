@@ -14,7 +14,7 @@ function Header() {
   return <header className="public-header">
     <a className="public-brand" href={user ? '/app' : '/'}><img src={logoUrl} alt="Stranerd" /></a>
     <Button variant="ghost" size="icon" className="public-menu-toggle" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="public-navigation" aria-label="Toggle navigation">{menuOpen ? <X /> : <Menu />}</Button>
-    <nav id="public-navigation" className={menuOpen ? 'open' : ''} aria-label="Primary navigation"><a href="/#how-it-works" onClick={() => setMenuOpen(false)}>Product</a><a href="/#landing-pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href={user ? '/account' : '/login?mode=signin&next=/app'}>{user ? 'Account' : 'Sign in'}</a><Button asChild><a className="public-cta" href="/login?mode=signup&next=/app">Sign up<ArrowRight size={15} /></a></Button></nav>
+    <nav id="public-navigation" className={menuOpen ? 'open' : ''} aria-label="Primary navigation"><a href="/#how-it-works" onClick={() => setMenuOpen(false)}>Product</a><a href="/pricing" onClick={() => setMenuOpen(false)}>Pricing</a><a href={user ? '/account' : '/login?mode=signin&next=/app'}>{user ? 'Account' : 'Sign in'}</a><Button asChild><a className="public-cta" href="/login?mode=signup&next=/app">Sign up<ArrowRight size={15} /></a></Button></nav>
   </header>
 }
 
