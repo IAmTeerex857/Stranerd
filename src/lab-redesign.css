@@ -91,7 +91,8 @@
 @media (min-width: 768px) and (max-width: 1199px) {
   .app-shell .lab-catalog-view .activity-catalog { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .app-shell .lab-guided-workspace > .activity-pane { width: min(308px, 40vw); }
-  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock { position: fixed; z-index: 78; right: 16px; bottom: 16px; left: 16px; max-height: min(68dvh, 620px); }
+  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock { position: fixed; z-index: 78; top: auto; right: 0; bottom: 0; left: 0; max-height: min(68dvh, 620px); border-radius: 22px 22px 0 0; }
+  .app-shell .lab-guided-workspace .viewer.activity-layout .dissect-dock.sheet-collapsed { display: flex; visibility: hidden; pointer-events: none; transform: translateY(105%); }
 }
 
 @media (max-width: 767px) {

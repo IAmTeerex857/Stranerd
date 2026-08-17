@@ -344,7 +344,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
     if (cameraResetToken > 0) controlsRef.current?.reset()
   }, [cameraResetToken])
 
-  useBodyScrollLock(dissectPanelOpen && window.innerWidth <= 767)
+  useBodyScrollLock(dissectPanelOpen && window.innerWidth < 1200)
 
   useEffect(() => {
     onDissectionStateRef.current?.({
@@ -408,7 +408,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
 
   function toggleDissectMode() {
     if (dissectMode) {
-      if (props.activityLayout || window.matchMedia('(max-width: 767px)').matches) {
+      if (props.activityLayout || window.matchMedia('(max-width: 1199px)').matches) {
         setDissectPanelOpen((open) => !open)
         return
       }
@@ -692,7 +692,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
       </div>
       {dissectMode && dissectPanelOpen && <button className="dissect-backdrop" onClick={() => setDissectPanelOpen(false)} aria-label="Close dissection tools" />}
       {dissectMode && (variant.segmentedSystem || props.model.viewer === 'segmented-body') && <aside ref={dissectDockRef} className={`dissect-dock ${dissectPanelOpen ? 'sheet-open' : 'sheet-collapsed'}`} aria-label="Dissection tools">
-          <header><button className="mobile-sheet-toggle" onClick={() => setDissectPanelOpen((value) => !value)} aria-expanded={dissectPanelOpen}>{dissectPanelOpen ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button><div><span>Dissect · {structures.length} structures</span><b>{props.model.name}</b></div><button onClick={props.activityLayout || window.innerWidth <= 767 ? () => setDissectPanelOpen(false) : toggleDissectMode} title={props.activityLayout || window.innerWidth <= 767 ? 'Close dissection tools' : 'Exit Dissect Mode'}><X size={14} /></button></header>
+          <header><button className="mobile-sheet-toggle" onClick={() => setDissectPanelOpen((value) => !value)} aria-expanded={dissectPanelOpen}>{dissectPanelOpen ? <ChevronDown size={15} /> : <ChevronUp size={15} />}</button><div><span>Dissect · {structures.length} structures</span><b>{props.model.name}</b></div><button onClick={props.activityLayout || window.innerWidth < 1200 ? () => setDissectPanelOpen(false) : toggleDissectMode} title={props.activityLayout || window.innerWidth < 1200 ? 'Close dissection tools' : 'Exit Dissect Mode'}><X size={14} /></button></header>
           <div className="dissect-sheet-content">
           <div className="dissect-search"><Search size={13} /><input value={structureQuery} onChange={(event) => setStructureQuery(event.target.value)} placeholder="Search structures" aria-label="Search digestive structures" /></div>
           <div className="dissect-actions">
