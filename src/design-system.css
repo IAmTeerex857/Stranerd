@@ -858,6 +858,7 @@ button, input, textarea, select { font-family: inherit; }
     display: flex;
     height: 60px;
     align-items: center;
+    gap: 10px;
     justify-content: space-between;
     padding: 0 16px;
     border-bottom: 1px solid var(--border-ui);
@@ -1305,6 +1306,22 @@ button, input, textarea, select { font-family: inherit; }
   .app-shell .center-pane:has(.explore-view), .app-shell .center-pane:has(.lab-guided-workspace) { overflow: hidden; padding: 0; }
   .app-shell .explore-view, .app-shell .explore-viewer { height: 100%; min-height: 0; }
   .app-shell .explore-viewer { border: 0; border-radius: 0; }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  /* Keep this after the shared viewer geometry so the tablet sheet stays viewport-anchored. */
+  .app-shell .explore-viewer .dissect-dock,
+  .app-shell .explore-viewer.activity-layout .dissect-dock {
+    position: fixed;
+    z-index: 78;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: min(76dvh, 620px);
+    border-radius: 22px 22px 0 0;
+  }
 }
 
 @media (max-width: 767px) {
