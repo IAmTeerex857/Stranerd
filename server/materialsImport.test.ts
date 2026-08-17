@@ -1,12 +1,14 @@
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import sharp from 'sharp'
 import { afterEach, describe, expect, it } from 'vitest'
-import { buildMaterialsManifest, rewriteMarkdownAssetUrls } from './materialsImport.js'
+import { buildMaterialsManifest, rewriteMarkdownAssetUrls, subjectRpcPayload } from './materialsImport.js'
 
 const temporary: string[] = []
-const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0])
-const jpeg = Buffer.from([255, 216, 255, 224, 0])
+async function image(format: 'png' | 'jpeg', width = 2, height = 1) {
+  return sharp({ create: { width, height, channels: 3, background: { r: 28, g: 96, b: 148 } } })[format]().toBuffer()
+}
 
 async function fixture(overrides: { notes?: string; figures?: unknown; flashcards?: unknown; questions?: unknown; assets?: Record<string, Buffer>; sections?: string } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'materials-import-'))
@@ -32,6 +34,7 @@ async function fixture(overrides: { notes?: string; figures?: unknown; flashcard
     writeFile(path.join(directory, 'tests.generated.json'), `${JSON.stringify(overrides.questions ?? [question])}\n`),
     writeFile(path.join(directory, 'sections.jsonl'), overrides.sections ?? `${JSON.stringify({ id: 'sec-one', content: '# Test\nEvidence', heading_path: ['Test'], source_page_start: 1, source_page_end: 1, subject, title: 'Test' })}\n`),
   ])
+  const [png, jpeg] = await Promise.all([image('png'), image('jpeg')])
   const assets = overrides.assets ?? { 'one.png': png, 'two.jpeg': jpeg }
   await Promise.all(Object.entries(assets).map(([name, bytes]) => writeFile(path.join(directory, 'assets', name), bytes)))
   return root
@@ -62,8 +65,10 @@ describe('materials manifest', () => {
     expect(second).toEqual(first)
     expect(first.subjects[0].assets.map((asset) => asset.mimeType)).toEqual(['image/png', 'image/jpeg'])
     expect(first.subjects[0].assets.map((asset) => asset.originalPath)).toEqual(['./assets/one.png', './assets/two.jpeg'])
+    expect(first.subjects[0].assets.map((asset) => [asset.width, asset.height])).toEqual([[2, 1], [2, 1]])
     expect(first.subjects[0].release.notesMarkdown).toContain(`/assets/${first.subjects[0].assets[0].sha256}/one.png`)
     expect(first.subjects[0].release.sourceMetadata.editorial_version).toBe('materials-2026-08-11-v2')
+    expect(first.subjects[0].release.sourceMetadata.image_pipeline_version).toBe('responsive-webp-v1')
     expect(first.subjects[0].release.sourceMetadata.questions_editorial_hash).toMatch(/^[a-f0-9]{64}$/)
     expect(first.subjects[0].flashcards[0]).toMatchObject({ id: 'card-one', type: 'basic', front: 'Which term matches this description? The main artery carrying blood away from the heart.', back: 'Aorta', source_page: 1 })
   })
@@ -85,7 +90,7 @@ describe('materials manifest', () => {
 
   it('deduplicates identical figure placements while retaining unique assets', async () => {
     const placement = { alt: 'PNG', attribution: null, dedup: true, file: './assets/one.png', h1: 'Test', h2: null, height: 1, md5: 'a', native_dpi: 72, page: 1, width: 1 }
-    const root = await fixture({ notes: '# Test\n<!-- source-page: 1 -->\n![PNG](./assets/one.png)\n', figures: [placement, placement], assets: { 'one.png': png } })
+    const root = await fixture({ notes: '# Test\n<!-- source-page: 1 -->\n![PNG](./assets/one.png)\n', figures: [placement, placement], assets: { 'one.png': await image('png') } })
     const manifest = await buildMaterialsManifest({ outputRoot: root })
     expect(manifest.subjects[0].figures).toHaveLength(1)
     expect(manifest.subjects[0].assets).toHaveLength(1)
@@ -97,9 +102,39 @@ describe('materials manifest', () => {
   })
 
   it('rejects missing and stale assets', async () => {
+    const [png, jpeg] = await Promise.all([image('png'), image('jpeg')])
     const missing = await fixture({ assets: { 'one.png': png } })
     await expect(buildMaterialsManifest({ outputRoot: missing })).rejects.toThrow(/stale or missing/)
     const stale = await fixture({ assets: { 'one.png': png, 'two.jpeg': jpeg, 'stale.png': png } })
     await expect(buildMaterialsManifest({ outputRoot: stale })).rejects.toThrow(/stale or missing/)
+  })
+
+  it('creates deterministic responsive derivatives and includes their metadata in the RPC payload', async () => {
+    const root = await fixture({ notes: '# Test\n![PNG](./assets/one.png)\n', figures: [{ alt: 'PNG', file: './assets/one.png', page: 1 }], assets: { 'one.png': await image('png', 900, 450) } })
+    const manifest = await buildMaterialsManifest({ outputRoot: root, publicBaseUrl: 'https://cdn.test/materials' })
+    const repeated = await buildMaterialsManifest({ outputRoot: root, publicBaseUrl: 'https://cdn.test/materials' })
+    const asset = manifest.subjects[0].assets[0]
+    expect(asset).toMatchObject({ width: 900, height: 450 })
+    expect(asset.derivatives.map(({ width, height, byteSize, sha256, storagePath, publicUrl }) => ({ width, height, byteSize, sha256, storagePath, publicUrl }))).toEqual([
+      expect.objectContaining({ width: 480, height: 240, byteSize: expect.any(Number), sha256: expect.stringMatching(/^[a-f0-9]{64}$/), storagePath: `assets/${asset.sha256}/responsive/480w.webp`, publicUrl: `https://cdn.test/materials/assets/${asset.sha256}/responsive/480w.webp` }),
+      expect.objectContaining({ width: 768, height: 384, byteSize: expect.any(Number), sha256: expect.stringMatching(/^[a-f0-9]{64}$/), storagePath: `assets/${asset.sha256}/responsive/768w.webp`, publicUrl: `https://cdn.test/materials/assets/${asset.sha256}/responsive/768w.webp` }),
+    ])
+    const payloadAsset = (subjectRpcPayload(manifest.subjects[0], 'run', 1).assets as Record<string, unknown>[])[0]
+    expect(payloadAsset).toMatchObject({ width: 900, height: 450, derivatives: asset.derivatives.map((derivative) => ({ storagePath: derivative.storagePath, publicUrl: derivative.publicUrl, width: derivative.width, height: derivative.height, byteSize: derivative.byteSize, sha256: derivative.sha256 })) })
+    expect(JSON.stringify(payloadAsset)).not.toContain('bytes')
+    expect(repeated.subjects[0].assets[0].derivatives).toEqual(asset.derivatives)
+  })
+
+  it('rejects files that match image signatures but cannot be decoded', async () => {
+    const root = await fixture({ notes: '# Test\n![PNG](./assets/one.png)\n', figures: [{ alt: 'PNG', file: './assets/one.png', page: 1 }], assets: { 'one.png': Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0]) } })
+    await expect(buildMaterialsManifest({ outputRoot: root })).rejects.toThrow(/could not be decoded|invalid image/)
+  })
+
+  it('rejects pathological image pixel counts before decoding', async () => {
+    const oversized = await image('png')
+    oversized.writeUInt32BE(50_000, 16)
+    oversized.writeUInt32BE(50_000, 20)
+    const root = await fixture({ notes: '# Test\n![PNG](./assets/one.png)\n', figures: [{ alt: 'PNG', file: './assets/one.png', page: 1 }], assets: { 'one.png': oversized } })
+    await expect(buildMaterialsManifest({ outputRoot: root })).rejects.toThrow(/pixel limit/)
   })
 })

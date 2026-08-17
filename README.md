@@ -36,6 +36,12 @@ npm start
 
 Import the repository into Vercel as a Vite project. The frontend builds to `dist/`, and each file under `api/` deploys as a serverless function — mentor, quiz, flashcard generation and unlock, realtime voice session and extension, billing checkout, status and cancel, provider webhooks, and the welcome email. Add `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to the Vercel project environment; without a key, the authored offline explanations remain available. Supabase, Spotflow, and Bachs credentials are required for accounts, credits, and regional billing.
 
+### Trigger.dev library worker
+
+Library generation runs on Trigger.dev Cloud project `proj_rhdfctguthbwtcjgsvyx`. Add only `TRIGGER_SECRET_KEY` to Vercel for Library dispatch. Add these worker-only variables in the Trigger.dev dashboard, not Vercel: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_TRANSCRIPTION_DEPLOYMENT`, and `SUPADATA_API_KEY`.
+
+After configuring the project, deploy the worker from the repository root with `npx trigger.dev@latest deploy`. Use `npx trigger.dev@latest deploy --dry-run --env-file .env.local` to validate a build without deploying.
+
 Design documentation for the in-progress redesign is in `docs/product/product-design-prd.md`, which is the authoritative description of intended product behavior.
 
 ## Assets

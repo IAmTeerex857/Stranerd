@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mergeFlashcardProgress, type RemoteFlashcardProgress } from './flashcardSync'
+import { mergeFlashcardProgress, normalizePendingFlashcardReviews, permanentFlashcardSyncError, type RemoteFlashcardProgress } from './flashcardSync'
 
 const remote = (overrides: Partial<RemoteFlashcardProgress> = {}): RemoteFlashcardProgress => ({
   deck_id: 'deck', content_version: '1', card_id: 'card', grade: 'easy', review_count: 2,
@@ -25,5 +25,26 @@ describe('flashcard progress sync', () => {
   it('keeps content versions separate and ignores malformed rows', () => {
     const local = { deck: { contentVersion: '2', cards: {} } }
     expect(mergeFlashcardProgress(local, [remote(), remote({ content_version: '2', review_count: 0 })])).toEqual(local)
+  })
+
+  it('chooses unknown content versions and cards deterministically', () => {
+    const rows = [remote({ content_version: 'a', grade: 'hard' }), remote({ content_version: 'b', grade: 'good' })]
+    expect(mergeFlashcardProgress({}, rows)).toEqual(mergeFlashcardProgress({}, [...rows].reverse()))
+    expect(mergeFlashcardProgress({}, rows).deck.contentVersion).toBe('b')
+  })
+
+  it('only discards permanently invalid or conflicting queued reviews', () => {
+    expect(permanentFlashcardSyncError({ code: '22023' })).toBe(true)
+    expect(permanentFlashcardSyncError({ code: '23505' })).toBe(true)
+    expect(permanentFlashcardSyncError({ code: 'PGRST202' })).toBe(false)
+    expect(permanentFlashcardSyncError({ code: '57014' })).toBe(false)
+  })
+
+  it('repairs missing RPC fields before submission and rejects unrecoverable reviews', () => {
+    const recoverable = { id: '123e4567-e89b-42d3-a456-426614174000', deckId: 'deck', cardId: 'card', reviewedAt: '2026-08-11T10:00:00Z' }
+    const invalid = { id: '223e4567-e89b-42d3-a456-426614174000', deckId: 'materials:undefined', cardId: 'easy', reviewedAt: '2026-08-11T10:00:00Z' }
+    const result = normalizePendingFlashcardReviews([recoverable, invalid] as never, { deck: { contentVersion: '3', cards: { card: { grade: 'good', reviewCount: 1, updatedAt: recoverable.reviewedAt } } } })
+    expect(result.reviews).toEqual([{ ...recoverable, contentVersion: '3', grade: 'good' }])
+    expect(result.rejectedIds).toEqual([invalid.id])
   })
 })

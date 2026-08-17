@@ -18,7 +18,6 @@ import './support-redesign.css'
 
 const App = lazy(() => import('./App'))
 const PublicPages = lazy(() => import('./PublicPages').then((module) => ({ default: module.PublicPages })))
-const HeartCandidateTestView = lazy(() => import('./components/HeartCandidateTestView').then((module) => ({ default: module.HeartCandidateTestView })))
 
 class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> {
   state: { error?: Error } = {}
@@ -50,9 +49,8 @@ class AppBoundary extends Component<{ children: ReactNode }, { error?: Error }> 
   }
 }
 
-const testView = new URLSearchParams(window.location.search).get('test')
 const path = window.location.pathname.length > 1 ? window.location.pathname.replace(/\/+$/, '') : '/'
-const themeEnabled = path === '/app' || path === '/account' || path === '/pricing'
+const themeEnabled = path === '/app' || path === '/account' || path === '/pricing' || path === '/library/share'
 bootstrapTheme(themeEnabled)
 bootstrapPreferences(themeEnabled)
 
@@ -63,7 +61,7 @@ createRoot(document.getElementById('root')!).render(
         <PreferencesProvider enabled={themeEnabled}>
           <TooltipProvider>
             <Suspense fallback={<main className="route-loading" aria-label="Loading Stranerd"><span /></main>}>
-              {testView === 'heart-candidate' ? <HeartCandidateTestView /> : path === '/app' ? <App /> : <PublicPages path={path} />}
+              {path === '/app' ? <App /> : <PublicPages path={path} />}
             </Suspense>
             <Analytics />
           </TooltipProvider>

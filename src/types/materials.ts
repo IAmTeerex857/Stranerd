@@ -22,6 +22,14 @@ export type MaterialSectionSummary = {
 
 export type MaterialSection = MaterialSectionSummary & { content: string }
 
+export type MaterialImageMetadata = {
+  width: number
+  height: number
+  srcSet: string
+}
+
+export type MaterialQuestionGrade = { id: string; answerIndex: number; explanation: string }
+
 export type LibraryContentMode = 'notes' | 'practice' | 'flashcards'
 
 export type ActiveNoteContext = {
@@ -76,6 +84,10 @@ export type MaterialAssessmentVoiceState = {
   selectedIndex: number | null
   submitted: boolean
   hint?: string
+  phase: 'taking' | 'result' | 'review'
+  score?: number
+  correctAnswer?: string
+  explanation?: string
 }
 
 export type MaterialFlashcardVoiceState = {
@@ -97,6 +109,26 @@ export type MaterialLearningState = MaterialAssessmentVoiceState | MaterialFlash
 export type MaterialLearningController = {
   target: MaterialLearningState['target']
   executeVoiceAction: (action: Extract<VoiceAction, { type: `assessment.${string}` | `flashcard.${string}` | `materialFlashcard.${string}` }>) => VoiceActionResult | Promise<VoiceActionResult>
+}
+
+export type MaterialCatalogDeck = {
+  id: `materials:${string}`
+  releaseId: string
+  title: string
+}
+
+export type MaterialCatalogState = {
+  decks: MaterialCatalogDeck[]
+  activeReleaseId?: string
+}
+
+export type MaterialCatalogController = {
+  openRelease: (releaseId: string) => Promise<boolean>
+}
+
+export type MaterialCatalogRegistration = {
+  state: MaterialCatalogState
+  controller: MaterialCatalogController
 }
 
 export type MaterialMarkdownPart =

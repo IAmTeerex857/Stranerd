@@ -16,7 +16,7 @@ export async function generateDeck(input: GenerateDeckInput): Promise<{ deck: Fl
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), 50_000)
   try {
-    const data = await aiRequest('/api/flashcards/generate', input, controller.signal) as { deck?: FlashcardDeck; balance?: CreditBalance }
+    const data = await aiRequest('/api/flashcards?action=generate', input, controller.signal) as { deck?: FlashcardDeck; balance?: CreditBalance }
     if (!data.deck || data.deck.cards.length !== GENERATED_DECK_SIZE || !data.balance) throw new Error('Generated deck response was incomplete.')
     return { deck: data.deck, balance: data.balance }
   } finally {
@@ -25,7 +25,7 @@ export async function generateDeck(input: GenerateDeckInput): Promise<{ deck: Fl
 }
 
 export async function unlockDeck(deckId: string): Promise<{ balance: CreditBalance }> {
-  const data = await aiRequest('/api/flashcards/unlock', { deckId }) as { unlocked?: boolean; balance?: CreditBalance }
+  const data = await aiRequest('/api/flashcards?action=unlock', { deckId }) as { unlocked?: boolean; balance?: CreditBalance }
   if (!data.unlocked || !data.balance) throw new Error('Deck unlock response was incomplete.')
   return { balance: data.balance }
 }

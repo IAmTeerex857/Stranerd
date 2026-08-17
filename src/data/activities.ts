@@ -1,4 +1,4 @@
-import type { DissectionActionType } from './dissection'
+import type { DissectionActionType } from './dissection.js'
 
 export type AnatomyActivityStep = {
   kind: 'action'

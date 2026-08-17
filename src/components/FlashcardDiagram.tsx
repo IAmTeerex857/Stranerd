@@ -3,7 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF } from '@react-three/drei'
 import { Box3, Mesh, Vector3, type Material } from 'three'
 import { Box, LoaderCircle } from 'lucide-react'
-import { resolveFlashcardDiagram } from '../data/flashcards'
+import { resolveFlashcardDiagram } from '../lib/flashcardDiagram'
 import type { FlashcardDiagram as Diagram } from '../types'
 import { useTheme } from '../theme-context'
 

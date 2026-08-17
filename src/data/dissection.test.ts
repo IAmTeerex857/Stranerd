@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { anatomyMovementId, createDissectionState, digestiveDissectionQuiz, digestivePancreasSequence, digestiveStructureGroup, dissectionReducer, guidedStepComplete } from './dissection'
+import { anatomyMovementId, createDissectionState, digestiveStructureGroup, dissectionReducer, guidedStepComplete, resolveDissectionStructures, separateStructureOffsets, type GuidedDissectionStep } from './dissection'
 
 describe('dissection state', () => {
   it('composes visibility, transparency, and isolation actions', () => {
@@ -61,6 +61,19 @@ describe('dissection state', () => {
     expect(state.isolate).toBe(false)
   })
 
+  it('resolves exact normalized names across catalogs without accepting ambiguity', () => {
+    const liver = { id: 'organ:liver', label: 'Liver' }
+    const pancreas = { id: 'organ:pancreas', label: 'Pancreas' }
+    expect(resolveDissectionStructures(['LIVER', 'organ pancreas'], [[liver], [pancreas]])).toEqual({ structures: [liver, pancreas] })
+    expect(resolveDissectionStructures(['liver'], [[liver, { id: 'other:liver', label: 'Liver' }]])).toEqual({ error: 'Structure is ambiguous: liver' })
+    expect(resolveDissectionStructures(['kidney'], [[liver]])).toEqual({ error: 'Structure not found: kidney' })
+  })
+
+  it('separates structures in deterministic opposite directions', () => {
+    expect(separateStructureOffsets(['liver', 'pancreas'], 0.4)).toEqual({ liver: [-0.4, 0, 0], pancreas: [0.4, 0, 0] })
+    expect(separateStructureOffsets(['liver'])).toEqual({})
+  })
+
   it('groups principal digestive structures deterministically', () => {
     expect(digestiveStructureGroup('Gallbladder')).toBe('Hepatobiliary')
     expect(digestiveStructureGroup('Accessory pancreatic duct')).toBe('Pancreas and ducts')
@@ -69,11 +82,14 @@ describe('dissection state', () => {
   })
 
   it('completes guided steps only for the required action and stable ID', () => {
-    const [hideStomach, isolatePancreas, selectDuodenum] = digestivePancreasSequence.steps
+    const [hideStomach, isolatePancreas, selectDuodenum]: GuidedDissectionStep[] = [
+      { action: 'hide', targetIds: ['anatomy:organs:stomach'], prompt: 'Hide the stomach.', success: 'Hidden.' },
+      { action: 'isolate', targetIds: ['anatomy:organs:pancreas'], prompt: 'Isolate the pancreas.', success: 'Isolated.' },
+      { action: 'select', targetIds: ['anatomy:organs:duodenum'], prompt: 'Select the duodenum.', success: 'Selected.' },
+    ]
     expect(guidedStepComplete(hideStomach, 'hide', ['anatomy:organs:stomach'])).toBe(true)
     expect(guidedStepComplete(hideStomach, 'select', ['anatomy:organs:stomach'])).toBe(false)
     expect(guidedStepComplete(isolatePancreas, 'isolate', ['anatomy:organs:pancreas'])).toBe(true)
     expect(guidedStepComplete(selectDuodenum, 'select', ['anatomy:organs:duodenum'])).toBe(true)
-    expect(digestiveDissectionQuiz.options[digestiveDissectionQuiz.correctIndex]).toBe('Duodenum')
   })
 })

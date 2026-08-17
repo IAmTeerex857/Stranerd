@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useRef, useState, type CSSProperties, type P
 import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
 import { Copy, Send, Sparkles } from 'lucide-react'
-import type { ActiveNoteContext, MaterialMnemonic } from '../types/materials'
+import type { ActiveNoteContext, MaterialImageMetadata, MaterialMnemonic } from '../types/materials'
 import { parseMaterialMarkdown, safeMaterialUrl } from '../lib/materials'
 import { boundedNoteSelection, noteSelectionPrompt, noteToolbarPosition } from '../lib/noteSelection'
 import { Button } from '@/components/ui/button'
@@ -15,19 +15,36 @@ function fallbackAlt(src: string) {
   return name ? `Illustration: ${name}` : 'Study material illustration'
 }
 
+const materialImageSizes = '(max-width: 640px) calc(100vw - 32px), (max-width: 1100px) calc(100vw - 96px), 760px'
+
+function MaterialImage({ src, alt, title, priority, metadata }: { src: string; alt: string; title?: string; priority: boolean; metadata?: MaterialImageMetadata }) {
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading')
+  return <figure className={`material-image material-image-${status}`}>
+    <div className="material-image-frame" style={metadata ? { aspectRatio: `${metadata.width} / ${metadata.height}` } : undefined}>
+      {status !== 'error' && <img src={src} alt={alt} width={metadata?.width} height={metadata?.height} srcSet={metadata?.srcSet} sizes={metadata ? materialImageSizes : undefined} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} decoding="async" onLoad={() => setStatus('loaded')} onError={() => setStatus('error')} />}
+      {status === 'error' && <span role="img" aria-label={alt}>Image unavailable</span>}
+    </div>
+    {title && <figcaption>{title}</figcaption>}
+  </figure>
+}
+
 type Props = {
   markdown: string
   mnemonics: Map<string, MaterialMnemonic>
   noteContext?: Omit<ActiveNoteContext, 'selectedText'>
   onSelection?: (text: string) => void
   onRequest?: (prompt: string) => void
+  imageMetadata?: ReadonlyMap<string, MaterialImageMetadata>
+  prioritizeFirstImage?: boolean
 }
 
-export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection, onRequest }: Props) {
+export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection, onRequest, imageMetadata, prioritizeFirstImage = true }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const toolbar = useRef<HTMLDivElement>(null)
   const savedRange = useRef<Range | undefined>(undefined)
   const toolbarInteraction = useRef(false)
+  const selectionActive = useRef(false)
+  const lastEmittedSelection = useRef('')
   const [selection, setSelection] = useState<{ text: string; style?: CSSProperties }>()
   const [guidance, setGuidance] = useState('')
   const [copied, setCopied] = useState(false)
@@ -36,12 +53,19 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
 
   useEffect(() => {
     if (!selectionEnabled) return
+    function publishSelection(text: string) {
+      if (lastEmittedSelection.current === text) return
+      lastEmittedSelection.current = text
+      emitSelection(text)
+    }
     function dismiss(clearBrowserSelection = false) {
+      if (!selectionActive.current) return
+      selectionActive.current = false
       setSelection(undefined)
       setGuidance('')
       setCopied(false)
       savedRange.current = undefined
-      emitSelection('')
+      publishSelection('')
       if (clearBrowserSelection) window.getSelection()?.removeAllRanges()
     }
     function updateSelection() {
@@ -62,8 +86,16 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
       const mentor = document.getElementById('stranerd-mentor')?.getBoundingClientRect()
       const workspaceRight = mentor && mentor.width > 0 && mentor.left > (workspace?.left ?? 0) ? Math.min(workspace?.right ?? window.innerWidth, mentor.left) : workspace?.right ?? window.innerWidth
       const style = window.innerWidth <= 640 ? undefined : noteToolbarPosition(rect, workspace?.left ?? 0, workspaceRight, window.innerHeight)
-      setSelection({ text, style })
-      emitSelection(text)
+      selectionActive.current = true
+      setSelection((previous) => previous?.text === text && previous.style?.left === style?.left && previous.style?.top === style?.top ? previous : { text, style })
+    }
+    let publishTimer = 0
+    function publishCompletedSelection() {
+      window.clearTimeout(publishTimer)
+      publishTimer = window.setTimeout(() => {
+        const text = boundedNoteSelection(window.getSelection()?.toString() ?? '')
+        if (text) publishSelection(text)
+      }, 120)
     }
     function onPointerDown(event: PointerEvent) {
       if (toolbar.current?.contains(event.target as Node) || root.current?.contains(event.target as Node)) return
@@ -71,16 +103,21 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
     }
     function onKeyDown(event: KeyboardEvent) { if (event.key === 'Escape') dismiss(true) }
     document.addEventListener('selectionchange', updateSelection)
+    document.addEventListener('pointerup', publishCompletedSelection)
+    document.addEventListener('keyup', publishCompletedSelection)
     document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('keydown', onKeyDown)
     const onScroll = () => dismiss()
     window.addEventListener('scroll', onScroll, true)
     return () => {
       document.removeEventListener('selectionchange', updateSelection)
+      document.removeEventListener('pointerup', publishCompletedSelection)
+      document.removeEventListener('keyup', publishCompletedSelection)
+      window.clearTimeout(publishTimer)
       document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('scroll', onScroll, true)
-      emitSelection('')
+      if (selectionActive.current) dismiss()
     }
   }, [selectionEnabled])
 
@@ -108,14 +145,16 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
     <form onSubmit={(event) => { event.preventDefault(); if (guidance.trim()) request('ask') }}><label><span className="sr-only">Ask Nerd Bot about selected text</span><Input value={guidance} onChange={(event) => setGuidance(event.target.value)} placeholder="Ask Nerd Bot..." maxLength={240} /></label><Button type="submit" size="icon-sm" variant="ai" disabled={!guidance.trim()} aria-label="Prepare question for Nerd Bot"><Send /></Button></form>
   </div></div>
 
+  let imageIndex = 0
   return <><div ref={root} className="material-markdown">{parseMaterialMarkdown(markdown).map((part, index) => {
     if (part.kind === 'mnemonic') {
       const mnemonic = mnemonics.get(part.id)
-      return mnemonic ? <aside className="material-mnemonic" key={`${part.id}-${index}`}><span>Mnemonic</span><h3>{mnemonic.title}</h3><MaterialMarkdown markdown={mnemonic.body} mnemonics={noMnemonics} /></aside> : <aside className="material-mnemonic missing" key={`${part.id}-${index}`}>Mnemonic unavailable</aside>
+      return mnemonic ? <aside className="material-mnemonic" key={`${part.id}-${index}`}><span>Mnemonic</span><h3>{mnemonic.title}</h3><MaterialMarkdown markdown={mnemonic.body} mnemonics={noMnemonics} imageMetadata={imageMetadata} prioritizeFirstImage={false} /></aside> : <aside className="material-mnemonic missing" key={`${part.id}-${index}`}>Mnemonic unavailable</aside>
     }
     return <ReactMarkdown key={index} skipHtml urlTransform={(url) => safeMaterialUrl(url) ?? ''} components={{
       a: ({ href, children }) => <a href={safeMaterialUrl(href ?? '')} target={href?.startsWith('http') ? '_blank' : undefined} rel={href?.startsWith('http') ? 'noreferrer' : undefined}>{children}</a>,
-      img: ({ src, alt, title }) => { const safeSrc = safeMaterialUrl(src ?? ''); return safeSrc ? <figure><img src={safeSrc} alt={alt?.trim() || fallbackAlt(safeSrc)} loading="lazy" decoding="async" />{title && <figcaption>{title}</figcaption>}</figure> : null },
+      p: ({ node, children }) => node?.children.length === 1 && node.children[0].type === 'element' && node.children[0].tagName === 'img' ? <>{children}</> : <p>{children}</p>,
+      img: ({ src, alt, title }) => { const safeSrc = safeMaterialUrl(src ?? ''); return safeSrc ? <MaterialImage key={safeSrc} src={safeSrc} alt={alt?.trim() || fallbackAlt(safeSrc)} title={title} priority={prioritizeFirstImage && imageIndex++ === 0} metadata={imageMetadata?.get(safeSrc)} /> : null },
     }}>{part.content}</ReactMarkdown>
   })}</div>{selectionToolbar && createPortal(selectionToolbar, document.body)}</>
 }

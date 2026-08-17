@@ -1,9 +1,10 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { ArrowLeft, ArrowRight, Book, Check, ClipboardList, Eye, GalleryVerticalEnd, LayoutGrid, Lightbulb, RotateCcw, ScanLine, Search, Shuffle, Sparkles } from 'lucide-react'
 import type { FlashcardDeckProgress, FlashcardGrade, MaterialReleaseProgress } from '../types'
-import type { ActiveNoteContext, LibraryContentMode, MaterialFlashcard, MaterialFlashcardVoiceState, MaterialLearningController, MaterialLearningState, MaterialMnemonic, MaterialQuestion, MaterialSection, MaterialSectionSummary, MaterialSubject } from '../types/materials'
-import { getMaterialSection, listMaterialFlashcards, listMaterialMnemonics, listMaterialQuestions, listMaterialSections, listMaterialSubjects, materialFlashcardFace } from '../lib/materials'
+import type { ActiveNoteContext, LibraryContentMode, MaterialCatalogRegistration, MaterialFlashcard, MaterialFlashcardVoiceState, MaterialImageMetadata, MaterialLearningController, MaterialLearningState, MaterialMnemonic, MaterialQuestion, MaterialSection, MaterialSectionSummary, MaterialSubject } from '../types/materials'
+import { getMaterialSection, isHeadingOnlyMaterialSection, listMaterialAssetMetadata, listMaterialFlashcards, listMaterialMnemonics, listMaterialQuestions, listMaterialSections, listMaterialSubjects, materialFlashcardFace, submitMaterialQuestions } from '../lib/materials'
+import { materialCatalogDecks } from '../lib/materialCatalog'
 import { flashcardGradeTransition, shuffledIds } from '../lib/flashcards'
 import { generateMaterialCorrections, generateMaterialFlashcardHint, generateMaterialQuestionHint } from '../lib/quiz'
 import { AIActionError, type CreditBalance } from '../lib/ai'
@@ -98,6 +99,14 @@ const subjectThemes: Record<
 
 const fallbackThemes = Object.values(subjectThemes)
 
+function resetNoteScroll(scroller: HTMLElement | null) {
+  if (!scroller) return
+  const scrollBehavior = scroller.style.scrollBehavior
+  scroller.style.scrollBehavior = 'auto'
+  scroller.scrollTop = 0
+  scroller.style.scrollBehavior = scrollBehavior
+}
+
 function subjectKey(subject: MaterialSubject) {
   const value = `${subject.slug} ${subject.title}`.toLowerCase()
   return Object.keys(subjectThemes).find((key) => value.includes(key.replace('-', ' '))) ?? subject.slug
@@ -125,9 +134,10 @@ type Props = {
   creditBalance?: number
   onBalance: (balance: CreditBalance) => void
   onInsufficientCredits: (action: string, required: number) => void
-  onSignIn: () => void
+  onSignIn: (next?: string) => void
   onLearningState: (state?: MaterialLearningState) => void
   onLearningController: (controller?: MaterialLearningController) => void
+  onCatalog: (registration?: MaterialCatalogRegistration) => void
 }
 
 type LearningProps = Pick<Props, 'signedIn' | 'creditBalance' | 'onBalance' | 'onInsufficientCredits' | 'onSignIn' | 'onLearningState' | 'onLearningController'>
@@ -151,14 +161,19 @@ function Failure({ message, retry }: { message: string; retry: () => void }) {
 }
 
 export default function MaterialsView(props: Props) {
-  const { mode, progressByDeck, materialProgressByRelease, onGrade, onSubjectChange, onNoteContext } = props
+  const { mode, progressByDeck, materialProgressByRelease, onGrade, onSubjectChange, onNoteContext, onCatalog, onSignIn, signedIn } = props
   const [subjects, setSubjects] = useState<MaterialSubject[]>()
   const [subject, setSubject] = useState<MaterialSubject>()
   const [query, setQuery] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('all')
   const [error, setError] = useState<string>()
   const [reload, setReload] = useState(0)
+  const pendingCatalogOpens = useRef<{ releaseId: string; timeout: number; resolve: (opened: boolean) => void }[]>([])
   const notifySubjectChange = useEffectEvent(onSubjectChange)
+  const notifyCatalog = useEffectEvent(onCatalog)
+  const requireSignIn = useEffectEvent(onSignIn)
+  const learningStateHandler = useRef(props.onLearningState)
+  useEffect(() => { learningStateHandler.current = props.onLearningState }, [props.onLearningState])
   useEffect(() => {
     let current = true
     listMaterialSubjects()
@@ -166,7 +181,7 @@ export default function MaterialsView(props: Props) {
         if (!current) return
         setSubjects(rows)
         const requested = new URLSearchParams(window.location.search).get('subject')
-        const next = requested ? rows.find((entry) => entry.slug === requested) : undefined
+        const next = signedIn && requested ? rows.find((entry) => entry.slug === requested) : undefined
         setSubject(next)
         notifySubjectChange(next)
       })
@@ -176,12 +191,66 @@ export default function MaterialsView(props: Props) {
     return () => {
       current = false
     }
-  }, [reload])
+  }, [reload, signedIn])
+  const ordered = useMemo(() => subjects ? [...subjects].sort((a, b) => Object.keys(subjectThemes).indexOf(subjectKey(a)) - Object.keys(subjectThemes).indexOf(subjectKey(b))) : [], [subjects])
+  const catalogState = useMemo(() => ({ decks: materialCatalogDecks(ordered), activeReleaseId: subject?.releaseId }), [ordered, subject?.releaseId])
+  function reportLearningState(state?: MaterialLearningState) {
+    learningStateHandler.current(state)
+    if (state?.target !== 'material-flashcards') return
+    const releaseId = state.deckId.replace(/^materials:/, '')
+    const completed = pendingCatalogOpens.current.filter((entry) => entry.releaseId === releaseId)
+    pendingCatalogOpens.current = pendingCatalogOpens.current.filter((entry) => entry.releaseId !== releaseId)
+    completed.forEach(({ timeout, resolve }) => { window.clearTimeout(timeout); resolve(true) })
+  }
+  useLayoutEffect(() => {
+    notifyCatalog({
+      state: catalogState,
+      controller: {
+        openRelease: (releaseId) => {
+          const next = ordered.find((entry) => entry.releaseId === releaseId)
+          if (!next) return Promise.resolve(false)
+          if (!signedIn) {
+            const url = new URL(window.location.href)
+            url.searchParams.set('content', mode)
+            url.searchParams.set('subject', next.slug)
+            requireSignIn(`${url.pathname}${url.search}${url.hash}`)
+            return Promise.resolve(false)
+          }
+           return new Promise<boolean>((resolve) => {
+            const timeout = window.setTimeout(() => {
+              pendingCatalogOpens.current = pendingCatalogOpens.current.filter((entry) => entry.resolve !== resolve)
+              resolve(false)
+            }, 10_000)
+            pendingCatalogOpens.current.push({ releaseId, timeout, resolve })
+            setSubject(next)
+            notifySubjectChange(next)
+            const url = new URL(window.location.href)
+            url.searchParams.set('content', mode)
+            url.searchParams.set('subject', next.slug)
+            window.history.replaceState({}, '', url)
+          })
+        },
+      },
+    })
+  }, [catalogState, mode, ordered, signedIn])
+  useEffect(() => () => {
+    pendingCatalogOpens.current.forEach(({ timeout, resolve }) => { window.clearTimeout(timeout); resolve(false) })
+    pendingCatalogOpens.current = []
+    notifyCatalog(undefined)
+  }, [])
   function selectSubject(next?: MaterialSubject) {
+    if (next && !signedIn) {
+      const url = new URL(window.location.href)
+      url.searchParams.set('content', mode)
+      url.searchParams.set('subject', next.slug)
+      onSignIn(`${url.pathname}${url.search}${url.hash}`)
+      return
+    }
     setSubject(next)
     onSubjectChange(next)
     if (!next) onNoteContext(undefined)
     const url = new URL(window.location.href)
+    url.searchParams.set('content', mode)
     if (next) url.searchParams.set('subject', next.slug)
     else url.searchParams.delete('subject')
     window.history.replaceState({}, '', url)
@@ -200,10 +269,9 @@ export default function MaterialsView(props: Props) {
   if (subject) {
     const progress = progressByDeck[`materials:${subject.releaseId}`]
     const materialProgress = materialProgressByRelease[subject.releaseId]
-    return <SubjectMaterials {...props} subject={subject} progress={progress?.contentVersion === subject.contentVersion ? progress : undefined} materialProgress={materialProgress?.contentVersion === subject.contentVersion ? materialProgress : undefined} onCardGrade={(cardId, grade) => onGrade(subject, cardId, grade)} onBack={() => selectSubject(undefined)} />
+    return <SubjectMaterials mode={mode} signedIn={props.signedIn} creditBalance={props.creditBalance} onBalance={props.onBalance} onInsufficientCredits={props.onInsufficientCredits} onSignIn={props.onSignIn} onLearningState={reportLearningState} onLearningController={props.onLearningController} subject={subject} progress={progress?.contentVersion === subject.contentVersion ? progress : undefined} materialProgress={materialProgress?.contentVersion === subject.contentVersion ? materialProgress : undefined} onProgress={props.onProgress} onNoteContext={props.onNoteContext} onNoteRequest={props.onNoteRequest} onCardGrade={(cardId, grade) => onGrade(subject, cardId, grade)} onBack={() => selectSubject(undefined)} />
   }
   const normalized = query.trim().toLowerCase()
-  const ordered = [...subjects].sort((a, b) => Object.keys(subjectThemes).indexOf(subjectKey(a)) - Object.keys(subjectThemes).indexOf(subjectKey(b)))
   const filtered = ordered.filter((entry) => {
     const theme = subjectThemes[subjectKey(entry)]
     return (subjectFilter === 'all' || entry.id === subjectFilter) && `${entry.title} ${theme?.system ?? ''} ${theme?.scientific ?? ''} ${theme?.region ?? ''}`.toLowerCase().includes(normalized)
@@ -386,9 +454,11 @@ function SubjectMaterials({
           <h2 id="subject-materials-heading">{subject.title}</h2>
         </div>
       </header>
-      {mode === 'notes' && <MaterialNotes subject={subject} progress={materialProgress} onProgress={onProgress} onNoteContext={onNoteContext} onNoteRequest={onNoteRequest} />}
-      {mode === 'flashcards' && <MaterialCards subject={subject} progress={progress} onGrade={onCardGrade} {...learning} />}
-      {mode === 'practice' && <MaterialPractice subject={subject} progress={materialProgress} onProgress={onProgress} onBack={onBack} {...learning} />}
+      {!learning.signedIn ? <div className="materials-state"><p>Sign in to access these learning materials.</p><Button onClick={() => learning.onSignIn()}>Sign in</Button></div> : <>
+        {mode === 'notes' && <MaterialNotes subject={subject} progress={materialProgress} onProgress={onProgress} onNoteContext={onNoteContext} onNoteRequest={onNoteRequest} />}
+        {mode === 'flashcards' && <MaterialCards subject={subject} progress={progress} {...learning} onGrade={onCardGrade} />}
+        {mode === 'practice' && <MaterialPractice subject={subject} progress={materialProgress} onProgress={onProgress} onBack={onBack} {...learning} />}
+      </>}
     </section>
   )
 }
@@ -399,16 +469,23 @@ function MaterialNotes({ subject, progress, onProgress, onNoteContext, onNoteReq
   const [sections, setSections] = useState<MaterialSectionSummary[]>()
   const [section, setSection] = useState<MaterialSection>()
   const [mnemonics, setMnemonics] = useState<MaterialMnemonic[]>([])
+  const [imageMetadata, setImageMetadata] = useState<Map<string, MaterialImageMetadata>>(new Map())
   const [selectedId, setSelectedId] = useState<string>()
   const [error, setError] = useState<string>()
   const [reload, setReload] = useState(0)
+  const noteScroller = useRef<HTMLElement>(null)
+  const noteHeading = useRef<HTMLHeadingElement>(null)
+  const focusChangedSection = useRef(false)
+  const progressRef = useRef(progress)
+  useEffect(() => { progressRef.current = progress }, [progress])
   useEffect(() => {
     let current = true
-    Promise.all([listMaterialSections(subject.releaseId), listMaterialMnemonics(subject.releaseId)])
-      .then(([nextSections, nextMnemonics]) => {
+    Promise.all([listMaterialSections(subject.releaseId), listMaterialMnemonics(subject.releaseId), listMaterialAssetMetadata(subject.releaseId)])
+      .then(([nextSections, nextMnemonics, nextImageMetadata]) => {
         if (current) {
           setSections(nextSections)
           setMnemonics(nextMnemonics)
+          setImageMetadata(nextImageMetadata)
           setSelectedId(nextSections.find((entry) => !initialProgress.current?.readSectionIds.includes(entry.id))?.id ?? nextSections[0]?.id)
         }
       })
@@ -426,7 +503,8 @@ function MaterialNotes({ subject, progress, onProgress, onNoteContext, onNoteReq
       .then((row) => {
         if (current) {
           setSection(row)
-          if (!progress?.readSectionIds.includes(row.id)) reportProgress([...(progress?.readSectionIds ?? []), row.id])
+          const currentProgress = progressRef.current
+          if (!currentProgress?.readSectionIds.includes(row.id)) reportProgress([...(currentProgress?.readSectionIds ?? []), row.id])
         }
       })
       .catch((cause) => {
@@ -435,7 +513,7 @@ function MaterialNotes({ subject, progress, onProgress, onNoteContext, onNoteReq
     return () => {
       current = false
     }
-  }, [progress?.readSectionIds, reload, selectedId, subject.releaseId])
+  }, [reload, selectedId, subject.releaseId])
   useEffect(() => {
     if (section)
       onNoteContext({
@@ -449,6 +527,14 @@ function MaterialNotes({ subject, progress, onProgress, onNoteContext, onNoteReq
         selectedText: '',
       })
   }, [onNoteContext, section, subject.releaseId, subject.slug, subject.title])
+  useLayoutEffect(() => {
+    if (!section || section.id !== selectedId) return
+    resetNoteScroll(noteScroller.current)
+    if (focusChangedSection.current) {
+      noteHeading.current?.focus({ preventScroll: true })
+      focusChangedSection.current = false
+    }
+  }, [section, selectedId])
   if (error)
     return (
       <Failure
@@ -474,9 +560,13 @@ function MaterialNotes({ subject, progress, onProgress, onNoteContext, onNoteReq
       }
     : undefined
   function selectSection(id: string) {
+    if (id === selectedId) return
+    focusChangedSection.current = true
+    resetNoteScroll(noteScroller.current)
     setSection(undefined)
     setSelectedId(id)
   }
+  const headingOnly = section ? isHeadingOnlyMaterialSection(section.content) : false
   return (
     <div className="material-notes-layout">
       <aside className="material-section-list" aria-label={`${subject.title} sections`}>
@@ -493,7 +583,7 @@ function MaterialNotes({ subject, progress, onProgress, onNoteContext, onNoteReq
           ))}
         </nav>
       </aside>
-      <article className="material-note">
+      <article ref={noteScroller} className={`material-note${headingOnly ? ' material-note-divider' : ''}`}>
         {section && context ? (
           <>
             <header>
@@ -501,9 +591,9 @@ function MaterialNotes({ subject, progress, onProgress, onNoteContext, onNoteReq
                 {subject.title} · pages {section.pageStart}
                 {section.pageEnd !== section.pageStart ? `–${section.pageEnd}` : ''}
               </span>
-              <h1>{section.title}</h1>
+              <h1 ref={noteHeading} tabIndex={-1}>{section.title}</h1>
             </header>
-            <MaterialMarkdown markdown={section.content} mnemonics={mnemonicMap} noteContext={context} onSelection={(selectedText) => onNoteContext({ ...context, selectedText })} onRequest={onNoteRequest} />
+            <MaterialMarkdown markdown={section.content} mnemonics={mnemonicMap} noteContext={context} onSelection={(selectedText) => onNoteContext({ ...context, selectedText })} onRequest={onNoteRequest} imageMetadata={imageMetadata} />
           </>
         ) : (
           <Loading />
@@ -540,16 +630,26 @@ function MaterialCards({
     [aiError, setAiError] = useState<string>(),
     [error, setError] = useState<string>(),
     [reload, setReload] = useState(0)
+  const cardsRef = useRef<MaterialFlashcard[]>([])
+  const orderRef = useRef<string[]>([])
+  const indexRef = useRef(0)
+  const revealedRef = useRef(false)
+  const gradedRef = useRef(false)
+  const hintsRef = useRef<Record<string, string>>({})
+  const loadingHintRef = useRef<string | undefined>(undefined)
   const actionHandler = useRef<(action: Extract<VoiceAction, { type: `flashcard.${string}` | `materialFlashcard.${string}` }>) => Promise<VoiceActionResult>>(async () => ({ ok: false, error: 'The flashcard is still loading.' }))
   useEffect(() => {
     let current = true
     listMaterialFlashcards(subject.releaseId)
       .then((rows) => {
         if (current) {
+          cardsRef.current = rows
+          orderRef.current = rows.map((entry) => entry.id)
           setCards(rows)
-          setOrder(rows.map((entry) => entry.id))
+          setOrder(orderRef.current)
           const firstUnreviewed = rows.findIndex((entry) => !initialProgress.current?.cards[entry.id] || initialProgress.current.cards[entry.id].grade === 'again')
-          setIndex(firstUnreviewed >= 0 ? firstUnreviewed : 0)
+          indexRef.current = firstUnreviewed >= 0 ? firstUnreviewed : 0
+          setIndex(indexRef.current)
         }
       })
       .catch((cause) => {
@@ -573,44 +673,64 @@ function MaterialCards({
     if (progressHydrated.current || !progress || !cards?.length) return
     progressHydrated.current = true
     const firstUnreviewed = cards.findIndex((entry) => !progress.cards[entry.id] || progress.cards[entry.id].grade === 'again')
-    setIndex(firstUnreviewed >= 0 ? firstUnreviewed : 0)
+    indexRef.current = firstUnreviewed >= 0 ? firstUnreviewed : 0
+    setIndex(indexRef.current)
   }, [cards, progress])
+  function reveal(value: boolean) {
+    revealedRef.current = value
+    setRevealed(value)
+  }
+  function markGraded(value: boolean) {
+    gradedRef.current = value
+    setGraded(value)
+  }
+  function currentCard() {
+    return cardsRef.current.find((entry) => entry.id === orderRef.current[indexRef.current])
+  }
   function navigate(next: number) {
-    setIndex(Math.max(0, Math.min(order.length - 1, next)))
-    setRevealed(false)
-    setGraded(false)
+    indexRef.current = Math.max(0, Math.min(orderRef.current.length - 1, next))
+    setIndex(indexRef.current)
+    reveal(false)
+    markGraded(false)
   }
   function shuffle() {
-    if (!card) return
-    const next = shuffledIds(order)
+    const active = currentCard()
+    if (!active) return
+    const next = shuffledIds(orderRef.current)
+    orderRef.current = next
+    indexRef.current = Math.max(0, next.indexOf(active.id))
     setOrder(next)
-    setIndex(Math.max(0, next.indexOf(card.id)))
-    setRevealed(false)
-    setGraded(false)
+    setIndex(indexRef.current)
+    reveal(false)
+    markGraded(false)
   }
   function gradeCurrent(grade: FlashcardGrade) {
-    if (!card || graded || !revealed) return false
-    onGrade(card.id, grade)
-    const transition = flashcardGradeTransition(grade, index, order.length)
+    const active = currentCard()
+    if (!active || gradedRef.current || !revealedRef.current) return false
+    onGrade(active.id, grade)
+    const transition = flashcardGradeTransition(grade, indexRef.current, orderRef.current.length)
     if (transition === 'repeat') {
-      setRevealed(false)
-      setGraded(false)
-    } else if (transition === 'next') navigate(index + 1)
-    else setGraded(true)
+      reveal(false)
+      markGraded(false)
+    } else if (transition === 'next') navigate(indexRef.current + 1)
+    else markGraded(true)
     return true
   }
   async function requestHint() {
-    if (!card || hints[card.id] || loadingHintId) return Boolean(card && hints[card.id])
+    const active = currentCard()
+    if (!active || hintsRef.current[active.id] || loadingHintRef.current) return Boolean(active && hintsRef.current[active.id])
     if (!signedIn) {
       onSignIn()
       return false
     }
-    setLoadingHintId(card.id)
+    loadingHintRef.current = active.id
+    setLoadingHintId(active.id)
     setAiError(undefined)
     try {
-      const result = await generateMaterialFlashcardHint(subject, card)
+      const result = await generateMaterialFlashcardHint(subject, active)
       onBalance(result.balance)
-      setHints((current) => ({ ...current, [card.id]: result.hint }))
+      hintsRef.current = { ...hintsRef.current, [active.id]: result.hint }
+      setHints(hintsRef.current)
       return true
     } catch (cause) {
       if (cause instanceof AIActionError && cause.balance) onBalance(cause.balance)
@@ -618,22 +738,24 @@ function MaterialCards({
       else setAiError(cause instanceof Error ? cause.message : 'The hint could not be generated. No credit was charged.')
       return false
     } finally {
+      loadingHintRef.current = undefined
       setLoadingHintId(undefined)
     }
   }
   useEffect(() => {
     actionHandler.current = async (action) => {
-      if (!card) return { ok: false, error: 'The flashcard is still loading.' }
+      const active = currentCard()
+      if (!active) return { ok: false, error: 'The flashcard is still loading.' }
       if (action.type === 'flashcard.side') {
-        setRevealed(action.side === 'answer')
+        reveal(action.side === 'answer')
         return {
           ok: true,
           message: `${action.side === 'answer' ? 'Answer' : 'Question'} shown.`,
         }
       }
       if (action.type === 'flashcard.navigate') {
-        const next = index + (action.direction === 'next' ? 1 : -1)
-        if (next < 0 || next >= order.length) return { ok: false, error: `There is no ${action.direction} card.` }
+        const next = indexRef.current + (action.direction === 'next' ? 1 : -1)
+        if (next < 0 || next >= orderRef.current.length) return { ok: false, error: `There is no ${action.direction} card.` }
         navigate(next)
         return { ok: true, message: `Moved to card ${next + 1}.` }
       }
@@ -642,7 +764,7 @@ function MaterialCards({
         return { ok: true, message: 'Deck shuffled.' }
       }
       if (action.type === 'materialFlashcard.hint') {
-        if (hints[card.id]) return { ok: true, message: 'The hint is already visible.' }
+        if (hintsRef.current[active.id]) return { ok: true, message: 'The hint is already visible.' }
         return (await requestHint())
           ? {
               ok: true,
@@ -650,7 +772,7 @@ function MaterialCards({
             }
           : { ok: false, error: 'The hint was not generated.' }
       }
-      if (!revealed)
+      if (!revealedRef.current)
         return {
           ok: false,
           error: 'Reveal the answer before grading this card.',
@@ -687,12 +809,12 @@ function MaterialCards({
     stage.setAttribute('role', 'button')
     stage.setAttribute('aria-label', `${revealed ? 'Answer' : 'Question'} side. Activate to ${revealed ? 'show the question' : 'reveal the answer'}.`)
     const flip = (event: Event) => {
-      if (!(event.target as Element).closest('a, button, input, select, textarea')) setRevealed((value) => !value)
+      if (!(event.target as Element).closest('a, button, input, select, textarea')) reveal(!revealedRef.current)
     }
     const flipKey = (event: globalThis.KeyboardEvent) => {
       if (event.target !== stage || (event.key !== 'Enter' && event.key !== ' ')) return
       event.preventDefault()
-      setRevealed((value) => !value)
+      reveal(!revealedRef.current)
     }
     stage.addEventListener('click', flip)
     stage.addEventListener('keydown', flipKey)
@@ -788,7 +910,7 @@ function MaterialCards({
             ))}
           </div>
         )}
-        <Button size="lg" onClick={() => setRevealed((value) => !value)} aria-expanded={revealed}>
+        <Button size="lg" onClick={() => reveal(!revealedRef.current)} aria-expanded={revealed}>
           {revealed ? (
             <>
               <RotateCcw />
@@ -817,7 +939,8 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
   const [hints, setHints] = useState<Record<string, string>>({}),
     [corrections, setCorrections] = useState<string[]>(),
     [loadingHintId, setLoadingHintId] = useState<string>(),
-    [loadingCorrections, setLoadingCorrections] = useState(false)
+    [loadingCorrections, setLoadingCorrections] = useState(false),
+    [grading, setGrading] = useState(false)
   const [aiError, setAiError] = useState<string>(),
     [error, setError] = useState<string>(),
     [reload, setReload] = useState(0)
@@ -826,20 +949,27 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
   const actionHandler = useRef<(action: Extract<VoiceAction, { type: `assessment.${string}` }>) => Promise<VoiceActionResult>>(async () => ({ ok: false, error: 'The practice test is still loading.' }))
   useEffect(() => {
     let current = true
-    listMaterialQuestions(subject.releaseId)
-      .then((rows) => {
+    void (async () => {
+      try {
+        const rows = await listMaterialQuestions(subject.releaseId)
         if (!current) return
         if (rows.length < 20) setError('This practice test does not contain the required 20 questions.')
         else {
-          const next = rows.slice(0, 20)
+          let next = rows.slice(0, 20)
+          if (initialProgress.current?.practiceSubmitted) {
+            const grade = await submitMaterialQuestions(subject.releaseId, initialProgress.current.practiceAnswers)
+            const results = new Map(grade.results.map((result) => [result.id, result]))
+            next = next.map((entry) => ({ ...entry, ...results.get(entry.id) }))
+          }
+          if (!current) return
           setQuestions(next)
           const firstUnanswered = next.findIndex((entry) => initialProgress.current?.practiceAnswers[entry.id] === undefined)
           setIndex(firstUnanswered >= 0 ? firstUnanswered : 0)
         }
-      })
-      .catch((cause) => {
+      } catch (cause) {
         if (current) setError(cause instanceof Error ? cause.message : 'Practice questions could not be loaded.')
-      })
+      }
+    })()
     return () => {
       current = false
     }
@@ -857,11 +987,30 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
   useEffect(() => {
     if (progressHydrated.current || !progress || !questions?.length || answered > 0) return
     progressHydrated.current = true
-    setAnswers(progress.practiceAnswers)
-    setSubmitted(progress.practiceSubmitted)
-    const firstUnanswered = questions.findIndex((entry) => progress.practiceAnswers[entry.id] === undefined)
-    setIndex(firstUnanswered >= 0 ? firstUnanswered : 0)
-  }, [answered, progress, questions])
+    let current = true
+    void (async () => {
+      try {
+        let next = questions
+        if (progress.practiceSubmitted) {
+          setGrading(true)
+          const grade = await submitMaterialQuestions(subject.releaseId, progress.practiceAnswers)
+          const results = new Map(grade.results.map((result) => [result.id, result]))
+          next = questions.map((entry) => ({ ...entry, ...results.get(entry.id) }))
+        }
+        if (!current) return
+        setQuestions(next)
+        setAnswers(progress.practiceAnswers)
+        setSubmitted(progress.practiceSubmitted)
+        const firstUnanswered = next.findIndex((entry) => progress.practiceAnswers[entry.id] === undefined)
+        setIndex(firstUnanswered >= 0 ? firstUnanswered : 0)
+      } catch (cause) {
+        if (current) setError(cause instanceof Error ? cause.message : 'The saved practice result could not be loaded.')
+      } finally {
+        if (current) setGrading(false)
+      }
+    })()
+    return () => { current = false }
+  }, [answered, progress, questions, subject.releaseId])
   async function requestHint() {
     if (!question || submitted || hints[question.id] || loadingHintId) return Boolean(question && hints[question.id])
     if (!signedIn) {
@@ -884,18 +1033,31 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
       setLoadingHintId(undefined)
     }
   }
-  function submit() {
+  async function submit() {
     if (!questions || answered !== questions.length || submitted) return false
-    setReviewing(false)
-    setSubmitted(true)
-    onProgress(subject, { practiceAnswers: answers, practiceSubmitted: true })
-    return true
+    setGrading(true)
+    setAiError(undefined)
+    try {
+      const grade = await submitMaterialQuestions(subject.releaseId, answers)
+      const results = new Map(grade.results.map((result) => [result.id, result]))
+      setQuestions(questions.map((entry) => ({ ...entry, ...results.get(entry.id) })))
+      setReviewing(false)
+      setSubmitted(true)
+      onProgress(subject, { practiceAnswers: answers, practiceSubmitted: true })
+      return true
+    } catch (cause) {
+      setAiError(cause instanceof Error ? cause.message : 'The practice test could not be graded.')
+      return false
+    } finally {
+      setGrading(false)
+    }
   }
   async function requestCorrections() {
-    if (!questions || !submitted || corrections || loadingCorrections) return
+    if (!questions || !submitted || loadingCorrections) return 'failure' as const
+    if (corrections) return 'success' as const
     if (!signedIn) {
       onSignIn()
-      return
+      return 'failure' as const
     }
     setLoadingCorrections(true)
     setAiError(undefined)
@@ -908,10 +1070,13 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
       onBalance(result.balance)
       setCorrections(result.corrections)
       setIndex(0)
+      setReviewing(true)
+      return 'success' as const
     } catch (cause) {
       if (cause instanceof AIActionError && cause.balance) onBalance(cause.balance)
       if (cause instanceof AIActionError && cause.code === 'insufficient_credits') onInsufficientCredits('Material assessment corrections', 2)
       else setAiError(cause instanceof Error ? cause.message : 'Corrections could not be generated. No credit was charged.')
+      return 'failure' as const
     } finally {
       setLoadingCorrections(false)
     }
@@ -953,7 +1118,20 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
             error: 'Hints are unavailable after submission.',
           }
         if (hints[question.id]) return { ok: true, message: 'The hint is already visible.' }
-        return (await requestHint()) ? { ok: true, message: 'The hint is now visible.' } : { ok: false, error: 'The hint was not generated.' }
+        return (await requestHint()) ? { ok: true, message: 'The hint is now visible.' } : { ok: false, error: 'The hint was not generated or the charge was declined.' }
+      }
+      if (action.type === 'assessment.corrections') {
+        if (!submitted) return { ok: false, error: 'Corrections are only available after submission.' }
+        if (corrections) return { ok: true, message: 'Corrections are already visible.' }
+        const result = await requestCorrections()
+        return result === 'success' ? { ok: true, message: 'Corrections are now visible.' } : { ok: false, error: 'Corrections could not be generated.' }
+      }
+      if (action.type === 'assessment.review') {
+        if (!submitted) return { ok: false, error: 'Submit the assessment before reviewing answers.' }
+        if (!corrections) return { ok: false, error: 'Paid corrections must be unlocked before Nerd Bot can review material answers.' }
+        setIndex(0)
+        setReviewing(true)
+        return { ok: true, message: 'Answer review opened.' }
       }
       if (submitted)
         return {
@@ -966,8 +1144,7 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
           ok: false,
           error: 'The learner did not confirm assessment submission.',
         }
-      submit()
-      return { ok: true, message: 'Assessment submitted.' }
+      return (await submit()) ? { ok: true, message: 'Assessment submitted.' } : { ok: false, error: 'The assessment could not be graded.' }
     }
   })
   useEffect(() => {
@@ -983,9 +1160,13 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
       selectedIndex: answers[question.id] ?? null,
       submitted,
       hint: hints[question.id],
+      phase: !submitted ? 'taking' : reviewing ? 'review' : 'result',
+      score: submitted ? questions.filter((entry) => answers[entry.id] === entry.answerIndex).length : undefined,
+      correctAnswer: submitted && reviewing ? question.options[question.answerIndex] : undefined,
+      explanation: submitted && reviewing ? corrections?.[index] ?? question.explanation : undefined,
     })
     return () => onLearningState(undefined)
-  }, [answers, hints, index, onLearningState, question, questions, subject.title, submitted])
+  }, [answers, corrections, hints, index, onLearningState, question, questions, reviewing, subject.title, submitted])
   if (error)
     return (
       <Failure
@@ -996,11 +1177,12 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
         }}
       />
     )
-  if (!questions || !question) return <Loading />
+  if (!questions || !question || grading && submitted) return <Loading />
   const selected = answers[question.id],
     score = submitted ? questions.filter((entry) => answers[entry.id] === entry.answerIndex).length : 0,
     percentage = Math.round((score / questions.length) * 100),
-    correction = corrections?.[index]
+    correction = corrections?.[index],
+    showingReview = submitted && reviewing
   return (
     <div className="material-practice assessment-view">
       {aiError && (
@@ -1081,10 +1263,10 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
             </div>
             <fieldset disabled={submitted}>
               {question.options.map((option, optionIndex) => {
-                const correct = Boolean(corrections) && optionIndex === question.answerIndex,
+                const correct = showingReview && optionIndex === question.answerIndex,
                   isSelected = selected === optionIndex
                 return (
-                  <label key={optionIndex} className={`${isSelected ? 'selected' : ''} ${corrections ? `${correct ? 'correction-correct' : ''} ${isSelected && !correct ? 'correction-selected' : ''}` : ''}`}>
+                  <label key={optionIndex} className={`${isSelected ? 'selected' : ''} ${showingReview ? `${correct ? 'correction-correct' : ''} ${isSelected && !correct ? 'correction-selected' : ''}` : ''}`}>
                     <input
                       type="radio"
                       name={`material-question-${question.id}`}
@@ -1111,12 +1293,12 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
                 </div>
               </div>
             )}
-            {correction && (
+            {showingReview && (
               <div className="assessment-correction">
-                <span>AI correction</span>
+                <span>{correction ? 'AI correction' : 'Explanation'}</span>
                 <h3>{selected === question.answerIndex ? 'Your answer was correct.' : `Correct answer: ${question.options[question.answerIndex]}`}</h3>
-                <p>{correction}</p>
-                <small>{question.explanation}</small>
+                <p>{correction ?? question.explanation}</p>
+                {correction && <small>{question.explanation}</small>}
               </div>
             )}
             <footer>
@@ -1134,8 +1316,8 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
                   </Button>
                 )}
                 {!submitted && index === questions.length - 1 && (
-                  <Button onClick={submit} disabled={answered !== questions.length}>
-                    Submit test
+                  <Button onClick={() => void submit()} disabled={answered !== questions.length || grading}>
+                    {grading ? 'Grading...' : 'Submit test'}
                   </Button>
                 )}
               </div>

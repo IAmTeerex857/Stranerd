@@ -1,4 +1,4 @@
-import type { PendingFlashcardReview, PersistedState, Settings } from '../types'
+import type { FlashcardDeckProgress, PendingFlashcardReview, PersistedState, Settings } from '../types'
 
 export const STORAGE_KEY = 'stranerd.anatomy.v1'
 
@@ -18,6 +18,7 @@ export const defaultPersistedState: PersistedState = {
   flashcardProgressByDeck: {},
   pendingFlashcardReviews: [],
   materialProgressByRelease: {},
+  materialProgressDirtyReleaseIds: [],
   settings: defaultSettings,
 }
 
@@ -26,14 +27,19 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}
 const validDate = (value: unknown): value is string => typeof value === 'string' && Number.isFinite(Date.parse(value))
 const validText = (value: unknown, max: number): value is string => typeof value === 'string' && value.length > 0 && value.length <= max
 
-function parsePendingReviews(value: unknown): PendingFlashcardReview[] {
+function parsePendingReviews(value: unknown, progressByDeck: Record<string, FlashcardDeckProgress>): PendingFlashcardReview[] {
   if (!Array.isArray(value)) return []
   const unique = new Map<string, PendingFlashcardReview>()
   for (const item of value) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) continue
     const review = item as Partial<PendingFlashcardReview>
-    if (!review.id || !uuidPattern.test(review.id) || !validText(review.deckId, 200) || !validText(review.contentVersion, 200) || !validText(review.cardId, 300) || !grades.includes(review.grade as typeof grades[number]) || !validDate(review.reviewedAt)) continue
-    unique.set(review.id, review as PendingFlashcardReview)
+    if (!review.id || !uuidPattern.test(review.id) || !validText(review.deckId, 200) || !validText(review.cardId, 300) || !validDate(review.reviewedAt)) continue
+    const deck = progressByDeck[review.deckId]
+    const card = deck?.cards[review.cardId]
+    const contentVersion = validText(review.contentVersion, 200) ? review.contentVersion : deck?.contentVersion
+    const grade = grades.includes(review.grade as typeof grades[number]) ? review.grade : card?.grade
+    if (!validText(contentVersion, 200) || !grades.includes(grade as typeof grades[number])) continue
+    unique.set(review.id, { id: review.id, deckId: review.deckId, contentVersion, cardId: review.cardId, grade: grade as PendingFlashcardReview['grade'], reviewedAt: review.reviewedAt })
   }
   return [...unique.values()]
 }
@@ -42,6 +48,21 @@ export function parsePersistedState(raw: string | null): PersistedState {
   if (!raw) return defaultPersistedState
   try {
     const value = JSON.parse(raw) as Partial<PersistedState>
+    const flashcardProgressByDeck = value.flashcardProgressByDeck && typeof value.flashcardProgressByDeck === 'object' && !Array.isArray(value.flashcardProgressByDeck)
+      ? Object.fromEntries(Object.entries(value.flashcardProgressByDeck).flatMap(([deckId, progress]) => {
+        if (!progress || typeof progress !== 'object' || Array.isArray(progress)) return []
+        const entry = progress as Partial<PersistedState['flashcardProgressByDeck'][string]>
+        if (!validText(deckId, 200) || !validText(entry.contentVersion, 200) || !entry.cards || typeof entry.cards !== 'object' || Array.isArray(entry.cards)) return []
+        const cards = Object.fromEntries(Object.entries(entry.cards).flatMap(([cardId, card]) => {
+          if (!card || typeof card !== 'object' || Array.isArray(card)) return []
+          const review = card as Partial<PersistedState['flashcardProgressByDeck'][string]['cards'][string]>
+          return validText(cardId, 300) && grades.includes(review.grade as typeof grades[number]) && Number.isSafeInteger(review.reviewCount) && (review.reviewCount ?? 0) > 0 && validDate(review.updatedAt) && (review.reviewId === undefined || uuidPattern.test(review.reviewId))
+            ? [[cardId, { grade: review.grade!, reviewCount: review.reviewCount!, updatedAt: review.updatedAt, ...(review.reviewId ? { reviewId: review.reviewId } : {}) }]]
+            : []
+        }))
+        return [[deckId, { contentVersion: entry.contentVersion, cards }]]
+      }))
+      : {}
     return {
       selectedModelId: typeof value.selectedModelId === 'string' ? value.selectedModelId : 'heart',
       selectedVariantIds: value.selectedVariantIds && typeof value.selectedVariantIds === 'object' && !Array.isArray(value.selectedVariantIds)
@@ -78,22 +99,8 @@ export function parsePersistedState(raw: string | null): PersistedState {
           }]]
         }))
         : {},
-      flashcardProgressByDeck: value.flashcardProgressByDeck && typeof value.flashcardProgressByDeck === 'object' && !Array.isArray(value.flashcardProgressByDeck)
-        ? Object.fromEntries(Object.entries(value.flashcardProgressByDeck).flatMap(([deckId, progress]) => {
-          if (!progress || typeof progress !== 'object' || Array.isArray(progress)) return []
-          const entry = progress as Partial<PersistedState['flashcardProgressByDeck'][string]>
-          if (!validText(deckId, 200) || !validText(entry.contentVersion, 200) || !entry.cards || typeof entry.cards !== 'object' || Array.isArray(entry.cards)) return []
-          const cards = Object.fromEntries(Object.entries(entry.cards).flatMap(([cardId, card]) => {
-            if (!card || typeof card !== 'object' || Array.isArray(card)) return []
-            const review = card as Partial<PersistedState['flashcardProgressByDeck'][string]['cards'][string]>
-            return validText(cardId, 300) && grades.includes(review.grade as typeof grades[number]) && Number.isSafeInteger(review.reviewCount) && (review.reviewCount ?? 0) > 0 && validDate(review.updatedAt) && (review.reviewId === undefined || uuidPattern.test(review.reviewId))
-              ? [[cardId, { grade: review.grade!, reviewCount: review.reviewCount!, updatedAt: review.updatedAt, ...(review.reviewId ? { reviewId: review.reviewId } : {}) }]]
-              : []
-          }))
-          return [[deckId, { contentVersion: entry.contentVersion, cards }]]
-        }))
-        : {},
-      pendingFlashcardReviews: parsePendingReviews(value.pendingFlashcardReviews),
+      flashcardProgressByDeck,
+      pendingFlashcardReviews: parsePendingReviews(value.pendingFlashcardReviews, flashcardProgressByDeck),
       materialProgressByRelease: value.materialProgressByRelease && typeof value.materialProgressByRelease === 'object' && !Array.isArray(value.materialProgressByRelease)
         ? Object.fromEntries(Object.entries(value.materialProgressByRelease).flatMap(([releaseId, progress]) => {
           if (!validText(releaseId, 200) || !progress || typeof progress !== 'object' || Array.isArray(progress)) return []
@@ -111,6 +118,9 @@ export function parsePersistedState(raw: string | null): PersistedState {
           }]]
         }))
         : {},
+      materialProgressDirtyReleaseIds: Array.isArray(value.materialProgressDirtyReleaseIds)
+        ? [...new Set(value.materialProgressDirtyReleaseIds.filter((id): id is string => validText(id, 200)))].sort()
+        : [],
       materialProgressOwnerId: typeof value.materialProgressOwnerId === 'string' ? value.materialProgressOwnerId : undefined,
       settings: Object.fromEntries(Object.entries(defaultSettings).map(([key, fallback]) => [
         key,

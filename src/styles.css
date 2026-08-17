@@ -4097,7 +4097,7 @@ aside.mentor {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .public-header,
   .public-footer,
   .landing-shell,
@@ -4688,7 +4688,7 @@ aside.mentor {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .mobile-head,
   .mobile-tabs {
     background: var(--sidebar-bg);

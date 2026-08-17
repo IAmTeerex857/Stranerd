@@ -15,6 +15,7 @@ describe('persistence parsing', () => {
     expect(state.flashcardProgressByDeck).toEqual({})
     expect(state.pendingFlashcardReviews).toEqual([])
     expect(state.materialProgressByRelease).toEqual({})
+    expect(state.materialProgressDirtyReleaseIds).toEqual([])
     expect(state.materialProgressOwnerId).toBeUndefined()
   })
 
@@ -63,9 +64,30 @@ describe('persistence parsing', () => {
     expect(state.pendingFlashcardReviews).toEqual([event])
   })
 
+  it('repairs legacy queued reviews from local card progress', () => {
+    const id = '123e4567-e89b-42d3-a456-426614174000'
+    const state = parsePersistedState(JSON.stringify({
+      flashcardProgressByDeck: { deck: { contentVersion: '3', cards: { card: { grade: 'easy', reviewCount: 1, updatedAt: '2026-08-11T10:00:00Z' } } } },
+      pendingFlashcardReviews: [{ id, deckId: 'deck', cardId: 'card', reviewedAt: '2026-08-11T10:00:00Z' }],
+    }))
+    expect(state.pendingFlashcardReviews).toEqual([{ id, deckId: 'deck', contentVersion: '3', cardId: 'card', grade: 'easy', reviewedAt: '2026-08-11T10:00:00Z' }])
+  })
+
+  it('drops legacy queued reviews that cannot be repaired', () => {
+    const id = '123e4567-e89b-42d3-a456-426614174000'
+    const state = parsePersistedState(JSON.stringify({ pendingFlashcardReviews: [{ id, deckId: 'missing', cardId: 'card', reviewedAt: '2026-08-11T10:00:00Z' }] }))
+    expect(state.pendingFlashcardReviews).toEqual([])
+  })
+
   it('keeps valid material learning progress', () => {
     const updatedAt = '2026-08-13T10:00:00Z'
     const state = parsePersistedState(JSON.stringify({ materialProgressByRelease: { release: { contentVersion: 'v1', readSectionIds: ['one', 'one', 2], practiceAnswers: { q1: 2, bad: 8 }, practiceSubmitted: true, updatedAt } } }))
     expect(state.materialProgressByRelease.release).toEqual({ contentVersion: 'v1', readSectionIds: ['one'], practiceAnswers: { q1: 2 }, practiceSubmitted: true, updatedAt })
+    expect(state.materialProgressDirtyReleaseIds).toEqual([])
+  })
+
+  it('keeps only canonical explicit material dirty IDs', () => {
+    const state = parsePersistedState(JSON.stringify({ materialProgressDirtyReleaseIds: ['z', 'a', 'z', 2] }))
+    expect(state.materialProgressDirtyReleaseIds).toEqual(['a', 'z'])
   })
 })

@@ -1,5 +1,5 @@
-import { models } from './models'
-import type { FlashcardDeck, FlashcardDeckProgress, FlashcardDiagram } from '../types'
+import { models } from './models.js'
+import type { FlashcardDeck, FlashcardDeckProgress, FlashcardDiagram } from '../types.js'
 
 export const defaultFlashcardDecks: FlashcardDeck[] = models.map((model) => {
   const variant = model.variants.find((entry) => entry.hotspots?.length) ?? model.variants.find((entry) => entry.segmentedSystem) ?? model.variants[0]

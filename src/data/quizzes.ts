@@ -1,5 +1,5 @@
-import type { Evaluation, Quiz } from '../types'
-import { models } from './models'
+import type { Evaluation, Quiz } from '../types.js'
+import { models } from './models.js'
 
 export const quizzesByModel: Record<string, Quiz> = {
   heart: { id: 'heart-quiz', modelId: 'heart', question: 'When are the coronary arteries perfused most effectively?', options: ['During ventricular systole', 'During ventricular diastole', 'Only during atrial systole'], correctIndex: 1, explanation: 'During diastole, ventricular relaxation reduces compression of coronary vessels and aortic pressure drives myocardial perfusion.' },

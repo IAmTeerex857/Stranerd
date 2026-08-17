@@ -1,4 +1,4 @@
-export type ViewId = 'explore' | 'library' | 'lab'
+export type ViewId = 'explore' | 'library' | 'studio' | 'lab'
 
 export type Hotspot = {
   id: string
@@ -166,6 +166,7 @@ export type PersistedState = {
   flashcardProgressByDeck: Record<string, FlashcardDeckProgress>
   pendingFlashcardReviews: PendingFlashcardReview[]
   materialProgressByRelease: Record<string, MaterialReleaseProgress>
+  materialProgressDirtyReleaseIds: string[]
   materialProgressOwnerId?: string
   settings: Settings
 }

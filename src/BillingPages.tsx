@@ -5,6 +5,7 @@ import { getBillingStatus } from './lib/billing'
 import { useAuth } from './auth-context'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { scheduleAccountRedirect } from './lib/billingRedirect'
 
 type BillingView = 'loading' | 'pending' | 'successful' | 'failed' | 'cancelled' | 'refunded' | 'missing' | 'delayed' | 'error' | 'unknown'
 
@@ -32,6 +33,7 @@ export function BillingSuccessPage() {
           window.localStorage.removeItem('stranerd.billing.pendingIntent')
           setMessage(`${result.intent.credits} credits were applied to your account.`)
           setStatus('successful')
+          timer = scheduleAccountRedirect()
           return
         }
         if (terminalStatuses.has(nextStatus)) {

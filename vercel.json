@@ -4,6 +4,13 @@
   },
   "rewrites": [
     { "source": "/api/webhooks/bachs", "destination": "/api/webhooks/spotflow?provider=bachs" },
+    { "source": "/api/materials", "destination": "/api/library?service=materials" },
+    { "source": "/api/learning", "destination": "/api/library?service=learning" },
+    {
+      "source": "/library/share",
+      "has": [{ "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|TelegramBot|Pinterestbot|Bluesky|SkypeUriPreview|Iframely|Embedly).*" }],
+      "destination": "/api/library?service=share-preview"
+    },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

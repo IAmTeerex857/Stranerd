@@ -12,6 +12,7 @@ const AuthCallbackPage = lazy(() => import('./AuthPages').then((module) => ({ de
 const AccountPage = lazy(() => import('./AuthPages').then((module) => ({ default: module.AccountPage })))
 const LegalPage = lazy(() => import('./LegalPages').then((module) => ({ default: module.LegalPage })))
 const BillingSuccessPage = lazy(() => import('./BillingPages').then((module) => ({ default: module.BillingSuccessPage })))
+const SharedLibraryPage = lazy(() => import('./components/SharedLibraryPage'))
 
 const legalPaths = new Set(['/legal/privacy', '/legal/terms', '/legal/refunds'])
 
@@ -54,6 +55,7 @@ export function PublicPages({ path }: { path: string }) {
   else if (path === '/account') page = <AccountPage />
   else if (path === '/billing/success') page = <BillingSuccessPage />
   else if (path === '/billing/cancelled') page = <StatusPage kind="cancelled" />
+  else if (path === '/library/share') page = <SharedLibraryPage />
   else if (legalPaths.has(path)) page = <LegalPage path={path} />
   return <Suspense fallback={<main className="route-loading" aria-label="Loading page"><span /></main>}>{page}</Suspense>
 }

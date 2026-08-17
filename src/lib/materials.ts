@@ -1,7 +1,8 @@
 import { supabase } from './supabase'
-import type { MaterialFlashcard, MaterialMarkdownPart, MaterialMnemonic, MaterialQuestion, MaterialSection, MaterialSectionSummary, MaterialSubject } from '../types/materials'
+import type { MaterialFlashcard, MaterialImageMetadata, MaterialMarkdownPart, MaterialMnemonic, MaterialQuestion, MaterialQuestionGrade, MaterialSection, MaterialSectionSummary, MaterialSubject } from '../types/materials'
 
 export const MATERIAL_PAGE_SIZE = 500
+export const MATERIAL_ASSET_METADATA_LIMIT = 2000
 const mnemonicPattern = /^:::mnemonic\{#([A-Za-z0-9._:-]+)\}\s*\n[\s\S]*?^:::\s*$/gm
 const clozePattern = /\{\{c\d+::([\s\S]*?)(?:::[\s\S]*?)?\}\}/g
 
@@ -19,6 +20,30 @@ export function parseMaterialMarkdown(markdown: string): MaterialMarkdownPart[] 
   }
   if (start < markdown.length) parts.push({ kind: 'markdown', content: markdown.slice(start) })
   return parts
+}
+
+export function isHeadingOnlyMaterialSection(markdown: string) {
+  const withoutComments = markdown.replace(/<!--[\s\S]*?-->/g, '')
+  if (/<!--|-->|!\[|<\/?[A-Za-z]/.test(withoutComments)) return false
+  const lines = withoutComments.split(/\r?\n/).filter((line) => line.trim()).map((line) => line.trimEnd())
+  if (!lines.length) return false
+
+  let headingCount = 0
+  for (let index = 0; index < lines.length; index += 1) {
+    const atx = lines[index].match(/^ {0,3}#{1,6}(?:[ \t]+(.+?)[ \t]*#*|[ \t]*)$/)
+    if (atx) {
+      if (!atx[1]?.trim()) return false
+      headingCount += 1
+      continue
+    }
+    if (index + 1 < lines.length && /^ {0,3}(?:=+|-+)$/.test(lines[index + 1]) && /^ {0,3}[\p{L}\p{N}][^<>]*$/u.test(lines[index])) {
+      headingCount += 1
+      index += 1
+      continue
+    }
+    return false
+  }
+  return headingCount > 0
 }
 
 export function safeMaterialUrl(url: string) {
@@ -47,6 +72,14 @@ type CatalogRow = Record<string, unknown>
 function text(value: unknown) { return typeof value === 'string' ? value : '' }
 function integer(value: unknown) { return Number.isInteger(value) ? Number(value) : 0 }
 function stringArray(value: unknown) { return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [] }
+
+export function mapMaterialAssetMetadata(row: CatalogRow): [string, MaterialImageMetadata] | null {
+  const url = text(row.url)
+  const width = integer(row.width)
+  const height = integer(row.height)
+  const srcSet = text(row.srcSet)
+  return url && width > 0 && height > 0 && srcSet ? [url, { width, height, srcSet }] : null
+}
 
 export function materialTitle(value: string) {
   return value.replace(/^\s*\d+\s*[.)-]\s*/, '').trim()
@@ -84,6 +117,31 @@ function requireClient() {
   return supabase
 }
 
+async function materialRequest<T>(action: string, releaseId: string, init?: RequestInit): Promise<T> {
+  const client = requireClient()
+  const { data, error } = await client.auth.getSession()
+  if (error || !data.session) throw new Error('Sign in to access learning materials.')
+  const response = await fetch(`/api/materials?action=${encodeURIComponent(action)}&releaseId=${encodeURIComponent(releaseId)}`, {
+    ...init,
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${data.session.access_token}`, ...init?.headers },
+  })
+  const result = await response.json().catch(() => ({})) as T & { message?: string }
+  if (!response.ok) throw new Error(result.message || 'Learning materials could not be loaded.')
+  return result
+}
+
+type NotesBundle = { sections: CatalogRow[]; mnemonics: CatalogRow[]; assets: CatalogRow[] }
+const notesCache = new Map<string, { expiresAt: number; promise: Promise<NotesBundle> }>()
+
+function materialNotes(releaseId: string) {
+  const cached = notesCache.get(releaseId)
+  if (cached && cached.expiresAt > Date.now()) return cached.promise
+  const promise = materialRequest<NotesBundle>('notes', releaseId).catch((error) => { notesCache.delete(releaseId); throw error })
+  notesCache.set(releaseId, { expiresAt: Date.now() + 3_000_000, promise })
+  return promise
+}
+
 export async function listMaterialSubjects() {
   const client = requireClient()
   const rows = await collectPaginated<CatalogRow>(async (from, to) => {
@@ -95,53 +153,41 @@ export async function listMaterialSubjects() {
 }
 
 export async function listMaterialSections(releaseId: string) {
-  const client = requireClient()
-  const rows = await collectPaginated<CatalogRow>(async (from, to) => {
-    const { data, error } = await client.from('material_sections').select('stable_id,ordinal,title,heading_path,source_page_start,source_page_end').eq('release_id', releaseId).order('ordinal').range(from, to)
-    if (error) throw error
-    return (data ?? []) as CatalogRow[]
-  })
+  const rows = (await materialNotes(releaseId)).sections
   return rows.map((row): MaterialSectionSummary => ({ id: text(row.stable_id), ordinal: integer(row.ordinal), title: materialTitle(text(row.title)), headingPath: stringArray(row.heading_path), pageStart: integer(row.source_page_start), pageEnd: integer(row.source_page_end) }))
 }
 
 export async function getMaterialSection(releaseId: string, sectionId: string) {
-  const client = requireClient()
-  const rows = await collectPaginated<CatalogRow>(async (from, to) => {
-    const { data, error } = await client.from('material_sections').select('stable_id,ordinal,title,heading_path,content,source_page_start,source_page_end').eq('release_id', releaseId).eq('stable_id', sectionId).order('ordinal').range(from, to)
-    if (error) throw error
-    return (data ?? []) as CatalogRow[]
-  })
-  const row = rows[0]
+  const row = (await materialNotes(releaseId)).sections.find((entry) => text(entry.stable_id) === sectionId)
   if (!row) throw new Error('This notes section is no longer available.')
   return { id: text(row.stable_id), ordinal: integer(row.ordinal), title: materialTitle(text(row.title)), headingPath: stringArray(row.heading_path), content: text(row.content), pageStart: integer(row.source_page_start), pageEnd: integer(row.source_page_end) } satisfies MaterialSection
 }
 
 export async function listMaterialMnemonics(releaseId: string) {
-  const client = requireClient()
-  const rows = await collectPaginated<CatalogRow>(async (from, to) => {
-    const { data, error } = await client.from('material_mnemonics').select('stable_id,title,body,section,source_page').eq('release_id', releaseId).order('ordinal').range(from, to)
-    if (error) throw error
-    return (data ?? []) as CatalogRow[]
-  })
+  const rows = (await materialNotes(releaseId)).mnemonics
   return rows.map((row): MaterialMnemonic => ({ id: text(row.stable_id), title: text(row.title), body: text(row.body), section: text(row.section) || null, sourcePage: integer(row.source_page) }))
 }
 
+export async function listMaterialAssetMetadata(releaseId: string) {
+  const rows = (await materialNotes(releaseId)).assets.slice(0, MATERIAL_ASSET_METADATA_LIMIT)
+  return new Map(rows.map(mapMaterialAssetMetadata).filter((entry): entry is [string, MaterialImageMetadata] => Boolean(entry)))
+}
+
 export async function listMaterialFlashcards(releaseId: string) {
-  const client = requireClient()
-  const rows = await collectPaginated<CatalogRow>(async (from, to) => {
-    const { data, error } = await client.from('material_flashcards').select('stable_id,ordinal,card_type,front,back,section,tags').eq('release_id', releaseId).order('ordinal').range(from, to)
-    if (error) throw error
-    return (data ?? []) as CatalogRow[]
-  })
+  const { flashcards: rows } = await materialRequest<{ flashcards: CatalogRow[] }>('flashcards', releaseId)
   return rows.map(mapMaterialFlashcard)
 }
 
 export async function listMaterialQuestions(releaseId: string) {
-  const client = requireClient()
-  const rows = await collectPaginated<CatalogRow>(async (from, to) => {
-    const { data, error } = await client.from('material_questions').select('stable_id,ordinal,question,options,answer,explanation,chapter,section,published,review_status').eq('release_id', releaseId).eq('published', true).eq('review_status', 'approved').order('ordinal').range(from, to)
-    if (error) throw error
-    return (data ?? []) as CatalogRow[]
+  const { questions: rows } = await materialRequest<{ questions: CatalogRow[] }>('questions', releaseId)
+  return rows.flatMap((row): MaterialQuestion[] => {
+    const source = row.options && typeof row.options === 'object' && !Array.isArray(row.options) ? row.options as Record<string, unknown> : {}
+    const options = ['A', 'B', 'C', 'D'].map((key) => text(source[key])) as [string, string, string, string]
+    if (!text(row.stable_id) || options.some((option) => !option)) return []
+    return [{ id: text(row.stable_id), ordinal: integer(row.ordinal), question: text(row.question).replace(/^\s*(?:question\s*)?\d+\s*[.)-]\s*/i, ''), options, chapter: text(row.chapter), section: text(row.section) } as MaterialQuestion]
   })
-  return rows.map(mapMaterialQuestion).filter((row): row is MaterialQuestion => Boolean(row))
+}
+
+export async function submitMaterialQuestions(releaseId: string, answers: Record<string, number>) {
+  return materialRequest<{ score: number; results: MaterialQuestionGrade[] }>('grade', releaseId, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers }) })
 }

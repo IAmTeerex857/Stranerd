@@ -1547,7 +1547,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .app-shell,
   .app-shell.sidebar-collapsed {
     display: block;

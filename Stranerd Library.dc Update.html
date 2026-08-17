@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="page">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F7FC; --card:#FFFFFF; --card-2:#FBFCFE; --muted:#EDF1F8; --muted-2:#F4F7FC;
+  --border:#E4E9F2; --border-strong:#D5DDEA;
+  --fg:#0E1526; --fg-2:#3A4457; --muted-fg:#5C6880;
+  --primary:#2E64F0; --primary-hover:#2352DA; --primary-fg:#FFFFFF; --primary-subtle:#EAF0FE; --primary-border:#CBDAFB;
+  --ai:#6D3BE8; --ai-hover:#5A2CCB; --ai-subtle:#F2ECFE; --ai-border:#E1D3FB;
+  --success:#0E9F6E; --success-subtle:#E7F7F0;
+  --warning:#C77706; --warning-subtle:#FCF3E4;
+  --danger:#DC2626; --danger-subtle:#FDECEC;
+  --shadow-card:0 1px 2px rgba(14,21,38,.06);
+  --shadow-pop:0 16px 40px -16px rgba(14,21,38,.28);
+}
+[data-theme="dark"]{
+  --bg:#0A0D13; --card:#12161F; --card-2:#0F131B; --muted:#171C27; --muted-2:#131822;
+  --border:#242B39; --border-strong:#313A4B;
+  --fg:#F2F5FA; --fg-2:#C4CDDC; --muted-fg:#93A0B4;
+  --primary:#5B8CFF; --primary-hover:#79A2FF; --primary-fg:#0A1223; --primary-subtle:#152140; --primary-border:#2B3D66;
+  --ai:#9A79FF; --ai-hover:#B198FF; --ai-subtle:#201A3A; --ai-border:#392E62;
+  --success:#34D399; --success-subtle:#0F2A21;
+  --warning:#FBBF24; --warning-subtle:#2E2410;
+  --danger:#F87171; --danger-subtle:#361B1B;
+  --shadow-card:0 1px 2px rgba(0,0,0,.45);
+  --shadow-pop:0 18px 44px -18px rgba(0,0,0,.72);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,sans-serif;transition:background .22s ease}
+a{color:var(--primary);text-decoration:none}
+a:hover{color:var(--primary-hover)}
+::selection{background:var(--primary-subtle);color:var(--fg)}
+input,button,textarea{font-family:inherit}
+input::placeholder,textarea::placeholder{color:var(--muted-fg)}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:8px;border:3px solid var(--bg)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes shimmer{0%{background-position:-360px 0}100%{background-position:360px 0}}
+</style>
+</helmet>
+
+<div style="display:flex;height:100vh;overflow:hidden;color:var(--fg);font-family:'Inter',system-ui,sans-serif">
+
+  <!-- ══════════ SIDEBAR ══════════ -->
+  <aside style="width:264px;flex-shrink:0;height:100vh;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column">
+    <div style="height:60px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 20px;border-bottom:1px solid var(--border)">
+      <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary-hover));display:grid;place-items:center;color:#fff;flex-shrink:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.4 5.6L7.5 16.5l2.4-5.6z" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <span style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:600;letter-spacing:-0.02em">Stranerd</span>
+    </div>
+
+    <nav style="padding:16px 12px 6px;display:flex;flex-direction:column;gap:3px">
+      <a href="Stranerd Workspace.dc.html" style="display:flex;align-items:center;gap:11px;width:100%;height:40px;padding:0 12px;border-radius:10px;font-size:14px;font-weight:500;color:var(--fg-2)" style-hover="background:var(--muted)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88" fill="currentColor" fill-opacity="0.18"/></svg>
+        <span>Explore</span>
+      </a>
+      <a href="Stranerd Workspace.dc.html" style="display:flex;align-items:center;gap:11px;width:100%;height:40px;padding:0 12px;border-radius:10px;font-size:14px;font-weight:500;color:var(--fg-2)" style-hover="background:var(--muted)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+        <span>Learn</span>
+      </a>
+      <a href="Stranerd Library.dc.html" style="display:flex;align-items:center;gap:11px;width:100%;height:40px;padding:0 12px;border-radius:10px;font-size:14px;font-weight:600;background:var(--ai-subtle);color:var(--ai)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M6 12h2"/><path d="M6 8h2"/><path d="M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/></svg>
+        <span>Library</span>
+        <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:0.06em;padding:2px 6px;border-radius:5px;background:var(--ai);color:#fff">NEW</span>
+      </a>
+      <a href="Stranerd Workspace.dc.html" style="display:flex;align-items:center;gap:11px;width:100%;height:40px;padding:0 12px;border-radius:10px;font-size:14px;font-weight:500;color:var(--fg-2)" style-hover="background:var(--muted)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/></svg>
+        <span>Lab</span>
+      </a>
+    </nav>
+
+    <div style="padding:14px 20px 8px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted-fg)">Subjects</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted-fg)">10</span>
+    </div>
+    <div style="flex:1;min-height:0;overflow-y:auto;padding:0 12px 12px;display:flex;flex-direction:column;gap:2px">
+      <sc-for list="{{ subjects }}" as="m" hint-placeholder-count="10">
+        <a href="Stranerd Workspace.dc.html" style="display:flex;align-items:center;gap:10px;width:100%;height:34px;padding:0 8px;border-radius:8px;font-size:13.5px;font-weight:500;color:var(--fg-2)" style-hover="background:var(--muted)">
+          <span style="width:9px;height:9px;border-radius:3px;flex-shrink:0;background:{{ m.color }}"></span>
+          <span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name }}</span>
+          <span style="font-size:11px;color:var(--muted-fg);white-space:nowrap">{{ m.system }}</span>
+        </a>
+      </sc-for>
+    </div>
+
+    <a href="Stranerd Account and Pricing.dc.html" title="Account settings" style="flex-shrink:0;border-top:1px solid var(--border);padding:12px;display:flex;align-items:center;gap:10px;color:var(--fg);text-decoration:none" style-hover="background:var(--muted)">
+      <div style="width:34px;height:34px;border-radius:50%;background:var(--primary-subtle);border:1px solid var(--primary-border);display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--primary);flex-shrink:0">AO</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Amara Okafor</div>
+        <div style="font-size:11px;color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plus · {{ balance }} credits</div>
+      </div>
+      <span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--muted-fg);flex-shrink:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </span>
+    </a>
+  </aside>
+
+  <!-- ══════════ MAIN ══════════ -->
+  <div style="flex:1;min-width:0;height:100vh;display:flex;flex-direction:column">
+
+    <!-- TOPBAR -->
+    <header style="height:60px;flex-shrink:0;position:sticky;top:0;z-index:20;background:color-mix(in srgb, var(--card) 88%, transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px">
+      <div style="display:flex;align-items:center;gap:9px;font-size:14px;min-width:0">
+        <span style="color:var(--muted-fg)">Library</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--border-strong)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <span style="font-weight:600">Generate</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:9px;height:38px;flex:1;max-width:460px;margin:0 6px;background:var(--muted);border:1px solid var(--border);border-radius:11px;padding:0 14px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted-fg)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input placeholder="Search your generations…" style="border:none;outline:none;background:transparent;flex:1;font-size:13.5px;color:var(--fg)">
+      </label>
+      <div style="display:flex;align-items:center;gap:10px">
+        <a href="Stranerd Account and Pricing.dc.html" title="Credits &amp; plan" style="display:flex;align-items:center;gap:9px;height:36px;padding:0 12px 0 11px;border-radius:999px;background:var(--ai-subtle);border:1px solid var(--ai-border)" style-hover="border-color:var(--ai)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ai)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:600;color:var(--ai)">{{ balance }}</span>
+          <span style="font-size:12px;color:var(--ai);opacity:.8">credits</span>
+        </a>
+        <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:36px;height:36px;border-radius:999px;border:1px solid var(--border);background:var(--card);display:grid;place-items:center;color:var(--fg-2);cursor:pointer" style-hover="background:var(--muted);border-color:var(--border-strong)">
+          <sc-if value="{{ isDark }}" hint-placeholder-val="{{ false }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></sc-if>
+          <sc-if value="{{ isLight }}" hint-placeholder-val="{{ true }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></sc-if>
+        </button>
+      </div>
+    </header>
+
+    <main style="flex:1;min-width:0;min-height:0;overflow-y:auto">
+      <div style="padding:34px 40px 90px;max-width:1080px;margin:0 auto">
+
+        <!-- HERO -->
+        <div style="margin-bottom:26px">
+          <div style="display:inline-flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ai);margin-bottom:12px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+            Generative studio
+          </div>
+          <h1 style="margin:0 0 8px;font-family:'DM Sans',sans-serif;font-size:34px;font-weight:600;letter-spacing:-0.03em;line-height:1.05">Library</h1>
+          <p style="margin:0;font-size:15px;line-height:1.55;color:var(--muted-fg);max-width:60ch">Turn anything into study material. Write a prompt, drop in a PDF, doc, or recording, or paste a link — Stranerd generates verified flashcards and practice tests in seconds.</p>
+        </div>
+
+        <!-- COMPOSER -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow-card);overflow:hidden;margin-bottom:44px">
+          <!-- source tabs -->
+          <div style="display:flex;align-items:center;gap:4px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--card-2)">
+            <sc-for list="{{ sourceTabs }}" as="t" hint-placeholder-count="3">
+              <button onClick="{{ t.select }}" style="{{ t.style }}" style-hover="{{ t.hover }}">
+                <span style="display:flex">{{ t.icon }}</span>
+                {{ t.label }}
+              </button>
+            </sc-for>
+          </div>
+
+          <!-- input area -->
+          <div style="padding:22px 24px 8px">
+            <!-- PROMPT -->
+            <sc-if value="{{ srcIsPrompt }}" hint-placeholder-val="{{ true }}">
+              <textarea value="{{ promptText }}" onInput="{{ onPrompt }}" placeholder="Describe what you want to study — e.g. “Second-year cardiology: the cardiac cycle, pressure–volume loops, and valve timing.”" style="width:100%;min-height:132px;resize:vertical;border:1px solid var(--border);border-radius:12px;background:var(--muted-2);padding:14px 16px;font-size:14.5px;line-height:1.6;color:var(--fg);outline:none" style-focus="border-color:var(--ai);background:var(--card)"></textarea>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+                <span style="font-size:12px;color:var(--muted-fg);align-self:center">Try:</span>
+                <sc-for list="{{ promptChips }}" as="p" hint-placeholder-count="3">
+                  <button onClick="{{ p.pick }}" style="display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--fg-2);font-size:12.5px;font-weight:500;cursor:pointer" style-hover="border-color:var(--ai);color:var(--ai)">{{ p.label }}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <!-- UPLOAD -->
+            <sc-if value="{{ srcIsUpload }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ addFile }}" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;padding:34px 20px;border:1.5px dashed var(--border-strong);border-radius:14px;background:var(--muted-2);cursor:pointer;color:var(--fg-2)" style-hover="border-color:var(--ai);background:var(--ai-subtle)">
+                <span style="width:46px;height:46px;border-radius:12px;background:var(--ai-subtle);border:1px solid var(--ai-border);display:grid;place-items:center;color:var(--ai)">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="m8 17 4-4 4 4"/><path d="M20 16.7A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg>
+                </span>
+                <span style="font-size:14px;font-weight:600;color:var(--fg)">Drag &amp; drop or <span style="color:var(--ai)">browse files</span></span>
+                <span style="font-size:12.5px;color:var(--muted-fg)">PDF, DOCX, Markdown, and audio (MP3, M4A, WAV) — up to 50&nbsp;MB each</span>
+              </button>
+              <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:12px">
+                <sc-for list="{{ formatChips }}" as="f" hint-placeholder-count="4">
+                  <span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:8px;background:var(--muted);font-size:11.5px;font-weight:600;color:var(--fg-2)">{{ f.icon }}{{ f.label }}</span>
+                </sc-for>
+              </div>
+              <sc-if value="{{ hasFiles }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+                  <sc-for list="{{ files }}" as="fl" hint-placeholder-count="1">
+                    <div style="display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--border);border-radius:11px;background:var(--card)">
+                      <span style="width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;background:{{ fl.tint }};color:{{ fl.accent }}">{{ fl.icon }}</span>
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fl.name }}</div>
+                        <div style="font-size:11.5px;color:var(--muted-fg);font-family:'IBM Plex Mono',monospace">{{ fl.size }}</div>
+                      </div>
+                      <button onClick="{{ fl.remove }}" style="width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--muted-fg);display:grid;place-items:center;cursor:pointer;flex-shrink:0" style-hover="background:var(--danger-subtle);color:var(--danger)">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </sc-if>
+
+            <!-- LINK -->
+            <sc-if value="{{ srcIsLink }}" hint-placeholder-val="{{ false }}">
+              <label style="display:flex;align-items:center;gap:11px;height:52px;border:1px solid var(--border);border-radius:12px;background:var(--muted-2);padding:0 16px" style-focus-within="border-color:var(--ai);background:var(--card)">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--muted-fg)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <input value="{{ linkText }}" onInput="{{ onLink }}" placeholder="Paste a YouTube, article, or web page URL" style="border:none;outline:none;background:transparent;flex:1;font-size:14.5px;color:var(--fg)">
+              </label>
+              <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:12px">
+                <sc-for list="{{ linkChips }}" as="l" hint-placeholder-count="3">
+                  <span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:8px;background:var(--muted);font-size:11.5px;font-weight:600;color:var(--fg-2)">{{ l.icon }}{{ l.label }}</span>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- controls -->
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:18px 24px 22px">
+            <div style="display:flex;gap:26px;flex-wrap:wrap">
+              <div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-fg);margin-bottom:8px">Create</div>
+                <div style="display:flex;gap:4px;background:var(--muted);border:1px solid var(--border);border-radius:11px;padding:4px">
+                  <button onClick="{{ setFlash }}" style="{{ flashStyle }}">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M4 8v11a1 1 0 0 0 1 1h11"/></svg>
+                    Flashcards
+                  </button>
+                  <button onClick="{{ setPractice }}" style="{{ practiceStyle }}">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    Practice test
+                  </button>
+                </div>
+              </div>
+              <div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-fg);margin-bottom:8px">{{ countLabel }}</div>
+                <div style="display:flex;gap:6px">
+                  <sc-for list="{{ countChips }}" as="c" hint-placeholder-count="4">
+                    <button onClick="{{ c.select }}" style="{{ c.style }}" style-hover="{{ c.hover }}">{{ c.n }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+              <button onClick="{{ doGenerate }}" style="{{ generateStyle }}">
+                <sc-if value="{{ generating }}" hint-placeholder-val="{{ false }}">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  Generating…
+                </sc-if>
+                <sc-if value="{{ notGenerating }}" hint-placeholder-val="{{ true }}">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+                  {{ generateLabel }}
+                  <span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:999px;background:rgba(255,255,255,.22);font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+                    {{ cost }}
+                  </span>
+                </sc-if>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECENT -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <h2 style="margin:0;font-family:'DM Sans',sans-serif;font-size:18px;font-weight:600;letter-spacing:-0.02em">Recent generations</h2>
+          <span style="flex:1;height:1px;background:var(--border)"></span>
+          <span style="font-size:12.5px;color:var(--muted-fg)">{{ recentCount }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:14px">
+          <sc-for list="{{ recent }}" as="r" hint-placeholder-count="6">
+            <div style="{{ r.cardStyle }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px">
+                <span style="display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px 0 8px;border-radius:8px;background:{{ r.srcTint }};color:{{ r.srcAccent }};font-size:11.5px;font-weight:600">{{ r.srcIcon }}{{ r.srcLabel }}</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:{{ r.outAccent }}">{{ r.outIcon }}{{ r.outLabel }}</span>
+                  <button onClick="{{ r.toggleMenu }}" title="Set options" style="width:28px;height:28px;border-radius:7px;border:none;background:transparent;color:var(--muted-fg);display:grid;place-items:center;cursor:pointer;flex-shrink:0" style-hover="background:var(--muted);color:var(--fg)">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+                  </button>
+                </div>
+              </div>
+              <sc-if value="{{ r.isRenaming }}" hint-placeholder-val="{{ false }}">
+                <input value="{{ tempName }}" onInput="{{ onRenameInput }}" onKeyDown="{{ r.renameKey }}" onBlur="{{ r.commitRename }}" autoFocus="{{ true }}" style="width:100%;margin-bottom:auto;font-family:'DM Sans',sans-serif;font-size:15.5px;font-weight:600;letter-spacing:-0.01em;line-height:1.3;border:1px solid var(--ai);border-radius:8px;background:var(--card);padding:6px 9px;outline:none;color:var(--fg)">
+              </sc-if>
+              <sc-if value="{{ r.notRenaming }}" hint-placeholder-val="{{ true }}">
+                <div style="font-family:'DM Sans',sans-serif;font-size:15.5px;font-weight:600;letter-spacing:-0.01em;line-height:1.3;margin-bottom:auto;text-wrap:pretty">{{ r.title }}</div>
+              </sc-if>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding-top:13px;border-top:1px solid var(--border)">
+                <span style="font-size:12px;color:var(--muted-fg)"><span style="font-family:'IBM Plex Mono',monospace">{{ r.count }}</span> · {{ r.time }}</span>
+                <a href="Stranerd Workspace.dc.html" style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--ai)" style-hover="gap:8px">
+                  {{ r.action }}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+              </div>
+              <sc-if value="{{ r.menuOpen }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ closeMenu }}" style="position:fixed;inset:0;z-index:40"></div>
+                <div style="position:absolute;top:44px;right:14px;z-index:50;width:190px;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-pop);padding:6px;animation:rise .14s ease both">
+                  <button onClick="{{ r.startEdit }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:none;border-radius:8px;background:transparent;cursor:pointer;text-align:left;font-size:13px;font-weight:500;color:var(--fg)" style-hover="background:var(--muted)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                    {{ r.editLabel }}
+                  </button>
+                  <button onClick="{{ r.startRename }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:none;border-radius:8px;background:transparent;cursor:pointer;text-align:left;font-size:13px;font-weight:500;color:var(--fg)" style-hover="background:var(--muted)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+                    Rename set
+                  </button>
+                  <div style="height:1px;background:var(--border);margin:5px 8px"></div>
+                  <button onClick="{{ r.requestDelete }}" style="display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:none;border-radius:8px;background:transparent;cursor:pointer;text-align:left;font-size:13px;font-weight:500;color:var(--danger)" style-hover="background:var(--danger-subtle)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
+                    Delete
+                  </button>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <sc-if value="{{ editorOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ requestCloseEditor }}" style="position:fixed;inset:0;z-index:80;background:rgba(14,21,38,.42);backdrop-filter:blur(2px);display:grid;place-items:center;padding:28px;animation:rise .16s ease both">
+      <div onClick="{{ stopProp }}" style="width:840px;max-width:100%;height:min(88vh,860px);display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-pop);overflow:hidden">
+        <header style="flex-shrink:0;display:flex;align-items:flex-start;gap:16px;padding:20px 22px;border-bottom:1px solid var(--border);background:var(--card)">
+          <span style="width:40px;height:40px;border-radius:11px;background:var(--ai-subtle);border:1px solid var(--ai-border);display:grid;place-items:center;color:var(--ai);flex-shrink:0;margin-top:2px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+          </span>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ai);margin-bottom:6px">{{ editorTitle }}</div>
+            <input value="{{ editorSet }}" onInput="{{ onEditorTitle }}" style="width:100%;font-family:'DM Sans',sans-serif;font-size:20px;font-weight:600;letter-spacing:-0.02em;border:1px solid transparent;border-radius:8px;background:transparent;padding:4px 8px;margin:-4px -8px;outline:none;color:var(--fg)" style-focus="border-color:var(--border);background:var(--muted-2)">
+          </div>
+          <button onClick="{{ requestCloseEditor }}" title="Close" style="width:36px;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--fg-2);display:grid;place-items:center;cursor:pointer;flex-shrink:0" style-hover="background:var(--muted);border-color:var(--border-strong)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </header>
+
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+          <sc-for list="{{ editCards }}" as="c" hint-placeholder-count="4">
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:15px;padding:16px 17px;box-shadow:var(--shadow-card)">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px">
+                <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:22px;padding:0 8px;border-radius:6px;background:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;color:var(--muted-fg)">{{ c.index }}</span>
+                <button onClick="{{ c.del }}" title="Delete" style="width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--muted-fg);display:grid;place-items:center;cursor:pointer" style-hover="background:var(--danger-subtle);color:var(--danger)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
+                </button>
+              </div>
+              <sc-if value="{{ c.isFlash }}" hint-placeholder-val="{{ true }}">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:13px">
+                  <div>
+                    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-fg);margin-bottom:7px">Front</div>
+                    <textarea value="{{ c.front }}" onInput="{{ c.onFront }}" style="width:100%;min-height:84px;resize:vertical;border:1px solid var(--border);border-radius:10px;background:var(--muted-2);padding:11px 12px;font-size:13.5px;line-height:1.5;color:var(--fg);outline:none" style-focus="border-color:var(--ai);background:var(--card)"></textarea>
+                  </div>
+                  <div>
+                    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-fg);margin-bottom:7px">Back</div>
+                    <textarea value="{{ c.back }}" onInput="{{ c.onBack }}" style="width:100%;min-height:84px;resize:vertical;border:1px solid var(--border);border-radius:10px;background:var(--muted-2);padding:11px 12px;font-size:13.5px;line-height:1.5;color:var(--fg);outline:none" style-focus="border-color:var(--ai);background:var(--card)"></textarea>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ c.isPractice }}" hint-placeholder-val="{{ false }}">
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-fg);margin-bottom:7px">Question</div>
+                <textarea value="{{ c.stem }}" onInput="{{ c.onStem }}" style="width:100%;min-height:56px;resize:vertical;border:1px solid var(--border);border-radius:10px;background:var(--muted-2);padding:11px 12px;font-size:14px;line-height:1.5;color:var(--fg);outline:none;margin-bottom:12px" style-focus="border-color:var(--ai);background:var(--card)"></textarea>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <sc-for list="{{ c.options }}" as="o" hint-placeholder-count="4">
+                    <label style="{{ o.rowStyle }}">
+                      <span onClick="{{ o.pick }}" style="{{ o.radioStyle }}">
+                        <sc-if value="{{ o.checked }}" hint-placeholder-val="{{ false }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></sc-if>
+                      </span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--muted-fg);width:12px;flex-shrink:0">{{ o.letter }}</span>
+                      <input value="{{ o.text }}" onInput="{{ o.onInput }}" style="flex:1;border:none;outline:none;background:transparent;font-size:13.5px;color:var(--fg)">
+                    </label>
+                  </sc-for>
+                  <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted-fg);margin-top:2px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    Tap the circle to mark the correct answer
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <footer style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 22px;border-top:1px solid var(--border);background:var(--card)">
+          <span style="font-size:13px;color:var(--muted-fg)"><span style="font-family:'IBM Plex Mono',monospace">{{ editCountLabel }}</span></span>
+          <div style="display:flex;gap:10px">
+            <button onClick="{{ requestCloseEditor }}" style="height:44px;padding:0 20px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--fg);font-size:14px;font-weight:600;cursor:pointer" style-hover="background:var(--muted)">Cancel</button>
+            <button onClick="{{ saveEditor }}" style="display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 22px;border-radius:12px;border:none;background:var(--ai);color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 20px -8px var(--ai)" style-hover="background:var(--ai-hover)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+              Save changes
+            </button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- DISCARD CONFIRM -->
+  <sc-if value="{{ discardOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ cancelDiscard }}" style="position:fixed;inset:0;z-index:100;background:rgba(14,21,38,.42);backdrop-filter:blur(2px);display:grid;place-items:center;padding:24px;animation:rise .16s ease both">
+      <div onClick="{{ stopProp }}" style="width:400px;max-width:100%;background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow-pop);padding:26px 26px 22px">
+        <div style="width:46px;height:46px;border-radius:12px;background:var(--warning-subtle);display:grid;place-items:center;color:var(--warning);margin-bottom:16px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        </div>
+        <h3 style="margin:0 0 8px;font-family:'DM Sans',sans-serif;font-size:19px;font-weight:600;letter-spacing:-0.02em">Discard changes?</h3>
+        <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:var(--muted-fg)">You have unsaved edits to this set. Leaving now will discard them.</p>
+        <div style="display:flex;justify-content:flex-end;gap:10px">
+          <button onClick="{{ cancelDiscard }}" style="height:42px;padding:0 18px;border-radius:11px;border:1px solid var(--border);background:var(--card);color:var(--fg);font-size:14px;font-weight:600;cursor:pointer" style-hover="background:var(--muted)">Keep editing</button>
+          <button onClick="{{ confirmDiscard }}" style="height:42px;padding:0 18px;border-radius:11px;border:none;background:var(--danger);color:#fff;font-size:14px;font-weight:600;cursor:pointer" style-hover="filter:brightness(1.06)">Discard</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- DELETE CONFIRM -->
+  <sc-if value="{{ confirmOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ cancelDelete }}" style="position:fixed;inset:0;z-index:90;background:rgba(14,21,38,.42);backdrop-filter:blur(2px);display:grid;place-items:center;padding:24px;animation:rise .16s ease both">
+      <div onClick="{{ stopProp }}" style="width:400px;max-width:100%;background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow-pop);padding:26px 26px 22px">
+        <div style="width:46px;height:46px;border-radius:12px;background:var(--danger-subtle);display:grid;place-items:center;color:var(--danger);margin-bottom:16px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
+        </div>
+        <h3 style="margin:0 0 8px;font-family:'DM Sans',sans-serif;font-size:19px;font-weight:600;letter-spacing:-0.02em">Delete this set?</h3>
+        <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:var(--muted-fg)">“<strong style="color:var(--fg);font-weight:600">{{ confirmTitle }}</strong>” and all its cards will be permanently removed. This can’t be undone.</p>
+        <div style="display:flex;justify-content:flex-end;gap:10px">
+          <button onClick="{{ cancelDelete }}" style="height:42px;padding:0 18px;border-radius:11px;border:1px solid var(--border);background:var(--card);color:var(--fg);font-size:14px;font-weight:600;cursor:pointer" style-hover="background:var(--muted)">Cancel</button>
+          <button onClick="{{ confirmDelete }}" style="height:42px;padding:0 18px;border-radius:11px;border:none;background:var(--danger);color:#fff;font-size:14px;font-weight:600;cursor:pointer" style-hover="filter:brightness(1.06)">Delete set</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    theme: 'light', source: 'prompt', output: 'flashcards',
+    countFlash: 15, countPractice: 20,
+    promptText: '', linkText: '', files: [], generating: false, balance: 118,
+    openMenu: null, renamingId: null, tempName: '', confirmId: null,
+    editing: null, dirty: false, confirmClose: false,
+    recent: [
+      { id: 1, title: 'Krebs cycle — enzymes & key intermediates', output: 'flashcards', src: 'pdf', srcLabel: 'Biochem_L4.pdf', count: 15, time: '2h ago' },
+      { id: 2, title: 'The cardiac cycle & valve timing', output: 'practice', src: 'prompt', srcLabel: 'Prompt', count: 20, time: 'Yesterday' },
+      { id: 3, title: 'Renal physiology — filtration & the nephron', output: 'flashcards', src: 'youtube', srcLabel: 'YouTube', count: 20, time: '2 days ago' },
+      { id: 4, title: 'Autonomic pharmacology — receptors & agonists', output: 'flashcards', src: 'doc', srcLabel: 'notes.docx', count: 15, time: '3 days ago' },
+      { id: 5, title: 'Cranial nerves & functional deficits', output: 'practice', src: 'audio', srcLabel: 'lecture.m4a', count: 30, time: '5 days ago' },
+      { id: 6, title: 'Acid–base balance fundamentals', output: 'flashcards', src: 'md', srcLabel: 'summary.md', count: 15, time: 'Last week' },
+    ],
+  };
+
+  setTheme(t) { this.setState({ theme: t }); document.documentElement.setAttribute('data-theme', t); }
+  componentDidMount() { document.documentElement.setAttribute('data-theme', this.state.theme); }
+
+  svg(paths, o) {
+    o = o || {};
+    return React.createElement('svg', { width: o.w || 15, height: o.w || 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: o.sw || 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' },
+      paths.map((d, i) => React.createElement('path', { key: i, d })));
+  }
+  srcIcon(type) {
+    const map = {
+      prompt: [['M12 20h9', 'M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z']],
+      pdf: [['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z', 'M14 2v5h5', 'M9 13h6', 'M9 17h6']],
+      doc: [['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z', 'M14 2v5h5', 'M9 15h6']],
+      md: [['M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z', 'M7 15V9l3 3 3-3v6', 'M17 9v6', 'M15 13l2 2 2-2']],
+      audio: [['M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z', 'M19 10v2a7 7 0 0 1-14 0v-2', 'M12 19v3']],
+      youtube: [['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z'], ['m10 8 6 4-6 4z']],
+      link: [['M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71', 'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71']],
+    };
+    const groups = map[type] || map.prompt;
+    return this.svg(groups.flat(), { w: 14 });
+  }
+  srcMeta(type) {
+    return {
+      prompt: { tint: 'var(--ai-subtle)', accent: 'var(--ai)' },
+      pdf: { tint: 'var(--danger-subtle)', accent: 'var(--danger)' },
+      doc: { tint: 'var(--primary-subtle)', accent: 'var(--primary)' },
+      md: { tint: 'var(--muted)', accent: 'var(--fg-2)' },
+      audio: { tint: 'var(--ai-subtle)', accent: 'var(--ai)' },
+      youtube: { tint: 'var(--danger-subtle)', accent: 'var(--danger)' },
+      link: { tint: 'var(--success-subtle)', accent: 'var(--success)' },
+    }[type] || { tint: 'var(--muted)', accent: 'var(--fg-2)' };
+  }
+
+  genCards(output, count) {
+    const FLASH = [
+      { f: 'Which chamber of the heart has the thickest myocardial wall?', b: 'The left ventricle — it generates the pressure needed to drive systemic circulation.' },
+      { f: 'How is cardiac output calculated?', b: 'Cardiac output = heart rate × stroke volume.' },
+      { f: 'When are the coronary arteries mainly perfused?', b: 'During diastole, when the myocardium is relaxed and the aortic valve is closed.' },
+      { f: 'What is the correct order of the heart valves, front to back?', b: 'Aortic, Pulmonary, Tricuspid, Mitral — “APE To Man.”' },
+      { f: 'What produces the first heart sound (S1)?', b: 'Closure of the atrioventricular (mitral and tricuspid) valves at the start of systole.' },
+      { f: 'Define preload.', b: 'The degree of ventricular stretch at the end of diastole, related to end-diastolic volume.' },
+      { f: 'Define afterload.', b: 'The resistance the ventricle must overcome to eject blood during systole.' },
+      { f: 'What is stroke volume?', b: 'The volume ejected by a ventricle in one contraction (EDV − ESV).' },
+    ];
+    const QN = [
+      { s: 'Which chamber of the heart has the thickest wall?', o: ['Right atrium', 'Left atrium', 'Right ventricle', 'Left ventricle'], c: 3 },
+      { s: 'Cardiac output is calculated as:', o: ['HR + SV', 'HR × SV', 'SV ÷ HR', 'HR − SV'], c: 1 },
+      { s: 'Coronary perfusion occurs mainly during:', o: ['Systole', 'Diastole', 'Isovolumetric contraction', 'Atrial systole'], c: 1 },
+      { s: 'The first heart sound (S1) is caused by closure of the:', o: ['Aortic and pulmonary valves', 'Mitral and tricuspid valves', 'Pulmonary valve only', 'Aortic valve only'], c: 1 },
+      { s: 'Preload is best described as:', o: ['Resistance to ejection', 'End-diastolic ventricular stretch', 'Heart rate variability', 'Coronary blood flow'], c: 1 },
+      { s: 'Stroke volume equals:', o: ['EDV + ESV', 'EDV − ESV', 'ESV − EDV', 'EDV × ESV'], c: 1 },
+    ];
+    if (output === 'flashcards') {
+      const n = Math.max(3, Math.min(count, FLASH.length));
+      return FLASH.slice(0, n).map((c, i) => ({ id: i + 1, front: c.f, back: c.b }));
+    }
+    const n = Math.max(3, Math.min(count, QN.length));
+    return QN.slice(0, n).map((c, i) => ({ id: i + 1, stem: c.s, options: [...c.o], correct: c.c }));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const patchCards = (mapper) => this.setState((st) => ({ dirty: true, editing: { ...st.editing, cards: st.editing.cards.map(mapper) } }));
+    const ed = s.editing;
+    const editCards = !ed ? [] : ed.cards.map((c, i) => ({
+      id: c.id, index: i + 1,
+      isFlash: ed.output === 'flashcards', isPractice: ed.output === 'practice',
+      front: c.front, back: c.back, stem: c.stem,
+      onFront: (e) => patchCards((x) => (x.id === c.id ? { ...x, front: e.target.value } : x)),
+      onBack: (e) => patchCards((x) => (x.id === c.id ? { ...x, back: e.target.value } : x)),
+      onStem: (e) => patchCards((x) => (x.id === c.id ? { ...x, stem: e.target.value } : x)),
+      del: () => this.setState((st) => ({ dirty: true, editing: { ...st.editing, cards: st.editing.cards.filter((x) => x.id !== c.id) } })),
+      options: (c.options || []).map((o, oi) => ({
+        text: o, checked: c.correct === oi, letter: String.fromCharCode(65 + oi),
+        onInput: (e) => patchCards((x) => (x.id === c.id ? { ...x, options: x.options.map((v, vi) => (vi === oi ? e.target.value : v)) } : x)),
+        pick: () => patchCards((x) => (x.id === c.id ? { ...x, correct: oi } : x)),
+        rowStyle: 'display:flex;align-items:center;gap:11px;height:44px;padding:0 13px 0 11px;border-radius:11px;cursor:text;' + (c.correct === oi ? 'border:1px solid var(--success);background:var(--success-subtle)' : 'border:1px solid var(--border);background:var(--card)'),
+        radioStyle: 'width:20px;height:20px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;cursor:pointer;' + (c.correct === oi ? 'border:2px solid var(--success);background:var(--success)' : 'border:2px solid var(--border-strong);background:transparent'),
+      })),
+    }));
+    const count = s.output === 'flashcards' ? s.countFlash : s.countPractice;
+    const cost = s.output === 'flashcards' ? 5 : 8;
+
+    const tabHover = 'background:var(--card);color:var(--fg)';
+    const tab = (id, label, icon) => {
+      const on = s.source === id;
+      return {
+        label, icon,
+        select: () => this.setState({ source: id }),
+        style: 'display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 15px;border-radius:9px;border:none;cursor:pointer;font-size:13.5px;font-weight:600;' + (on ? 'background:var(--card);color:var(--ai);box-shadow:var(--shadow-card)' : 'background:transparent;color:var(--muted-fg)'),
+        hover: on ? '' : tabHover,
+      };
+    };
+
+    const chip = (n) => {
+      const on = count === n;
+      const key = s.output === 'flashcards' ? 'countFlash' : 'countPractice';
+      return {
+        n,
+        select: () => this.setState({ [key]: n }),
+        style: 'min-width:44px;height:38px;padding:0 10px;border-radius:10px;cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:600;' + (on ? 'border:1px solid var(--ai);background:var(--ai-subtle);color:var(--ai)' : 'border:1px solid var(--border);background:var(--card);color:var(--fg-2)'),
+        hover: on ? '' : 'border-color:var(--border-strong)',
+      };
+    };
+    const presets = s.output === 'flashcards' ? [10, 15, 20, 30] : [10, 20, 30, 40];
+
+    const hasInput = s.source === 'prompt' ? s.promptText.trim().length > 0
+      : s.source === 'upload' ? s.files.length > 0
+      : s.linkText.trim().length > 0;
+    const canGen = hasInput && !s.generating;
+
+    const files = s.files.map((f) => {
+      const m = this.srcMeta(f.src);
+      return { name: f.name, size: f.size, tint: m.tint, accent: m.accent, icon: this.srcIcon(f.src), remove: () => this.setState({ files: this.state.files.filter((x) => x.id !== f.id) }) };
+    });
+
+    const commitRename = (id) => {
+      const nm = this.state.tempName.trim();
+      this.setState((st) => ({ recent: st.recent.map((x) => (x.id === id ? { ...x, title: nm || x.title } : x)), renamingId: null }));
+    };
+    const recent = s.recent.map((r) => {
+      const m = this.srcMeta(r.src);
+      const isFlash = r.output === 'flashcards';
+      return {
+        title: r.title,
+        cardStyle: 'display:flex;flex-direction:column;min-height:172px;position:relative;background:var(--card);border:1px solid var(--border);border-radius:15px;padding:16px 17px;box-shadow:var(--shadow-card);animation:rise .3s ease both',
+        menuOpen: s.openMenu === r.id,
+        toggleMenu: (e) => { e.stopPropagation(); this.setState((st) => ({ openMenu: st.openMenu === r.id ? null : r.id })); },
+        editLabel: isFlash ? 'Edit cards' : 'Edit questions',
+        startRename: () => this.setState({ renamingId: r.id, tempName: r.title, openMenu: null }),
+        isRenaming: s.renamingId === r.id, notRenaming: s.renamingId !== r.id,
+        commitRename: () => commitRename(r.id),
+        renameKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); commitRename(r.id); } else if (e.key === 'Escape') this.setState({ renamingId: null }); },
+        requestDelete: () => this.setState({ confirmId: r.id, openMenu: null }),
+        startEdit: () => {
+          const ex = this.state.recent.find((x) => x.id === r.id);
+          const cards = ex && ex.cards ? ex.cards : this.genCards(r.output, r.count);
+          this.setState({ editing: { id: r.id, title: r.title, output: r.output, cards }, dirty: false, openMenu: null });
+        },
+        srcTint: m.tint, srcAccent: m.accent, srcIcon: this.srcIcon(r.src), srcLabel: r.srcLabel,
+        outAccent: isFlash ? 'var(--primary)' : 'var(--success)',
+        outIcon: this.svg(isFlash ? ['M8 4h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z', 'M4 8v11a1 1 0 0 0 1 1h11'] : ['M9 11l3 3L22 4', 'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'], { w: 13 }),
+        outLabel: isFlash ? 'Flashcards' : 'Practice',
+        count: isFlash ? r.count + ' cards' : r.count + ' questions',
+        time: r.time,
+        action: isFlash ? 'Study' : 'Take test',
+      };
+    });
+
+    const subjects = [
+      { name: 'Heart', system: 'Cardiovascular', color: '#E5484D' },
+      { name: 'Brain', system: 'Nervous', color: '#4361E8' },
+      { name: 'Lungs', system: 'Respiratory', color: '#0E93BC' },
+      { name: 'Kidney', system: 'Urinary', color: '#D98A20' },
+      { name: 'Eye', system: 'Sensory', color: '#109684' },
+      { name: 'Liver', system: 'Digestive', color: '#A56A28' },
+      { name: 'Nervous System', system: 'Nervous', color: '#3865E8' },
+      { name: 'Skin', system: 'Integumentary', color: '#C97852' },
+      { name: 'Human Anatomy', system: 'Whole Body', color: '#566A82' },
+      { name: 'Digestive System', system: 'Digestive', color: '#279A5E' },
+    ];
+
+    const genLabel = s.output === 'flashcards' ? 'Generate flashcards' : 'Generate test';
+
+    return {
+      isDark: s.theme === 'dark', isLight: s.theme === 'light',
+      toggleTheme: () => this.setTheme(s.theme === 'dark' ? 'light' : 'dark'),
+      balance: s.balance, subjects,
+
+      sourceTabs: [
+        tab('prompt', 'Prompt', this.srcIcon('prompt')),
+        tab('upload', 'Upload', this.svg(['M12 13v8', 'm8 17 4-4 4 4', 'M20 16.7A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25'], { w: 15 })),
+        tab('link', 'Link', this.srcIcon('link')),
+      ],
+      srcIsPrompt: s.source === 'prompt', srcIsUpload: s.source === 'upload', srcIsLink: s.source === 'link',
+
+      promptText: s.promptText,
+      onPrompt: (e) => this.setState({ promptText: e.target.value }),
+      promptChips: [
+        { label: 'The cardiac cycle', pick: () => this.setState({ promptText: 'Explain the cardiac cycle, including systole, diastole, and valve timing, for a second-year medical student.' }) },
+        { label: 'Cranial nerves', pick: () => this.setState({ promptText: 'The twelve cranial nerves — names, functions, and clinical tests.' }) },
+        { label: 'Acid–base balance', pick: () => this.setState({ promptText: 'Acid–base balance: respiratory vs metabolic acidosis and alkalosis, with compensation.' }) },
+      ],
+
+      linkText: s.linkText,
+      onLink: (e) => this.setState({ linkText: e.target.value }),
+      linkChips: [
+        { icon: this.srcIcon('youtube'), label: 'YouTube' },
+        { icon: this.srcIcon('link'), label: 'Articles' },
+        { icon: this.srcIcon('link'), label: 'Web pages' },
+      ],
+
+      formatChips: [
+        { icon: this.srcIcon('pdf'), label: 'PDF' },
+        { icon: this.srcIcon('doc'), label: 'DOCX' },
+        { icon: this.srcIcon('md'), label: 'Markdown' },
+        { icon: this.srcIcon('audio'), label: 'Audio' },
+      ],
+      files, hasFiles: files.length > 0,
+      addFile: () => {
+        const samples = [
+          { src: 'pdf', name: 'Lecture_notes.pdf', size: '2.4 MB' },
+          { src: 'doc', name: 'Study_guide.docx', size: '840 KB' },
+          { src: 'audio', name: 'Recording.m4a', size: '18.2 MB' },
+          { src: 'md', name: 'Summary.md', size: '32 KB' },
+        ];
+        const f = samples[this.state.files.length % samples.length];
+        this.setState({ files: [...this.state.files, { id: Date.now(), ...f }] });
+      },
+
+      output: s.output,
+      setFlash: () => this.setState({ output: 'flashcards' }),
+      setPractice: () => this.setState({ output: 'practice' }),
+      flashStyle: 'display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;border-radius:9px;border:none;cursor:pointer;font-size:13.5px;font-weight:600;' + (s.output === 'flashcards' ? 'background:var(--card);color:var(--ai);box-shadow:var(--shadow-card)' : 'background:transparent;color:var(--muted-fg)'),
+      practiceStyle: 'display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;border-radius:9px;border:none;cursor:pointer;font-size:13.5px;font-weight:600;' + (s.output === 'practice' ? 'background:var(--card);color:var(--ai);box-shadow:var(--shadow-card)' : 'background:transparent;color:var(--muted-fg)'),
+
+      countLabel: s.output === 'flashcards' ? 'Cards' : 'Questions',
+      countChips: presets.map(chip),
+
+      cost, generating: s.generating, notGenerating: !s.generating,
+      generateLabel: genLabel,
+      generateStyle: 'display:inline-flex;align-items:center;justify-content:center;gap:9px;height:46px;padding:0 24px;border-radius:12px;border:none;font-size:14.5px;font-weight:600;' + (canGen ? 'background:var(--ai);color:#fff;cursor:pointer;box-shadow:0 8px 20px -8px var(--ai)' : 'background:var(--muted);color:var(--muted-fg);cursor:not-allowed'),
+      doGenerate: () => {
+        if (!canGen) return;
+        this.setState({ generating: true });
+        const src = s.source === 'prompt' ? 'prompt' : s.source === 'link' ? 'youtube' : (this.state.files[0] ? this.state.files[0].src : 'pdf');
+        const srcLabel = s.source === 'prompt' ? 'Prompt' : s.source === 'link' ? 'YouTube' : (this.state.files[0] ? this.state.files[0].name : 'Upload');
+        const out = s.output, n = count, c = cost;
+        const titleBase = s.source === 'prompt'
+          ? (s.promptText.trim().split(/[.\n]/)[0].slice(0, 54) || 'Custom set')
+          : s.source === 'link' ? 'Set from linked source' : (this.state.files[0] ? this.state.files[0].name.replace(/\.[^.]+$/, '') : 'Custom set');
+        setTimeout(() => {
+          this.setState((st) => ({
+            generating: false,
+            balance: Math.max(0, st.balance - c),
+            recent: [{ id: Date.now(), title: titleBase, output: out, src, srcLabel, count: n, time: 'Just now' }, ...st.recent],
+            promptText: '', linkText: '', files: [],
+          }));
+        }, 1500);
+      },
+
+      recent, recentCount: s.recent.length + ' sets',
+      closeMenu: () => this.setState({ openMenu: null }),
+      tempName: s.tempName,
+      onRenameInput: (e) => this.setState({ tempName: e.target.value }),
+      confirmOpen: !!s.confirmId,
+      confirmTitle: (s.recent.find((x) => x.id === s.confirmId) || {}).title || '',
+      cancelDelete: () => this.setState({ confirmId: null }),
+      confirmDelete: () => this.setState((st) => ({ recent: st.recent.filter((x) => x.id !== st.confirmId), confirmId: null })),
+      stopProp: (e) => e.stopPropagation(),
+
+      editorOpen: !!ed,
+      editorTitle: ed ? (ed.output === 'flashcards' ? 'Edit flashcards' : 'Edit questions') : '',
+      editorSet: ed ? ed.title : '',
+      onEditorTitle: (e) => this.setState((st) => ({ dirty: true, editing: { ...st.editing, title: e.target.value } })),
+      editCards,
+      editCountLabel: ed ? (ed.cards.length + (ed.output === 'flashcards' ? ' cards' : ' questions')) : '',
+      requestCloseEditor: () => { if (this.state.dirty) this.setState({ confirmClose: true }); else this.setState({ editing: null }); },
+      saveEditor: () => this.setState((st) => ({
+        recent: st.recent.map((x) => (x.id === st.editing.id ? { ...x, title: st.editing.title, cards: st.editing.cards, count: st.editing.cards.length } : x)),
+        editing: null, dirty: false, confirmClose: false,
+      })),
+      discardOpen: s.confirmClose,
+      cancelDiscard: () => this.setState({ confirmClose: false }),
+      confirmDiscard: () => this.setState({ editing: null, dirty: false, confirmClose: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>

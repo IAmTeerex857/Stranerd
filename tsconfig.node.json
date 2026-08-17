@@ -9,5 +9,5 @@
     "strict": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "eslint.config.js", "server", "api", "shared", "src/lib/voiceActions.ts"]
+  "include": ["vite.config.ts", "trigger.config.ts", "eslint.config.js", "server", "api", "shared", "trigger", "src/lib/voiceActions.ts", "src/data/activities.ts", "src/data/dissection.ts", "src/data/quizzes.ts", "src/data/flashcards.ts", "src/data/models.ts", "src/types.ts"]
 }

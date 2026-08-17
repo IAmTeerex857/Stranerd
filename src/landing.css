@@ -1726,9 +1726,9 @@
 
 .public-footer {
   display: grid;
-  grid-template-columns: 1.5fr 0.55fr 0.55fr;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(90px, 0.55fr));
   align-items: start;
-  gap: 50px;
+  gap: clamp(24px, 4vw, 50px);
   width: min(1280px, calc(100% - 40px));
   min-height: 320px;
   padding: 60px 0 25px;
@@ -2291,7 +2291,7 @@
   }
 
   .public-footer {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 40px 20px;
     width: calc(100% - 28px);
     min-height: 420px;

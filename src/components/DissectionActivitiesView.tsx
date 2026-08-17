@@ -1,18 +1,19 @@
 import { ArrowLeft, ArrowRight, Check, CircleDot, FlaskConical } from 'lucide-react'
-import { anatomyActivities, type AnatomyActivity } from '../data/activities'
+import { labActivityCatalog } from '../data/activityCatalog'
+import type { LabActivity } from '../lib/labActivities'
 import { modelById } from '../data/models'
-import { digestiveDissectionQuiz } from '../data/dissection'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
 type Props = {
   mode: 'catalog' | 'guided'
-  activeActivityId?: string
-  onGuided: (activity: AnatomyActivity) => void
+  activeActivity?: LabActivity
+  onGuided: (activityId: string) => void
   onCatalog: () => void
   guidedStep: number | null
   quizChoice?: number
   quizPassed?: boolean
+  quizExplanation?: string
   onStartGuide: () => void
   onQuizChoice: (choice: number) => void
   onQuizCheck: () => void
@@ -32,8 +33,7 @@ const activityAccents: Record<string, 'green' | 'red' | 'amber' | 'terracotta'> 
   'whole-body-systems': 'red',
 }
 
-export function DissectionActivitiesView({ mode, activeActivityId, onGuided, onCatalog, guidedStep, quizChoice, quizPassed, onStartGuide, onQuizChoice, onQuizCheck, onStepContinue }: Props) {
-  const active = anatomyActivities.find((activity) => activity.id === activeActivityId)
+export function DissectionActivitiesView({ mode, activeActivity: active, onGuided, onCatalog, guidedStep, quizChoice, quizPassed, quizExplanation, onStartGuide, onQuizChoice, onQuizCheck, onStepContinue }: Props) {
 
   if (mode === 'guided' && active) {
     const guideComplete = guidedStep === active.steps.length
@@ -57,18 +57,18 @@ export function DissectionActivitiesView({ mode, activeActivityId, onGuided, onC
       <section className={`activity-runner ${guideComplete ? 'complete' : ''}`}>
         {guidedStep === null && <><span>Lab briefing · {modelById(active.modelId).name}</span><h2>Work checkpoint by checkpoint.</h2><p>{active.description}</p><Button onClick={onStartGuide}>Begin Lab<ArrowRight size={15} /></Button></>}
         {currentStep?.kind === 'action' && <><span>Model action · step {guidedStep! + 1} of {active.steps.length}</span><h2>{currentStep.prompt}</h2><div className="lab-action-status"><CircleDot size={15} /><p>Waiting for the exact action and structure in the 3D viewer.</p></div></>}
-        {currentStep?.kind === 'question' && <><span>Knowledge check · step {guidedStep! + 1} of {active.steps.length}</span><h2>{currentStep.question}</h2><fieldset>{currentStep.options.map((option, index) => <label key={option}><input type="radio" name={`activity-step-${guidedStep}`} checked={quizChoice === index} onChange={() => onQuizChoice(index)} /><i>{String.fromCharCode(65 + index)}</i>{option}</label>)}</fieldset>{quizPassed === undefined ? <Button disabled={quizChoice === undefined} onClick={onQuizCheck}>Check answer</Button> : <><div className={`activity-feedback ${quizPassed ? 'pass' : 'fail'}`}><strong>{quizPassed ? 'Correct' : 'Not quite'}</strong><p>{currentStep.explanation}</p></div>{quizPassed && <Button onClick={onStepContinue}>Continue<ArrowRight size={15} /></Button>}</>}</>}
-        {guideComplete && active.modelId === 'digestive-system' && <><span>Sequence complete</span><h2>Pathway check</h2><p>{digestiveDissectionQuiz.question}</p><fieldset>{digestiveDissectionQuiz.options.map((option, index) => <label key={option}><input type="radio" name="activity-quiz" checked={quizChoice === index} onChange={() => onQuizChoice(index)} /><i>{String.fromCharCode(65 + index)}</i>{option}</label>)}</fieldset><button className="primary" disabled={quizChoice === undefined} onClick={onQuizCheck}>Check answer</button>{quizPassed !== undefined && <div className={`activity-feedback ${quizPassed ? 'pass' : 'fail'}`}><strong>{quizPassed ? 'Correct' : 'Not quite'}</strong><p>{digestiveDissectionQuiz.explanation}</p></div>}</>}
-        {guideComplete && active.modelId !== 'digestive-system' && <><span>Lab complete</span><h2>Learning sequence completed</h2><p>You identified anatomy, answered the knowledge checks, and completed the model interactions.</p></>}
+        {currentStep?.kind === 'question' && <><span>Knowledge check · step {guidedStep! + 1} of {active.steps.length}</span><h2>{currentStep.question}</h2><fieldset>{currentStep.options.map((option, index) => <label key={option}><input type="radio" name={`activity-step-${guidedStep}`} checked={quizChoice === index} onChange={() => onQuizChoice(index)} /><i>{String.fromCharCode(65 + index)}</i>{option}</label>)}</fieldset>{quizPassed === undefined ? <Button disabled={quizChoice === undefined} onClick={onQuizCheck}>Check answer</Button> : <><div className={`activity-feedback ${quizPassed ? 'pass' : 'fail'}`}><strong>{quizPassed ? 'Correct' : 'Not quite'}</strong><p>{quizExplanation}</p></div>{quizPassed && <Button onClick={onStepContinue}>Continue<ArrowRight size={15} /></Button>}</>}</>}
+        {guideComplete && active.finalQuestion && <><span>Sequence complete</span><h2>Pathway check</h2><p>{active.finalQuestion.question}</p><fieldset>{active.finalQuestion.options.map((option, index) => <label key={option}><input type="radio" name="activity-quiz" checked={quizChoice === index} onChange={() => onQuizChoice(index)} /><i>{String.fromCharCode(65 + index)}</i>{option}</label>)}</fieldset><button className="primary" disabled={quizChoice === undefined} onClick={onQuizCheck}>Check answer</button>{quizPassed !== undefined && <div className={`activity-feedback ${quizPassed ? 'pass' : 'fail'}`}><strong>{quizPassed ? 'Correct' : 'Not quite'}</strong><p>{quizExplanation}</p></div>}</>}
+        {guideComplete && !active.finalQuestion && <><span>Lab complete</span><h2>Learning sequence completed</h2><p>You identified anatomy, answered the knowledge checks, and completed the model interactions.</p></>}
       </section>
     </section>
   }
 
   return <section className="content-view dissection-activity-view lab-catalog-view anim">
     <div className="lab-catalog-hero"><div><span>Guided dissection</span><h1>Lab</h1><p>Step-by-step activities that combine structure identification, model manipulation and deterministic knowledge checks. Nerd Bot explains results, it never decides them.</p></div></div>
-    <div className="activity-catalog">{anatomyActivities.map((activity) => {
+    <div className="activity-catalog">{labActivityCatalog.map((activity) => {
       const model = modelById(activity.modelId)
-      return <Card key={activity.id} data-accent={activityAccents[activity.id]}><header><i><FlaskConical size={19} /></i><span>{activity.steps.length} checkpoints</span></header><div><small>{model.name}</small><h2>{activity.title}</h2><p>{activity.description}</p></div><Button onClick={() => onGuided(activity)}>Start Lab<ArrowRight size={14} /></Button></Card>
+      return <Card key={activity.id} data-accent={activityAccents[activity.id]}><header><i><FlaskConical size={19} /></i><span>{activity.checkpointCount} checkpoints</span></header><div><small>{model.name}</small><h2>{activity.title}</h2><p>{activity.description}</p></div><Button onClick={() => onGuided(activity.id)}>Start Lab<ArrowRight size={14} /></Button></Card>
     })}</div>
   </section>
 }

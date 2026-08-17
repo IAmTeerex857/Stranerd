@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="page">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F7FC; --card:#FFFFFF; --card-2:#FBFCFE; --muted:#EDF1F8; --muted-2:#F4F7FC;
+  --border:#E4E9F2; --border-strong:#D5DDEA;
+  --fg:#0E1526; --fg-2:#3A4457; --muted-fg:#5C6880;
+  --primary:#2E64F0; --primary-hover:#2352DA; --primary-fg:#FFFFFF; --primary-subtle:#EAF0FE; --primary-border:#CBDAFB;
+  --ai:#6D3BE8; --ai-hover:#5A2CCB; --ai-subtle:#F2ECFE; --ai-border:#E1D3FB;
+  --success:#0E9F6E; --success-subtle:#E7F7F0;
+  --warning:#C77706; --warning-subtle:#FCF3E4;
+  --danger:#DC2626; --danger-subtle:#FDECEC;
+  --shadow-card:0 1px 2px rgba(14,21,38,.06);
+  --shadow-pop:0 16px 40px -16px rgba(14,21,38,.28);
+  --shadow-sheet:0 -12px 40px -12px rgba(14,21,38,.30);
+}
+[data-theme="dark"]{
+  --bg:#0A0D13; --card:#12161F; --card-2:#0F131B; --muted:#171C27; --muted-2:#131822;
+  --border:#242B39; --border-strong:#313A4B;
+  --fg:#F2F5FA; --fg-2:#C4CDDC; --muted-fg:#93A0B4;
+  --primary:#5B8CFF; --primary-hover:#79A2FF; --primary-fg:#0A1223; --primary-subtle:#152140; --primary-border:#2B3D66;
+  --ai:#9A79FF; --ai-hover:#B198FF; --ai-subtle:#201A3A; --ai-border:#392E62;
+  --success:#34D399; --success-subtle:#0F2A21;
+  --warning:#FBBF24; --warning-subtle:#2E2410;
+  --danger:#F87171; --danger-subtle:#361B1B;
+  --shadow-card:0 1px 2px rgba(0,0,0,.45);
+  --shadow-pop:0 18px 44px -18px rgba(0,0,0,.72);
+  --shadow-sheet:0 -14px 44px -12px rgba(0,0,0,.72);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);-webkit-font-smoothing:antialiased;font-family:'Inter',system-ui,sans-serif}
+a{color:var(--primary);text-decoration:none}
+a:hover{color:var(--primary-hover)}
+::selection{background:var(--primary-subtle);color:var(--fg)}
+mark{background:color-mix(in srgb,var(--primary) 26%, transparent);color:inherit;border-radius:3px;padding:1px 3px}
+input,button,textarea{font-family:inherit}
+input::placeholder,textarea::placeholder{color:var(--muted-fg)}
+.mscroll{scrollbar-width:none}
+.mscroll::-webkit-scrollbar{display:none}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes scrimIn{from{opacity:0}to{opacity:1}}
+@keyframes drawerIn{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+@keyframes orbPulse{0%{transform:scale(.85);opacity:.5}100%{transform:scale(1.9);opacity:0}}
+@keyframes orbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+
+<div style="position:absolute;inset:0;display:grid;place-items:center;background:var(--muted-2);padding:16px;overflow:auto">
+<div style="position:relative;width:402px;height:842px;max-height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:var(--fg);font-family:'Inter',system-ui,sans-serif;border:1px solid var(--border);border-radius:34px;box-shadow:0 30px 70px -24px rgba(14,21,38,.4)">
+
+  <!-- ══════ TOP BAR ══════ -->
+  <header style="flex-shrink:0;height:54px;display:flex;align-items:center;gap:10px;padding:0 12px;background:color-mix(in srgb,var(--card) 92%, transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);z-index:20">
+    <button onClick="{{ openDrawer }}" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:none;background:transparent;color:var(--fg-2);display:grid;place-items:center;cursor:pointer" style-active="background:var(--muted)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <sc-if value="{{ topBack }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ backToTab }}" style="width:38px;height:38px;flex-shrink:0;margin-left:-6px;border-radius:10px;border:none;background:transparent;color:var(--fg-2);display:grid;place-items:center;cursor:pointer" style-active="background:var(--muted)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+    </sc-if>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center">
+      <div style="font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;letter-spacing:-0.02em;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ topTitle }}</div>
+      <sc-if value="{{ topSub }}" hint-placeholder-val="Cardiovascular"><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ topSub }}</div></sc-if>
+    </div>
+    <button onClick="{{ goAccount }}" style="display:flex;align-items:center;gap:6px;height:34px;padding:0 11px;flex-shrink:0;border-radius:999px;background:var(--ai-subtle);border:1px solid var(--ai-border);cursor:pointer">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ai)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--ai)">{{ balance }}</span>
+    </button>
+    <button onClick="{{ toggleTheme }}" style="width:38px;height:38px;flex-shrink:0;border-radius:10px;border:none;background:transparent;color:var(--fg-2);display:grid;place-items:center;cursor:pointer" style-active="background:var(--muted)">
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></sc-if>
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ true }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></sc-if>
+    </button>
+  </header>
+
+  <!-- ══════ BODY ══════ -->
+  <main style="flex:1;min-height:0;position:relative;overflow:hidden">
+
+    <!-- ───── LEARN CATALOG ───── -->
+    <sc-if value="{{ showLearn }}" hint-placeholder-val="{{ true }}">
+    <div class="mscroll" style="height:100%;overflow-y:auto;padding:16px 16px 108px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--primary);margin-bottom:6px">Study collection</div>
+      <h1 style="margin:0 0 6px;font-family:'DM Sans',sans-serif;font-size:26px;font-weight:600;letter-spacing:-0.03em;line-height:1.05">Learn</h1>
+      <p style="margin:0 0 16px;font-size:13.5px;line-height:1.5;color:var(--muted-fg)">Read notes, drill recall, or sit a practice test — one subject at a time. Everything is free; credits only power the AI.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--muted);border:1px solid var(--border);border-radius:14px;padding:4px;margin-bottom:12px">
+        <button onClick="{{ modeNotes }}" style="{{ notesModeStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg>Notes</button>
+        <button onClick="{{ modeFlash }}" style="{{ flashModeStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M3 7.5h4M3 12h4M3 16.5h4"/></svg>Cards</button>
+        <button onClick="{{ modePractice }}" style="{{ practiceModeStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>Practice</button>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:9px;height:44px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:0 14px;box-shadow:var(--shadow-card);margin-bottom:12px">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--muted-fg)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input value="{{ q }}" onInput="{{ onSearch }}" placeholder="{{ searchPlaceholder }}" style="border:none;outline:none;background:transparent;flex:1;font-size:15px;color:var(--fg)">
+      </label>
+
+      <div class="mscroll" style="display:flex;gap:8px;overflow-x:auto;margin:0 0 18px;padding-bottom:2px">
+        <button onClick="{{ allFilter }}" style="{{ allPillStyle }}"><span style="width:8px;height:8px;border-radius:3px;background:linear-gradient(135deg,var(--primary),var(--ai))"></span>All</button>
+        <sc-for list="{{ models }}" as="m" hint-placeholder-count="10">
+          <button onClick="{{ m.filter }}" style="{{ m.pillStyle }}"><span style="width:8px;height:8px;border-radius:3px;background:{{ m.color }}"></span>{{ m.name }}</button>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
+        <h2 style="margin:0;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600">{{ collectionTitle }}</h2>
+        <span style="font-size:12.5px;color:var(--muted-fg)">{{ collectionCount }}</span>
+      </div>
+
+      <!-- media cards -->
+      <sc-if value="{{ modeIsMedia }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <sc-for list="{{ visibleModels }}" as="m" hint-placeholder-count="6">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-card)">
+            <div style="height:84px;position:relative;background:linear-gradient(135deg,{{ m.from }},{{ m.to }});padding:13px 15px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden">
+              <div style="position:absolute;right:-18px;bottom:-26px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.14)"></div>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,.85);position:relative">{{ m.system }}</span>
+              <div style="position:relative"><div style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:600;color:#fff;letter-spacing:-0.01em;line-height:1.1">{{ m.name }}</div><div style="font-size:11px;font-style:italic;color:rgba(255,255,255,.8)">{{ m.sci }}</div></div>
+            </div>
+            <div style="padding:13px 15px;display:flex;flex-direction:column;gap:11px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted-fg)"><span style="font-family:'IBM Plex Mono',monospace">{{ m.metaCount }}</span><span style="width:3px;height:3px;border-radius:50%;background:var(--border-strong)"></span><span>{{ m.region }}</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:var(--muted-fg)"><span>{{ m.progressLabel }}</span><span style="font-family:'IBM Plex Mono',monospace">{{ m.progressPct }}%</span></div>
+              <div style="height:6px;border-radius:999px;background:var(--muted);overflow:hidden"><div style="height:100%;border-radius:999px;background:{{ m.color }};width:{{ m.progressPct }}%"></div></div>
+              <button onClick="{{ m.study }}" style="display:flex;align-items:center;justify-content:center;gap:7px;height:44px;border-radius:12px;border:1px solid {{ m.ctaBorder }};background:{{ m.ctaBg }};color:{{ m.ctaFg }};font-size:14px;font-weight:600;cursor:pointer">{{ m.ctaLabel }}<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <!-- practice rows -->
+      <sc-if value="{{ modeIsPractice }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{ visibleModels }}" as="m" hint-placeholder-count="6">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:13px;box-shadow:var(--shadow-card)">
+            <span style="width:44px;height:44px;flex-shrink:0;border-radius:12px;background:color-mix(in srgb,{{ m.color }} 16%, transparent);display:grid;place-items:center;color:{{ m.color }}"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M9 14l2 2 4-4"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></span>
+            <div style="flex:1;min-width:0"><div style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name }}</div><div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted-fg);margin-top:3px"><span style="font-family:'IBM Plex Mono',monospace">20 Q</span><span style="width:3px;height:3px;border-radius:50%;background:var(--border-strong)"></span><span>{{ m.prStatusText }}</span></div></div>
+            <button onClick="{{ m.study }}" style="flex-shrink:0;display:grid;place-items:center;width:44px;height:44px;border-radius:12px;border:1px solid {{ m.ctaBorder }};background:{{ m.ctaBg }};color:{{ m.ctaFg }};cursor:pointer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ emptyResults }}" hint-placeholder-val="{{ false }}"><div style="text-align:center;padding:48px 20px;color:var(--muted-fg);border:1px dashed var(--border-strong);border-radius:16px;font-size:13.5px">No subjects match these filters.</div></sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ───── FLASHCARD ───── -->
+    <sc-if value="{{ showFlash }}" hint-placeholder-val="{{ false }}">
+    <div class="mscroll" style="height:100%;overflow-y:auto;padding:16px 16px 108px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <button onClick="{{ fcPrev }}" style="display:grid;place-items:center;width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--fg-2);cursor:pointer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--muted-fg)">Card {{ fcNum }} / 15</span>
+        <button onClick="{{ fcNext }}" style="display:grid;place-items:center;width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--fg-2);cursor:pointer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+      <div style="height:6px;border-radius:999px;background:var(--muted);overflow:hidden;margin-bottom:16px"><div style="height:100%;border-radius:999px;background:var(--primary);width:{{ fcPct }}%"></div></div>
+      <div style="perspective:2000px">
+        <div onClick="{{ fcReveal }}" style="{{ fcInnerStyle }}">
+          <div style="{{ fcFrontStyle }}">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--primary)">Question</span>
+            <h2 style="margin:14px 0 0;font-family:'DM Sans',sans-serif;font-size:22px;font-weight:600;line-height:1.28;letter-spacing:-0.01em">{{ fcQ }}</h2>
+            <p style="margin:12px 0 0;font-size:14.5px;line-height:1.55;color:var(--fg-2)">{{ fcQBody }}</p>
+            <sc-if value="{{ fcHintShown }}" hint-placeholder-val="{{ false }}"><div style="margin-top:16px;display:flex;gap:10px;background:var(--ai-subtle);border:1px solid var(--ai-border);border-radius:12px;padding:12px 13px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ai)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg><div><div style="font-size:11.5px;font-weight:600;color:var(--ai);margin-bottom:2px">Mentor hint</div><p style="margin:0;font-size:13px;line-height:1.5;color:var(--fg-2)">{{ fcHint2 }}</p></div></div></sc-if>
+            <div style="margin-top:auto;padding-top:16px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted-fg)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>Tap card to flip</div>
+          </div>
+          <div style="{{ fcBackStyle }}">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--success)">Answer</span>
+            <h2 style="margin:14px 0 0;font-family:'DM Sans',sans-serif;font-size:22px;font-weight:600;line-height:1.28;letter-spacing:-0.01em">{{ fcAnswer }}</h2>
+            <p style="margin:12px 0 0;font-size:14.5px;line-height:1.55;color:var(--fg-2)">{{ fcDetail }}</p>
+            <div style="margin-top:auto;padding-top:16px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted-fg)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>Grade your recall below</div>
+          </div>
+        </div>
+      </div>
+      <sc-if value="{{ fcRevealed }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:16px"><div style="font-size:12px;color:var(--muted-fg);margin-bottom:8px">How well did you recall it?</div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+            <button onClick="{{ fcGrade }}" style="height:46px;border-radius:12px;border:1px solid var(--danger);background:var(--danger-subtle);color:var(--danger);font-size:14px;font-weight:600;cursor:pointer">Again</button>
+            <button onClick="{{ fcGrade }}" style="height:46px;border-radius:12px;border:1px solid color-mix(in srgb,var(--warning) 40%,transparent);background:var(--warning-subtle);color:var(--warning);font-size:14px;font-weight:600;cursor:pointer">Hard</button>
+            <button onClick="{{ fcGrade }}" style="height:46px;border-radius:12px;border:1px solid var(--primary-border);background:var(--primary-subtle);color:var(--primary);font-size:14px;font-weight:600;cursor:pointer">Good</button>
+            <button onClick="{{ fcGrade }}" style="height:46px;border-radius:12px;border:1px solid color-mix(in srgb,var(--success) 40%,transparent);background:var(--success-subtle);color:var(--success);font-size:14px;font-weight:600;cursor:pointer">Easy</button>
+          </div>
+        </div>
+      </sc-if>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button onClick="{{ fcHint }}" style="{{ fcHintStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg>{{ fcHintLabel }}</button>
+        <button onClick="{{ fcShuffle }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;height:42px;border:1px solid var(--border-strong);border-radius:11px;background:var(--card);color:var(--fg-2);font-size:13.5px;font-weight:600;cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m18 14 4 4-4 4"/><path d="m18 2 4 4-4 4"/><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"/><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"/><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"/></svg>Shuffle</button>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ───── PRACTICE ───── -->
+    <sc-if value="{{ showPractice }}" hint-placeholder-val="{{ false }}">
+    <div style="height:100%;display:flex;flex-direction:column">
+      <sc-if value="{{ prTaking }}" hint-placeholder-val="{{ true }}">
+      <div style="flex-shrink:0;padding:12px 16px 10px;border-bottom:1px solid var(--border);background:var(--card)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600">Q{{ prNum }} <span style="color:var(--muted-fg);font-weight:400">/ 20</span></span>
+          <button onClick="{{ openNav }}" style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:9px;border:1px solid var(--border-strong);background:var(--card);color:var(--fg-2);font-size:12.5px;font-weight:600;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>{{ prAnswered }}/20</button>
+        </div>
+        <div style="height:6px;border-radius:999px;background:var(--muted);overflow:hidden"><div style="height:100%;border-radius:999px;background:var(--primary);width:{{ prAnsweredPct }}%"></div></div>
+      </div>
+      <div class="mscroll" style="flex:1;min-height:0;overflow-y:auto;padding:18px 16px 20px">
+        <h2 style="margin:0 0 16px;font-family:'DM Sans',sans-serif;font-size:19px;font-weight:600;line-height:1.35;letter-spacing:-0.01em">{{ prQuestion }}</h2>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <sc-for list="{{ prOptions }}" as="o" hint-placeholder-count="4">
+            <button onClick="{{ o.select }}" style="{{ o.style }}"><span style="{{ o.letterStyle }}">{{ o.letter }}</span><span style="flex:1;text-align:left;font-size:14.5px;line-height:1.4">{{ o.text }}</span></button>
+          </sc-for>
+        </div>
+        <sc-if value="{{ prHintShown }}" hint-placeholder-val="{{ false }}"><div style="margin-top:14px;display:flex;gap:10px;background:var(--ai-subtle);border:1px solid var(--ai-border);border-radius:12px;padding:12px 13px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ai)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg><div><div style="font-size:11.5px;font-weight:600;color:var(--ai);margin-bottom:2px">Mentor hint</div><p style="margin:0;font-size:13px;line-height:1.5;color:var(--fg-2)">{{ prHint2 }}</p></div></div></sc-if>
+        <sc-if value="{{ prCorrectionShown }}" hint-placeholder-val="{{ false }}"><div style="margin-top:14px;background:var(--success-subtle);border:1px solid color-mix(in srgb,var(--success) 40%,transparent);border-radius:12px;padding:13px 14px"><div style="font-size:12.5px;font-weight:600;color:var(--success);margin-bottom:4px">{{ prCorrectionHead }}</div><p style="margin:0;font-size:13.5px;line-height:1.55;color:var(--fg-2)">{{ prCorrectionBody }}</p></div></sc-if>
+      </div>
+      <div style="flex-shrink:0;padding:10px 16px calc(10px + 60px);border-top:1px solid var(--border);background:var(--card);display:flex;gap:8px">
+        <button onClick="{{ prHint }}" style="{{ prHintStyle }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg></button>
+        <button onClick="{{ prPrev }}" style="width:46px;flex-shrink:0;display:grid;place-items:center;height:46px;border-radius:12px;border:1px solid var(--border-strong);background:var(--card);color:var(--fg-2);cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+        <sc-if value="{{ prShowNext }}" hint-placeholder-val="{{ true }}"><button onClick="{{ prNext }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;height:46px;border-radius:12px;border:none;background:var(--primary);color:var(--primary-fg);font-size:14.5px;font-weight:600;cursor:pointer">Next<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></sc-if>
+        <sc-if value="{{ prShowSubmit }}" hint-placeholder-val="{{ false }}"><button onClick="{{ prSubmit }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;height:46px;border-radius:12px;border:none;background:var(--success);color:#fff;font-size:14.5px;font-weight:600;cursor:pointer">Submit test<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button></sc-if>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ prSubmitted }}" hint-placeholder-val="{{ false }}">
+      <div class="mscroll" style="height:100%;overflow-y:auto;padding:24px 16px 108px">
+        <div style="text-align:center;padding:16px 0 6px"><div style="position:relative;width:132px;height:132px;margin:0 auto 14px"><svg width="132" height="132" viewBox="0 0 132 132" style="transform:rotate(-90deg)"><circle cx="66" cy="66" r="58" fill="none" stroke="var(--muted)" stroke-width="12"/><circle cx="66" cy="66" r="58" fill="none" stroke="var(--success)" stroke-width="12" stroke-linecap="round" stroke-dasharray="364" stroke-dashoffset="91"/></svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-family:'DM Sans',sans-serif;font-size:34px;font-weight:600;line-height:1">75%</span><span style="font-size:11.5px;color:var(--muted-fg)">15 / 20</span></div></div><h1 style="margin:0 0 4px;font-family:'DM Sans',sans-serif;font-size:22px;font-weight:600;letter-spacing:-0.02em">Strong result.</h1><p style="margin:0;font-size:13.5px;color:var(--muted-fg)">You answered 15 of 20 questions correctly.</p></div>
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px">
+          <button onClick="{{ prShowCorrections }}" style="display:flex;align-items:center;justify-content:center;gap:8px;height:48px;border-radius:13px;border:1px solid var(--ai-border);background:var(--ai-subtle);color:var(--ai);font-size:14.5px;font-weight:600;cursor:pointer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>Unlock corrections · 2 credits</button>
+          <button onClick="{{ prRetake }}" style="height:48px;border-radius:13px;border:1px solid var(--border-strong);background:var(--card);color:var(--fg-2);font-size:14.5px;font-weight:600;cursor:pointer">Review answers</button>
+          <button onClick="{{ backToTab }}" style="height:48px;border-radius:13px;border:none;background:var(--primary);color:var(--primary-fg);font-size:14.5px;font-weight:600;cursor:pointer">Back to tests</button>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ───── NOTES ───── -->
+    <sc-if value="{{ showNotes }}" hint-placeholder-val="{{ false }}">
+    <div style="height:100%;display:flex;flex-direction:column">
+      <div class="mscroll" style="flex-shrink:0;display:flex;gap:8px;overflow-x:auto;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--card)">
+        <sc-for list="{{ noteChips }}" as="n" hint-placeholder-count="3">
+          <button onClick="{{ n.select }}" style="{{ n.style }}">{{ n.title }}</button>
+        </sc-for>
+      </div>
+      <div class="mscroll" style="flex:1;min-height:0;overflow-y:auto;padding:20px 18px 108px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px"><h1 style="margin:0;font-family:'DM Sans',sans-serif;font-size:23px;font-weight:600;letter-spacing:-0.02em">{{ noteTitle }}</h1><span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted-fg)">pp. {{ notePages }}</span></div>
+        <p style="margin:0 0 15px;font-size:15.5px;line-height:1.72;color:var(--fg-2)">{{ noteP1 }}</p>
+        <p style="margin:0 0 15px;font-size:15.5px;line-height:1.72;color:var(--fg-2)">Note that <mark>{{ noteHighlight }}</mark> — a relationship worth committing to memory. {{ noteP2 }}</p>
+        <div style="margin:18px 0;background:var(--ai-subtle);border:1px solid var(--ai-border);border-radius:14px;padding:15px 16px"><div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;color:var(--ai);letter-spacing:0.04em;text-transform:uppercase;margin-bottom:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/></svg>{{ noteMnemonicTitle }}</div><p style="margin:0;font-size:14px;line-height:1.6;color:var(--fg-2)">{{ noteMnemonicBody }}</p></div>
+        <p style="margin:0;font-size:15.5px;line-height:1.72;color:var(--fg-2)">{{ noteP3 }}</p>
+        <div style="margin-top:24px;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow-card)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted-fg)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg><span style="flex:1;font-size:12.5px;color:var(--muted-fg);line-height:1.45">Select any passage to highlight it or ask Mentor to explain.</span></div>
+      </div>
+      <!-- floating selection toolbar -->
+      <div style="position:absolute;left:16px;right:16px;bottom:78px;z-index:6">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-pop);padding:10px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onClick="{{ openMentor }}" style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:9px;border:none;background:var(--ai-subtle);color:var(--ai);font-size:12.5px;font-weight:600;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>Explain</button>
+            <button onClick="{{ noop }}" style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:9px;border:none;background:var(--muted);color:var(--fg-2);font-size:12.5px;font-weight:600;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>Copy</button>
+            <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted-fg)">selected</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;background:var(--muted);border:1px solid var(--border);border-radius:10px;padding:5px 5px 5px 12px">
+            <input placeholder="Ask Mentor…" style="border:none;outline:none;background:transparent;flex:1;font-size:13px;color:var(--fg)">
+            <button onClick="{{ openMentor }}" style="width:34px;height:34px;border-radius:9px;background:var(--ai);color:#fff;border:none;display:grid;place-items:center;cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ───── EXPLORE CANVAS ───── -->
+    <sc-if value="{{ showExplore }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 38%, color-mix(in srgb,var(--muted) 60%, var(--bg)), var(--bg));overflow:hidden">
+      <!-- pan/zoom viewport -->
+      <div ref="{{ setCanvasEl }}" style="position:absolute;inset:0;touch-action:none;cursor:grab;overflow:hidden">
+        <div style="position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;transform:{{ canvasTransform }};transform-origin:center center">
+          <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 40% 34%, color-mix(in srgb,{{ activeColor }} 46%, transparent), transparent 66%);display:grid;place-items:center">
+            <div style="width:52%;height:52%;border-radius:50%;border:1.5px dashed color-mix(in srgb,{{ activeColor }} 60%, transparent);display:grid;place-items:center;color:var(--muted-fg);font-family:'IBM Plex Mono',monospace;font-size:10px;text-align:center;line-height:1.6">interactive<br>specimen</div>
+          </div>
+          <sc-for list="{{ pins }}" as="p" hint-placeholder-count="5">
+            <div style="{{ p.style }}"><span style="width:9px;height:9px;border-radius:50%;background:{{ p.color }};box-shadow:0 0 0 4px color-mix(in srgb,{{ p.color }} 24%,transparent);flex-shrink:0"></span><span style="font-size:11px;font-weight:600;white-space:nowrap">{{ p.label }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- top overlay: subject + mode -->
+      <div style="position:absolute;top:0;left:0;right:0;padding:10px 14px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 78%,transparent),transparent);pointer-events:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;pointer-events:auto">
+          <div style="display:flex;align-items:center;gap:9px;background:color-mix(in srgb,var(--card) 82%,transparent);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:999px;padding:6px 13px 6px 10px"><span style="width:9px;height:9px;border-radius:3px;background:{{ activeColor }}"></span><span style="font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;letter-spacing:-0.01em">{{ activeName }}</span></div>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:{{ dissectPillColor }};border:1px solid {{ dissectPillBorder }};border-radius:999px;padding:5px 11px;background:{{ dissectPillBg }};backdrop-filter:blur(8px);white-space:nowrap">{{ dissectPill }}</span>
+        </div>
+        <div class="mscroll" style="display:flex;gap:7px;overflow-x:auto;pointer-events:auto;padding-bottom:2px">
+          <sc-for list="{{ specimenChips }}" as="c" hint-placeholder-count="10">
+            <button onClick="{{ c.pick }}" style="{{ c.style }}"><span style="width:7px;height:7px;border-radius:2px;background:{{ c.color }}"></span>{{ c.name }}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- canvas tool rail -->
+      <div style="position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px;background:color-mix(in srgb,var(--card) 84%,transparent);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:14px;padding:6px;box-shadow:var(--shadow-pop);z-index:5">
+        <button onClick="{{ noop }}" title="Rotate" style="width:40px;height:40px;border-radius:10px;border:none;background:transparent;color:var(--fg-2);display:grid;place-items:center;cursor:pointer" style-active="background:var(--muted)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+        <button onClick="{{ resetCanvas }}" title="Reset camera" style="width:40px;height:40px;border-radius:10px;border:none;background:transparent;color:var(--fg-2);display:grid;place-items:center;cursor:pointer" style-active="background:var(--muted)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button onClick="{{ noop }}" title="Labels" style="width:40px;height:40px;border-radius:10px;border:none;background:var(--primary);color:#fff;display:grid;place-items:center;cursor:pointer"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/></svg></button>
+        <button onClick="{{ noop }}" title="Wireframe" style="width:40px;height:40px;border-radius:10px;border:none;background:transparent;color:var(--fg-2);display:grid;place-items:center;cursor:pointer" style-active="background:var(--muted)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>
+        <button onClick="{{ noop }}" title="Layers" style="width:40px;height:40px;border-radius:10px;border:none;background:transparent;color:var(--fg-2);display:grid;place-items:center;cursor:pointer" style-active="background:var(--muted)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg></button>
+        <div style="height:1px;background:var(--border);margin:1px 6px"></div>
+        <button onClick="{{ openDissect }}" title="Dissect" style="{{ exploreDissectStyle }}" style-active="background:var(--muted)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 4.5 15"/><path d="m3 21 8-8"/><path d="M21 3 9 15"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="5" r="2"/></svg></button>
+      </div>
+
+      <!-- specimen mini-bar -->
+      <div style="position:absolute;left:12px;right:12px;bottom:72px;display:flex;gap:8px;pointer-events:none">
+        <div style="flex:1;background:color-mix(in srgb,var(--card) 88%,transparent);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:13px;padding:10px 13px;display:flex;gap:16px;box-shadow:var(--shadow-card)">
+          <div><div style="font-size:12.5px;font-weight:600">{{ activeRegion }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted-fg)">Region</div></div>
+          <div><div style="font-size:12.5px;font-weight:600">{{ activeScale }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted-fg)">Scale</div></div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ───── LAB LIST ───── -->
+    <sc-if value="{{ showLabList }}" hint-placeholder-val="{{ false }}">
+    <div class="mscroll" style="height:100%;overflow-y:auto;padding:16px 16px 108px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--primary);margin-bottom:6px">Guided dissection</div>
+      <h1 style="margin:0 0 6px;font-family:'DM Sans',sans-serif;font-size:26px;font-weight:600;letter-spacing:-0.03em;line-height:1.05">Lab</h1>
+      <p style="margin:0 0 18px;font-size:13.5px;line-height:1.5;color:var(--muted-fg)">Step-by-step activities that combine identification, model manipulation and knowledge checks — Mentor explains results, it never decides them.</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <sc-for list="{{ activities }}" as="a" hint-placeholder-count="4">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:13px;box-shadow:var(--shadow-card)">
+            <div style="display:flex;align-items:center;justify-content:space-between"><span style="width:40px;height:40px;border-radius:12px;background:{{ a.color }}22;display:grid;place-items:center;color:{{ a.color }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31"/><path d="M14 9.3V2"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.58 16.5h12.85"/></svg></span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted-fg)">{{ a.steps }} checkpoints</span></div>
+            <div><div style="font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;letter-spacing:-0.01em">{{ a.title }}</div><div style="font-size:13px;line-height:1.5;color:var(--muted-fg);margin-top:4px">{{ a.desc }}</div></div>
+            <button onClick="{{ a.start }}" style="display:flex;align-items:center;justify-content:center;gap:7px;height:44px;border-radius:12px;background:var(--primary);color:var(--primary-fg);border:none;font-size:14px;font-weight:600;cursor:pointer">Start Lab<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ───── LAB RUNNER ───── -->
+    <sc-if value="{{ showLabRun }}" hint-placeholder-val="{{ false }}">
+    <div style="height:100%;display:flex;flex-direction:column;position:relative">
+      <div style="flex-shrink:0;height:44%;position:relative;background:radial-gradient(120% 100% at 50% 30%, color-mix(in srgb,var(--muted) 55%, var(--bg)), var(--bg));border-bottom:1px solid var(--border);display:grid;place-items:center;overflow:hidden">
+        <div style="width:170px;height:170px;border-radius:50%;background:radial-gradient(circle at 40% 34%, color-mix(in srgb,{{ labColor }} 46%, transparent), transparent 66%);display:grid;place-items:center;animation:orbFloat 5s ease-in-out infinite"><div style="width:52%;height:52%;border-radius:50%;border:1.5px dashed color-mix(in srgb,{{ labColor }} 60%, transparent)"></div></div>
+        <span style="position:absolute;top:12px;left:14px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted-fg);background:color-mix(in srgb,var(--card) 82%,transparent);border:1px solid var(--border);border-radius:999px;padding:5px 11px;backdrop-filter:blur(8px)">{{ labStepKicker }}</span>
+      </div>
+        <!-- lab tools FAB -->
+        <div style="position:absolute;top:10px;right:12px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+          <button onClick="{{ toggleLabTools }}" title="Tools" style="{{ labToolsFabStyle }}">
+            <sc-if value="{{ labToolsOpen }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></sc-if>
+            <sc-if value="{{ labToolsClosed }}" hint-placeholder-val="{{ true }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg></sc-if>
+          </button>
+          <sc-if value="{{ labToolsOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:2px;min-width:176px;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:14px;padding:6px;box-shadow:var(--shadow-pop);animation:rise .16s ease">
+            <button onClick="{{ noop }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:6px 14px 6px 6px;border-radius:10px;border:none;background:transparent;color:var(--fg);font-family:inherit;font-size:13.5px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--muted)"><span style="width:30px;height:30px;border-radius:8px;background:var(--muted);color:var(--fg-2);display:grid;place-items:center;flex-shrink:0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></span>Rotate</button>
+            <button onClick="{{ resetCanvas }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:6px 14px 6px 6px;border-radius:10px;border:none;background:transparent;color:var(--fg);font-family:inherit;font-size:13.5px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--muted)"><span style="width:30px;height:30px;border-radius:8px;background:var(--muted);color:var(--fg-2);display:grid;place-items:center;flex-shrink:0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></span>Reset camera</button>
+            <button onClick="{{ noop }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:6px 14px 6px 6px;border-radius:10px;border:none;background:transparent;color:var(--fg);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left" style-hover="background:var(--muted)"><span style="width:30px;height:30px;border-radius:8px;background:var(--primary);color:#fff;display:grid;place-items:center;flex-shrink:0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/></svg></span>Labels</button>
+            <button onClick="{{ noop }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:6px 14px 6px 6px;border-radius:10px;border:none;background:transparent;color:var(--fg);font-family:inherit;font-size:13.5px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--muted)"><span style="width:30px;height:30px;border-radius:8px;background:var(--muted);color:var(--fg-2);display:grid;place-items:center;flex-shrink:0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></span>Wireframe</button>
+            <button onClick="{{ noop }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:6px 14px 6px 6px;border-radius:10px;border:none;background:transparent;color:var(--fg);font-family:inherit;font-size:13.5px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--muted)"><span style="width:30px;height:30px;border-radius:8px;background:var(--muted);color:var(--fg-2);display:grid;place-items:center;flex-shrink:0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></svg></span>Layers</button>
+            <div style="height:1px;background:var(--border);margin:3px 8px"></div>
+            <button onClick="{{ labOpenDissect }}" style="display:flex;align-items:center;gap:11px;width:100%;padding:6px 14px 6px 6px;border-radius:10px;border:none;background:transparent;color:var(--fg);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;text-align:left" style-hover="background:var(--muted)"><span style="width:30px;height:30px;border-radius:8px;background:var(--primary-subtle);color:var(--primary);display:grid;place-items:center;flex-shrink:0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 4.5 15"/><path d="m3 21 8-8"/><path d="M21 3 9 15"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="5" r="2"/></svg></span>Dissect</button>
+          </div>
+          </sc-if>
+        </div>
+      <div class="mscroll" style="flex:1;min-height:0;overflow-y:auto;padding:18px 16px 20px">
+        <h2 style="margin:0 0 16px;font-family:'DM Sans',sans-serif;font-size:19px;font-weight:600;line-height:1.35;letter-spacing:-0.01em">{{ labStepPrompt }}</h2>
+        <sc-if value="{{ labIsQuestion }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ labOptions }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.select }}" style="{{ o.style }}"><span style="{{ o.letterStyle }}">{{ o.letter }}</span><span style="flex:1;text-align:left;font-size:14px">{{ o.text }}</span></button></sc-for>
+          </div>
+          <sc-if value="{{ labFeedback }}" hint-placeholder-val="{{ false }}"><div style="margin-top:13px;display:flex;gap:10px;background:var(--ai-subtle);border:1px solid var(--ai-border);border-radius:12px;padding:12px 13px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ai)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg><div><div style="font-size:11.5px;font-weight:600;color:var(--ai);margin-bottom:2px">Mentor explains</div><p style="margin:0;font-size:13px;line-height:1.5;color:var(--fg-2)">{{ labExplain }}</p></div></div></sc-if>
+        </sc-if>
+        <sc-if value="{{ labIsAction }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ labSteps }}" as="st" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--card)"><span style="{{ st.dotStyle }}">{{ st.mark }}</span><span style="font-size:13.5px;color:{{ st.textColor }}">{{ st.prompt }}</span></div></sc-for>
+          </div>
+        </sc-if>
+      </div>
+      <div style="flex-shrink:0;padding:10px 16px calc(10px + 60px);border-top:1px solid var(--border);background:var(--card)">
+        <button onClick="{{ labNext }}" style="width:100%;display:flex;align-items:center;justify-content:center;gap:7px;height:48px;border-radius:13px;border:none;background:var(--primary);color:var(--primary-fg);font-size:15px;font-weight:600;cursor:pointer">{{ labNextLabel }}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ───── ACCOUNT ───── -->
+    <sc-if value="{{ showAccount }}" hint-placeholder-val="{{ false }}">
+    <div class="mscroll" style="height:100%;overflow-y:auto;padding:16px 16px 108px">
+      <div style="display:flex;align-items:center;gap:13px;margin-bottom:18px">
+        <div style="width:54px;height:54px;border-radius:16px;background:var(--primary-subtle);border:1px solid var(--primary-border);display:grid;place-items:center;font-size:19px;font-weight:600;color:var(--primary);flex-shrink:0">AO</div>
+        <div style="flex:1;min-width:0"><div style="font-family:'DM Sans',sans-serif;font-size:19px;font-weight:600;letter-spacing:-0.01em">Amara Okafor</div><div style="font-size:13px;color:var(--muted-fg)">amara.o@unilag.edu.ng</div></div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,var(--ai),var(--primary));border-radius:18px;padding:18px;color:#fff;margin-bottom:14px;position:relative;overflow:hidden">
+        <div style="position:absolute;right:-24px;top:-24px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.13)"></div>
+        <div style="position:relative"><div style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;opacity:.9;margin-bottom:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>Credit balance</div><div style="font-family:'DM Sans',sans-serif;font-size:40px;font-weight:600;line-height:1">{{ balance }}</div><div style="font-size:12.5px;opacity:.85;margin-top:2px">Plus · 500 credits / cycle · renews 3 Sep</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px"><div style="background:rgba(255,255,255,.15);border-radius:10px;padding:8px 10px"><div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600">14</div><div style="font-size:10px;opacity:.85">Free</div></div><div style="background:rgba(255,255,255,.15);border-radius:10px;padding:8px 10px"><div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600">71</div><div style="font-size:10px;opacity:.85">Plan</div></div><div style="background:rgba(255,255,255,.15);border-radius:10px;padding:8px 10px"><div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600">33</div><div style="font-size:10px;opacity:.85">Purchased</div></div></div></div>
+        <button onClick="{{ goBilling }}" style="position:relative;margin-top:14px;width:100%;height:44px;border-radius:12px;border:none;background:rgba(255,255,255,.95);color:var(--primary);font-size:14px;font-weight:600;cursor:pointer">Buy more credits</button>
+      </div>
+
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-fg);margin:16px 4px 8px">Current plan</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow-card)">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px"><span style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:600">Plus</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;background:var(--success-subtle);color:var(--success);border:1px solid color-mix(in srgb,var(--success) 34%,transparent);border-radius:999px;padding:3px 9px">active</span></div>
+        <p style="margin:0 0 13px;font-size:12.5px;line-height:1.5;color:var(--muted-fg)">NGN 2,500 monthly · 500 credits each billing cycle. Renews 3 September 2026.</p>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--fg-2);margin-bottom:6px"><span>Used this cycle</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--muted-fg)">429 / 500</span></div>
+        <div style="height:6px;background:var(--muted);border-radius:3px;overflow:hidden"><div style="width:86%;height:100%;background:var(--primary)"></div></div>
+      </div>
+
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-fg);margin:18px 4px 8px">Credit activity</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-card)">
+        <sc-for list="{{ activity }}" as="row" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:12px;padding:12px 15px;border-bottom:1px solid var(--border)"><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ row.action }}</div><div style="font-size:11.5px;color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ row.meta }}</div></div><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:{{ row.color }};flex-shrink:0">{{ row.amount }}</span></div></sc-for>
+      </div>
+
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-fg);margin:18px 4px 8px">Preferences</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-card)">
+        <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--fg-2)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><span style="flex:1;font-size:14px;font-weight:500">Dark mode</span><button onClick="{{ toggleTheme }}" style="{{ themeSwitchTrack }}"><span style="{{ themeSwitchKnob }}"></span></button></div>
+        <a href="Stranerd Account and Pricing.dc.html" style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--border);color:var(--fg)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--fg-2)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg><span style="flex:1;font-size:14px;font-weight:500">Plan &amp; billing</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted-fg)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a>
+        <div style="display:flex;align-items:center;gap:12px;padding:13px 15px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--fg-2)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg><span style="flex:1;font-size:14px;font-weight:500">Help &amp; support</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted-fg)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+      </div>
+      <button onClick="{{ noop }}" style="margin-top:14px;width:100%;height:46px;border-radius:12px;border:1px solid var(--border-strong);background:var(--card);color:var(--danger);font-size:14px;font-weight:600;cursor:pointer">Sign out</button>
+    </div>
+    </sc-if>
+
+  </main>
+
+  <!-- ══════ BOTTOM TABS ══════ -->
+  <nav style="flex-shrink:0;height:60px;display:flex;background:color-mix(in srgb,var(--card) 94%, transparent);backdrop-filter:blur(12px);border-top:1px solid var(--border);z-index:20;padding-bottom:0">
+    <button onClick="{{ goExplore }}" style="{{ tabExplore }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88" fill="currentColor" fill-opacity="0.18"/></svg><span>Explore</span></button>
+    <button onClick="{{ goLearn }}" style="{{ tabLearn }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span>Learn</span></button>
+    <button onClick="{{ goLab }}" style="{{ tabLab }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/></svg><span>Lab</span></button>
+    <button onClick="{{ goAccount }}" style="{{ tabAccount }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Account</span></button>
+  </nav>
+
+  <!-- ══════ MENTOR FAB ══════ -->
+  <button onClick="{{ openMentor }}" style="position:absolute;right:16px;bottom:74px;z-index:25;width:56px;height:56px;border-radius:18px;border:none;background:linear-gradient(135deg,var(--ai),var(--ai-hover));color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 10px 26px -8px color-mix(in srgb,var(--ai) 70%,transparent)">
+    <span style="position:absolute;inset:0;border-radius:18px;background:var(--ai);animation:orbPulse 2.6s ease-out infinite;z-index:-1"></span>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+  </button>
+
+  <!-- ══════ DRAWER ══════ -->
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeDrawer }}" style="position:absolute;inset:0;z-index:40;background:rgba(9,12,20,.44);animation:scrimIn .2s ease">
+    <aside onClick="{{ stopProp }}" style="position:absolute;left:0;top:0;bottom:0;width:270px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;animation:drawerIn .26s cubic-bezier(.32,.72,0,1);box-shadow:var(--shadow-pop)">
+      <div style="height:54px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 18px;border-bottom:1px solid var(--border)">
+        <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary-hover));display:grid;place-items:center;color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.4 5.6L7.5 16.5l2.4-5.6z" fill="currentColor" stroke="none"/></svg></div>
+        <span style="font-family:'DM Sans',sans-serif;font-size:18px;font-weight:600;letter-spacing:-0.02em">Stranerd</span>
+      </div>
+      <div class="mscroll" style="flex:1;min-height:0;overflow-y:auto;padding:12px">
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <button onClick="{{ goExplore }}" style="{{ drawerExplore }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88" fill="currentColor" fill-opacity="0.18"/></svg>Explore</button>
+          <button onClick="{{ goLearn }}" style="{{ drawerLearn }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>Learn</button>
+          <button onClick="{{ goLab }}" style="{{ drawerLab }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/></svg>Lab</button>
+          <button onClick="{{ goAccount }}" style="{{ drawerAccount }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Account</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 8px 6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted-fg)">Subjects</span><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted-fg)">10</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <sc-for list="{{ models }}" as="m" hint-placeholder-count="10"><button onClick="{{ m.openExplore }}" style="display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 8px;border:none;border-radius:9px;background:transparent;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:500;color:var(--fg-2)" style-active="background:var(--muted)"><span style="width:9px;height:9px;border-radius:3px;flex-shrink:0;background:{{ m.color }}"></span><span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name }}</span></button></sc-for>
+        </div>
+      </div>
+    </aside>
+  </div>
+  </sc-if>
+
+  <!-- ══════ DISSECT SHEET ══════ -->
+  <sc-if value="{{ dissectOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeDissect }}" style="position:absolute;inset:0;z-index:42;background:rgba(9,12,20,.4);animation:scrimIn .2s ease">
+    <div onClick="{{ stopProp }}" style="position:absolute;left:0;right:0;bottom:0;max-height:76%;display:flex;flex-direction:column;background:var(--card);border-radius:22px 22px 0 0;border-top:1px solid var(--border);box-shadow:var(--shadow-sheet);animation:sheetUp .3s cubic-bezier(.32,.72,0,1)">
+      <div style="flex-shrink:0;padding:10px 0 0"><div style="width:38px;height:4px;border-radius:999px;background:var(--border-strong);margin:0 auto"></div></div>
+      <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:12px 18px 12px"><div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-fg)">Dissect · {{ activeStructuresCount }} structures</div><div style="font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;white-space:nowrap">{{ activeName }}</div></div><button onClick="{{ closeDissect }}" style="width:32px;height:32px;border-radius:9px;border:1px solid var(--border);background:var(--card);display:grid;place-items:center;color:var(--muted-fg);cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <div class="mscroll" style="flex:1;min-height:0;overflow-y:auto;padding:0 18px 22px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:14px">
+          <sc-for list="{{ dissectTools }}" as="t" hint-placeholder-count="4"><button onClick="{{ noop }}" style="{{ t.style }}"><span style="width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:{{ t.iconBg }};color:{{ t.iconColor }}">{{ t.icon }}</span>{{ t.label }}</button></sc-for>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted-fg);padding:4px 2px 8px">Structures</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <sc-for list="{{ dissectRows }}" as="r" hint-placeholder-count="5"><button onClick="{{ noop }}" style="{{ r.style }}"><span style="width:8px;height:8px;border-radius:50%;background:{{ r.dot }};flex-shrink:0"></span><span style="flex:1;text-align:left;font-size:14px;{{ r.text }}">{{ r.label }}</span><sc-if value="{{ r.hidden }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted-fg)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M6.71 6.71C3.5 8.6 2 12 2 12s3 7 10 7a9.7 9.7 0 0 0 4.3-1"/></svg></sc-if></button></sc-for>
+        </div>
+      </div>
+      <div style="flex-shrink:0;display:flex;gap:8px;padding:12px 18px 20px;border-top:1px solid var(--border)"><button onClick="{{ noop }}" style="flex:1;height:44px;border:1px solid var(--border-strong);border-radius:12px;background:var(--card);color:var(--fg-2);font-size:13.5px;font-weight:600;cursor:pointer">Show all</button><button onClick="{{ noop }}" style="flex:1;height:44px;border:1px solid var(--danger);border-radius:12px;background:transparent;color:var(--danger);font-size:13.5px;font-weight:600;cursor:pointer">Reset model</button></div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ══════ PRACTICE NAV SHEET ══════ -->
+  <sc-if value="{{ navOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeNav }}" style="position:absolute;inset:0;z-index:42;background:rgba(9,12,20,.4);animation:scrimIn .2s ease">
+    <div onClick="{{ stopProp }}" style="position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;background:var(--card);border-radius:22px 22px 0 0;border-top:1px solid var(--border);box-shadow:var(--shadow-sheet);animation:sheetUp .3s cubic-bezier(.32,.72,0,1)">
+      <div style="flex-shrink:0;padding:10px 0 0"><div style="width:38px;height:4px;border-radius:999px;background:var(--border-strong);margin:0 auto"></div></div>
+      <div style="flex-shrink:0;padding:12px 20px 6px"><div style="font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600">Question navigator</div><div style="font-size:12.5px;color:var(--muted-fg);margin-top:2px">{{ prAnswered }} of 20 answered</div></div>
+      <div style="padding:12px 20px 26px;display:grid;grid-template-columns:repeat(5,1fr);gap:9px">
+        <sc-for list="{{ prNav }}" as="n" hint-placeholder-count="20"><button onClick="{{ n.go }}" style="{{ n.style }}">{{ n.num }}</button></sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ══════ MENTOR SHEET ══════ -->
+  <sc-if value="{{ mentorOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;background:var(--bg);animation:sheetUp .32s cubic-bezier(.32,.72,0,1)">
+    <div style="flex-shrink:0;padding:8px 0 0"><div style="width:40px;height:4px;border-radius:999px;background:var(--border-strong);margin:0 auto"></div></div>
+    <header style="flex-shrink:0;display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">
+      <div style="width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--ai),var(--ai-hover));display:grid;place-items:center;color:#fff;flex-shrink:0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg></div>
+      <div style="flex:1;min-width:0"><div style="font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;letter-spacing:-0.01em">AI Mentor</div><div style="font-size:11.5px;color:var(--muted-fg)">{{ mentorContext }}</div></div>
+      <div style="display:flex;gap:2px;background:var(--muted);border:1px solid var(--border);border-radius:9px;padding:3px"><button onClick="{{ mentorTextTab }}" style="{{ mentorTextStyle }}">Text</button><button onClick="{{ mentorVoice }}" style="{{ mentorVoiceStyle }}">Voice</button></div>
+      <button onClick="{{ closeMentor }}" style="width:38px;height:38px;flex-shrink:0;border-radius:11px;border:1px solid var(--border);background:var(--card);display:grid;place-items:center;color:var(--muted-fg);cursor:pointer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+    </header>
+
+    <sc-if value="{{ mentorIsText }}" hint-placeholder-val="{{ true }}">
+    <div class="mscroll" style="flex:1;min-height:0;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:12px">
+      <sc-for list="{{ mentorMsgs }}" as="msg" hint-placeholder-count="2"><div style="{{ msg.wrap }}"><div style="{{ msg.bubble }}">{{ msg.text }}</div></div></sc-for>
+    </div>
+    <div style="flex-shrink:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--card)">
+      <div style="display:flex;align-items:flex-end;gap:9px;background:var(--muted);border:1px solid var(--border);border-radius:16px;padding:6px 6px 6px 14px">
+        <input placeholder="{{ mentorPlaceholder }}" style="flex:1;border:none;outline:none;background:transparent;font-size:14.5px;color:var(--fg);padding:10px 0">
+        <button onClick="{{ mentorSend }}" style="width:40px;height:40px;flex-shrink:0;border-radius:12px;border:none;background:var(--ai);color:#fff;display:grid;place-items:center;cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+      </div>
+      <div style="text-align:center;font-size:11px;color:var(--muted-fg);margin-top:8px">Each reply costs 1 credit · grounded in your current {{ mentorGround }}</div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ mentorIsVoice }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:22px">
+      <div style="position:relative;width:150px;height:150px;display:grid;place-items:center"><span style="position:absolute;inset:0;border-radius:50%;background:var(--ai);opacity:.16;animation:orbPulse 2.4s ease-out infinite"></span><div style="width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,var(--ai),var(--ai-hover));display:grid;place-items:center;color:#fff;animation:orbFloat 4s ease-in-out infinite"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg></div></div>
+      <div style="text-align:center"><div style="font-family:'DM Sans',sans-serif;font-size:19px;font-weight:600;letter-spacing:-0.01em">Voice session active</div><div style="font-size:13px;color:var(--muted-fg);margin-top:4px">Talk naturally — Mentor listens and responds aloud.</div></div>
+      <div style="display:flex;align-items:center;gap:9px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ai);background:var(--ai-subtle);border:1px solid var(--ai-border);border-radius:999px;padding:8px 15px"><span style="width:8px;height:8px;border-radius:50%;background:var(--ai);animation:orbFloat 1.4s ease-in-out infinite"></span>04:38 remaining · 10 credits</div>
+      <button onClick="{{ mentorTextTab }}" style="height:48px;padding:0 26px;border-radius:14px;border:1px solid var(--danger);background:var(--danger-subtle);color:var(--danger);font-size:14.5px;font-weight:600;cursor:pointer">End session</button>
+    </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- ══════ OUT OF CREDITS ══════ -->
+  <sc-if value="{{ creditPromptOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeCreditPrompt }}" style="position:absolute;inset:0;z-index:60;background:rgba(9,12,20,.5);display:flex;align-items:flex-end;padding:0;animation:scrimIn .2s ease">
+    <div onClick="{{ stopProp }}" style="width:100%;background:var(--card);border-radius:22px 22px 0 0;border-top:1px solid var(--border);box-shadow:var(--shadow-sheet);padding:22px 20px calc(22px + env(safe-area-inset-bottom));animation:sheetUp .3s cubic-bezier(.32,.72,0,1)">
+      <div style="width:38px;height:4px;border-radius:999px;background:var(--border-strong);margin:-8px auto 16px"></div>
+      <div style="width:52px;height:52px;border-radius:16px;background:var(--ai-subtle);border:1px solid var(--ai-border);display:grid;place-items:center;color:var(--ai);margin-bottom:14px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg></div>
+      <h2 style="margin:0 0 6px;font-family:'DM Sans',sans-serif;font-size:20px;font-weight:600;letter-spacing:-0.01em">Not enough credits</h2>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.55;color:var(--muted-fg)">{{ creditPromptDesc }}</p>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <button onClick="{{ goBilling }}" style="height:48px;border-radius:13px;border:none;background:var(--primary);color:var(--primary-fg);font-size:14.5px;font-weight:600;cursor:pointer">Buy more credits</button>
+        <button onClick="{{ closeCreditPrompt }}" style="height:48px;border-radius:13px;border:1px solid var(--border-strong);background:var(--card);color:var(--fg-2);font-size:14.5px;font-weight:600;cursor:pointer">Not now</button>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:402,&quot;height&quot;:874},&quot;defaultTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light' | 'dark'&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  state = {
+    theme: 'light', tab: 'learn', stack: null, mode: 'flashcards', filter: 'all', q: '', active: 'heart',
+    balance: 118, creditPrompt: null,
+    drawerOpen: false, mentorOpen: false, dissectOpen: false, navOpen: false, mentorTab: 'text', labToolsOpen: false,
+    cx: { x: 0, y: 0, s: 1 },
+    fcIndex: 0, fcRevealed: false, fcHint: false,
+    prIndex: 0, prSel: {}, prSubmitted: false, prCorrections: false, prHint: false,
+    noteSection: 0,
+    labId: null, labStep: 0, labChoice: null, labChecked: false,
+  }
+
+  componentDidMount() {
+    const saved = (typeof localStorage !== 'undefined' && localStorage.getItem('stranerd.theme')) || this.props.defaultTheme || 'light'
+    const t = saved === 'dark' ? 'dark' : 'light'
+    document.documentElement.setAttribute('data-theme', t)
+    this.setState({ theme: t })
+  }
+  setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t)
+    try { localStorage.setItem('stranerd.theme', t) } catch (e) {}
+    this.setState({ theme: t })
+  }
+  trySpend(cost, action, onOk) {
+    const bal = this.state.balance
+    if (bal < cost) { this.setState({ creditPrompt: { action, required: cost } }); return }
+    this.setState({ balance: bal - cost })
+    if (onOk) onOk()
+  }
+
+  // ── canvas pan / pinch / zoom ──
+  setCanvasEl = (el) => {
+    if (!el || this._cvEl === el) return
+    this._cvEl = el
+    this._pointers = new Map()
+    this._pinch = null
+    this._lastPan = null
+    el.addEventListener('pointerdown', this.cvDown)
+    el.addEventListener('pointermove', this.cvMove)
+    el.addEventListener('pointerup', this.cvUp)
+    el.addEventListener('pointercancel', this.cvUp)
+    el.addEventListener('wheel', this.cvWheel, { passive: false })
+  }
+  cvCenter() { const r = this._cvEl.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } }
+  clamp(s) { return Math.max(0.6, Math.min(4, s)) }
+  cvDown = (e) => {
+    try { this._cvEl.setPointerCapture(e.pointerId) } catch (x) {}
+    this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (this._pointers.size === 2) {
+      const p = [...this._pointers.values()]
+      this._pinch = { dist: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), mid: { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 }, cx: { ...this.state.cx } }
+      this._lastPan = null
+    } else { this._lastPan = { x: e.clientX, y: e.clientY } }
+    this._cvEl.style.cursor = 'grabbing'
+  }
+  cvMove = (e) => {
+    if (!this._pointers.has(e.pointerId)) return
+    this._pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    const C = this.cvCenter()
+    if (this._pointers.size >= 2 && this._pinch) {
+      const p = [...this._pointers.values()]
+      const dist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y)
+      const mid = { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 }
+      const pi = this._pinch
+      const s = this.clamp(pi.cx.s * (dist / pi.dist))
+      const px = (pi.mid.x - C.x - pi.cx.x) / pi.cx.s
+      const py = (pi.mid.y - C.y - pi.cx.y) / pi.cx.s
+      this.setState({ cx: { x: mid.x - C.x - px * s, y: mid.y - C.y - py * s, s } })
+    } else if (this._lastPan) {
+      const dx = e.clientX - this._lastPan.x, dy = e.clientY - this._lastPan.y
+      this._lastPan = { x: e.clientX, y: e.clientY }
+      this.setState((st) => ({ cx: { ...st.cx, x: st.cx.x + dx, y: st.cx.y + dy } }))
+    }
+  }
+  cvUp = (e) => {
+    this._pointers.delete(e.pointerId)
+    if (this._pointers.size < 2) this._pinch = null
+    if (this._pointers.size === 1) { const p = [...this._pointers.values()][0]; this._lastPan = { x: p.x, y: p.y } }
+    if (this._pointers.size === 0) { this._lastPan = null; if (this._cvEl) this._cvEl.style.cursor = 'grab' }
+  }
+  cvWheel = (e) => {
+    e.preventDefault()
+    const C = this.cvCenter(), st = this.state.cx
+    const s = this.clamp(st.s * Math.exp(-e.deltaY * 0.0015))
+    const px = (e.clientX - C.x - st.x) / st.s, py = (e.clientY - C.y - st.y) / st.s
+    this.setState({ cx: { x: e.clientX - C.x - px * s, y: e.clientY - C.y - py * s, s } })
+  }
+  zoomStep(f) {
+    const st = this.state.cx, s = this.clamp(st.s * f)
+    this.setState({ cx: { x: st.x * (s / st.s), y: st.y * (s / st.s), s } })
+  }
+
+  renderVals() {
+    const s = this.state
+    const CAT = [
+      { id: 'heart', name: 'Heart', sci: 'Cor', system: 'Cardiovascular', region: 'Thorax', scale: '~12 cm', focus: 'Chambers & great vessels', from: '#F0567A', to: '#C0324F', color: '#E5484D', structs: ['Ascending aorta', 'Left ventricle', 'Right ventricle', 'Pulmonary trunk', 'Coronary vessels'], flashDone: 9, testDone: 12, facts: ['The left ventricle has the thickest myocardium because it drives systemic circulation.', 'Cardiac output equals heart rate multiplied by stroke volume.', 'Coronary arteries perfuse the myocardium primarily during diastole.'], mnemonic: { title: 'APE To Man — valve order', body: 'Aortic, Pulmonary, tricuspid (Ejects to), Mitral — the order of the heart valves from front to back.' } },
+      { id: 'brain', name: 'Brain', sci: 'Encephalon', system: 'Nervous', region: 'Cranial cavity', scale: '~1.3 kg', focus: 'Major divisions', from: '#4C6EF0', to: '#2E45C2', color: '#4361E8', structs: ['Frontal lobe', 'Cerebellum', 'Temporal lobe'], flashDone: 15, testDone: 4, facts: ['The cerebral cortex is organized into functionally specialized networks.', 'The cerebellum refines movement and supports motor learning.', 'Cerebrospinal fluid provides buoyancy and chemical stability.'] },
+      { id: 'lungs', name: 'Lungs', sci: 'Pulmones', system: 'Respiratory', region: 'Thorax', scale: '~4–6 L', focus: 'Lobes & airway', from: '#12A6C9', to: '#0C7C9E', color: '#0E93BC', structs: ['Right upper lobe', 'Left lower lobe', 'Trachea', 'Main bronchi'], flashDone: 0, testDone: 0, facts: ['The right lung usually has three lobes; the left has two.', 'Type II pneumocytes produce surfactant.', 'Ventilation and perfusion must be matched for efficient gas exchange.'] },
+      { id: 'kidney', name: 'Kidney', sci: 'Ren', system: 'Urinary', region: 'Posterior abdomen', scale: '~11 cm', focus: 'Cortex, medulla, hilum', from: '#E39A2B', to: '#C0761A', color: '#D98A20', structs: ['Renal cortex', 'Renal medulla', 'Renal pelvis', 'Ureter'], flashDone: 6, testDone: 20, facts: ['Each kidney contains roughly one million nephrons.', 'The glomerulus begins plasma ultrafiltration.', 'Renin participates in blood-pressure regulation.'] },
+      { id: 'eye', name: 'Eye', sci: 'Oculus', system: 'Sensory', region: 'Orbit', scale: '~24 mm', focus: 'Optical pathway', from: '#14A58F', to: '#0C7E74', color: '#109684', structs: ['Cornea', 'Lens', 'Optic nerve'], flashDone: 3, testDone: 8, facts: ['The cornea provides most of the eye\u2019s refractive power.', 'Photoreceptors convert light into graded electrical signals.', 'The optic disc lacks photoreceptors.'] },
+      { id: 'liver', name: 'Liver', sci: 'Hepar', system: 'Digestive', region: 'Right upper abdomen', scale: '~1.5 kg', focus: 'Lobes & portal structures', from: '#B5772F', to: '#8F571E', color: '#A56A28', structs: ['Right lobe', 'Porta hepatis', 'Gallbladder'], flashDone: 0, testDone: 0, facts: ['Hepatocytes are arranged around sinusoidal blood channels.', 'The portal vein supplies nutrient-rich blood from the gut.', 'Bile supports lipid digestion and waste excretion.'] },
+      { id: 'skin', name: 'Skin', sci: 'Cutis', system: 'Integumentary', region: 'Body surface', scale: '~1.5–2 m\u00b2', focus: 'Tissue layers', from: '#D98A63', to: '#B96543', color: '#C97852', structs: ['Epidermis', 'Dermis', 'Hypodermis', 'Hair follicle'], flashDone: 15, testDone: 20, facts: ['The epidermis is avascular and nourished by diffusion.', 'The dermis contains vessels, nerves, and connective tissue.', 'Sweat evaporation supports thermoregulation.'] },
+      { id: 'nervous-system', name: 'Nervous System', sci: 'Systema nervosum', system: 'Nervous', region: 'Whole body', scale: 'System', focus: 'CNS & major nerves', from: '#3F73F2', to: '#2C50CE', color: '#3865E8', structs: ['Spinal cord', 'Sciatic nerve'], flashDone: 12, testDone: 0, facts: ['Afferent pathways carry sensory information toward the CNS.', 'Efferent pathways carry motor commands to effectors.', 'Myelin increases conduction velocity by saltatory conduction.'] },
+      { id: 'digestive-system', name: 'Digestive System', sci: 'Systema digestorium', system: 'Digestive', region: 'Thorax to pelvis', scale: 'System', focus: 'Organ flow', from: '#2FAA69', to: '#1E8A52', color: '#279A5E', structs: ['Esophagus', 'Stomach', 'Liver', 'Small intestine', 'Colon'], flashDone: 0, testDone: 5, facts: ['The gastrointestinal wall coordinates motility through smooth muscle and the enteric nervous system.', 'The hepatic portal circulation delivers absorbed nutrients to the liver before systemic distribution.', 'Pancreatic enzymes and bile enter the duodenum, while most nutrient absorption occurs farther along the small intestine.'] },
+      { id: 'anatomy', name: 'Human Anatomy', sci: 'Corpus humanum', system: 'Whole Body', region: 'Whole body', scale: 'Atlas', focus: 'Systems & regions', from: '#64788F', to: '#435469', color: '#566A82', structs: ['Thorax', 'Abdomen'], flashDone: 2, testDone: 0, facts: ['Anatomical position standardizes directional terminology.', 'Organ systems are structurally distinct but physiologically interdependent.', 'Regional anatomy emphasizes spatial relationships.'] },
+    ]
+    const CARDS = 15, QN = 20
+    const isFlash = s.mode === 'flashcards', isNotesMode = s.mode === 'notes', isPracticeMode = s.mode === 'practice'
+    const active = CAT.find((m) => m.id === s.active) || CAT[0]
+    const structs = active.structs
+
+    // style helpers
+    const tab = (on) => 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:' + (on ? '600' : '500') + ';color:' + (on ? 'var(--primary)' : 'var(--muted-fg)') + ';padding-top:6px;'
+    const drawerBtn = (on) => 'display:flex;align-items:center;gap:11px;width:100%;height:42px;padding:0 12px;border:none;border-radius:11px;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:' + (on ? '600' : '500') + ';' + (on ? 'background:var(--primary-subtle);color:var(--primary);' : 'background:transparent;color:var(--fg-2);')
+    const modeTab = (on) => 'display:flex;align-items:center;justify-content:center;gap:6px;height:38px;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;' + (on ? 'background:var(--card);color:var(--fg);box-shadow:var(--shadow-card);' : 'background:transparent;color:var(--muted-fg);')
+    const pill = (on) => 'display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:999px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:' + (on ? '600' : '500') + ';white-space:nowrap;flex-shrink:0;scroll-snap-align:start;border:1px solid ' + (on ? 'var(--primary)' : 'var(--border)') + ';background:' + (on ? 'var(--primary-subtle)' : 'var(--card)') + ';color:' + (on ? 'var(--primary)' : 'var(--fg-2)') + ';'
+    const chip = (on) => 'display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;backdrop-filter:blur(8px);border:1px solid ' + (on ? 'var(--primary)' : 'var(--border)') + ';background:' + (on ? 'var(--primary-subtle)' : 'color-mix(in srgb,var(--card) 82%,transparent)') + ';color:' + (on ? 'var(--primary)' : 'var(--fg-2)') + ';'
+    const noteChip = (on) => 'display:inline-flex;align-items:center;height:34px;padding:0 15px;border-radius:999px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;flex-shrink:0;border:1px solid ' + (on ? 'var(--primary)' : 'var(--border)') + ';background:' + (on ? 'var(--primary-subtle)' : 'var(--card)') + ';color:' + (on ? 'var(--primary)' : 'var(--fg-2)') + ';'
+
+    // catalog models
+    const models = CAT.map((m) => {
+      const done = isFlash ? m.flashDone : m.testDone
+      const total = isFlash ? CARDS : QN
+      const pct = isNotesMode ? 0 : Math.round((done / total) * 100)
+      const started = !isNotesMode && done > 0
+      const complete = !isNotesMode && done >= total
+      const study = () => this.setState({ stack: isNotesMode ? 'notes' : isPracticeMode ? 'practice' : 'flashcard', active: m.id, fcIndex: 0, fcRevealed: false, fcHint: false, prIndex: 0, prSel: {}, prSubmitted: false, prCorrections: false, prHint: false, noteSection: 0 })
+      return {
+        ...m, color: m.color, from: m.from, to: m.to,
+        pillStyle: pill(s.filter === m.id),
+        metaCount: isNotesMode ? 'Course notes' : isFlash ? CARDS + ' cards' : QN + ' questions',
+        progressLabel: isNotesMode ? 'Reading notes' : started ? (isFlash ? done + ' / ' + CARDS + ' reviewed' : done + ' / ' + QN + ' complete') : 'Not started',
+        progressPct: pct,
+        ctaLabel: isNotesMode ? 'Read' : complete ? 'Review' : started ? 'Continue' : (isFlash ? 'Study' : 'Start'),
+        ctaBg: (started && !isNotesMode) ? 'var(--primary)' : 'var(--card)',
+        ctaFg: (started && !isNotesMode) ? 'var(--primary-fg)' : 'var(--fg)',
+        ctaBorder: (started && !isNotesMode) ? 'var(--primary)' : 'var(--border-strong)',
+        prStatusText: m.testDone >= QN ? 'Completed' : m.testDone > 0 ? (m.testDone + '/' + QN + ' answered') : 'Not attempted',
+        filter: () => this.setState({ filter: s.filter === m.id ? 'all' : m.id }),
+        study, openExplore: () => this.setState({ tab: 'explore', stack: null, active: m.id, drawerOpen: false }),
+      }
+    })
+    const ql = s.q.trim().toLowerCase()
+    const visibleModels = models.filter((m) => (s.filter === 'all' || m.id === s.filter) && (!ql || (m.name + ' ' + m.system + ' ' + m.sci + ' ' + m.region).toLowerCase().includes(ql)))
+
+    // flashcards
+    const fcSpec = Array.from({ length: CARDS }, (_, i) => {
+      const st = structs[i % structs.length]
+      return { heading: 'What is the principal anatomical role of the ' + st + '?', body: 'Relate its structure to its function within the ' + active.system.toLowerCase() + ' system.', answer: st, detail: active.facts[i % active.facts.length] }
+    })
+    const fc = fcSpec[s.fcIndex]
+    const cardFace = 'position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px;display:flex;flex-direction:column;box-shadow:var(--shadow-card);overflow:auto;'
+
+    // practice
+    const prQ = { question: 'Which structure is chiefly responsible for ' + active.focus.toLowerCase() + ' in the ' + active.name.toLowerCase() + '?', options: [structs[0], structs[1] || structs[0], structs[2] || structs[0], structs[structs.length - 1]], correct: 0, explain: active.facts[0] }
+    const prNav = Array.from({ length: QN }, (_, i) => {
+      const answered = s.prSel[i] !== undefined || i < 7
+      const cur = i === s.prIndex
+      return { num: i + 1, go: () => this.setState({ prIndex: i, prHint: false, navOpen: false }), style: 'aspect-ratio:1;display:grid;place-items:center;padding:0;border-radius:11px;font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:600;cursor:pointer;border:1px solid ' + (cur ? 'var(--primary)' : answered ? 'var(--primary-border)' : 'var(--border)') + ';background:' + (cur ? 'var(--primary)' : answered ? 'var(--primary-subtle)' : 'var(--card)') + ';color:' + (cur ? 'var(--primary-fg)' : answered ? 'var(--primary)' : 'var(--muted-fg)') + ';' }
+    })
+    const prSelIdx = s.prSel[s.prIndex]
+    const prOptions = prQ.options.map((opt, i) => {
+      const sel = prSelIdx === i, showCorr = s.prCorrections
+      const correct = showCorr && i === prQ.correct, wrongSel = showCorr && sel && i !== prQ.correct
+      const bg = correct ? 'var(--success-subtle)' : wrongSel ? 'var(--danger-subtle)' : sel ? 'var(--primary-subtle)' : 'var(--card)'
+      const bd = correct ? 'color-mix(in srgb,var(--success) 45%,transparent)' : wrongSel ? 'color-mix(in srgb,var(--danger) 45%,transparent)' : sel ? 'var(--primary)' : 'var(--border-strong)'
+      return { letter: String.fromCharCode(65 + i), text: opt, select: () => { if (!s.prCorrections) this.setState({ prSel: { ...s.prSel, [s.prIndex]: i } }) },
+        style: 'display:flex;align-items:center;gap:12px;width:100%;padding:14px 15px;border-radius:13px;cursor:pointer;text-align:left;background:' + bg + ';border:1px solid ' + bd + ';color:var(--fg);font-family:inherit;',
+        letterStyle: 'width:28px;height:28px;flex-shrink:0;border-radius:8px;display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;background:' + (sel || correct ? 'var(--card)' : 'var(--muted)') + ';border:1px solid ' + bd + ';color:var(--fg-2);' }
+    })
+    const prAnswered = Math.max(7, Object.keys(s.prSel).length)
+    const lastQ = s.prIndex === QN - 1
+
+    // notes
+    const noteDefs = [
+      { title: 'Overview', pages: '1–3', p1: active.name + ' — ' + active.sci + '. ' + active.facts[0], highlight: active.facts[1] ? active.facts[1].replace(/\.$/, '').toLowerCase() : 'structure follows function', p2: 'Located in the ' + active.region.toLowerCase() + ', it is best understood by relating each named structure to the role it performs.', p3: active.facts[2] || active.facts[0] },
+      { title: 'Key structures', pages: '4–7', p1: 'The principal named structures are ' + structs.slice(0, 4).join(', ') + '. Each occupies a fixed spatial relationship worth rehearsing on the model.', highlight: 'position predicts function here', p2: active.facts[1] || active.facts[0], p3: 'Use Dissect Mode to isolate each in turn, then return here to consolidate the naming.' },
+      { title: 'Function & clinical', pages: '8–11', p1: active.facts[2] || active.facts[0], highlight: active.facts[0].replace(/\.$/, '').toLowerCase(), p2: 'These relationships are the ones examiners most often test, so pair this with the ' + active.name.toLowerCase() + ' practice test.', p3: 'When in doubt, highlight a passage and ask Mentor to explain it in study language.' },
+    ]
+    const note = noteDefs[s.noteSection]
+    const noteChips = noteDefs.map((n, i) => ({ title: n.title, select: () => this.setState({ noteSection: i }), style: noteChip(s.noteSection === i) }))
+
+    // lab
+    const activityDefs = [
+      { id: 'pancreas', title: 'Trace the pancreatic pathway', desc: 'Follow enzymes from the pancreas into the duodenum and complete the flow.', steps: ['Isolate the pancreas', 'Reveal the pancreatic duct', 'Where do pancreatic enzymes enter?', 'Confirm the absorption site'], color: '#279A5E', kinds: ['action', 'action', 'question', 'action'] },
+      { id: 'cardiac', title: 'Isolate the cardiac chambers', desc: 'Hide, fade and label each chamber, then confirm the systemic outflow.', steps: ['Fade the atria', 'Isolate the left ventricle', 'Which vessel carries systemic outflow?', 'Reset the model'], color: '#E5484D', kinds: ['action', 'action', 'question', 'action'] },
+      { id: 'renal', title: 'Map the renal filtration route', desc: 'Identify cortex, medulla and pelvis, then order the path of filtrate.', steps: ['Select the renal cortex', 'Reveal the medulla', 'Where does filtrate collect?', 'Confirm the ureter'], color: '#D98A20', kinds: ['action', 'action', 'question', 'action'] },
+      { id: 'skin', title: 'Layer the integument', desc: 'Peel epidermis, dermis and hypodermis and match each to its role.', steps: ['Fade the epidermis', 'Which layer is avascular?', 'Reveal the hypodermis'], color: '#C97852', kinds: ['action', 'question', 'action'] },
+    ]
+    const activities = activityDefs.map((a) => ({ ...a, steps: a.steps.length, start: () => this.setState({ tab: 'lab', stack: 'labrun', labId: a.id, labStep: 0, labChoice: null, labChecked: false }) }))
+    const labDef = activityDefs.find((a) => a.id === s.labId) || activityDefs[0]
+    const labSteps = labDef.steps.map((p, i) => {
+      const done = i < s.labStep, cur = i === s.labStep
+      return { prompt: p, mark: done ? '\u2713' : String(i + 1), textColor: done ? 'var(--muted-fg)' : cur ? 'var(--fg)' : 'var(--muted-fg)', dotStyle: 'width:24px;height:24px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;' + (done ? 'background:var(--success);color:#fff;' : cur ? 'background:var(--primary);color:var(--primary-fg);' : 'background:var(--muted);color:var(--muted-fg);') }
+    })
+    const labKind = labDef.kinds[s.labStep] || 'done'
+    const labOptions = ['Duodenum', 'Stomach', 'Ileum'].map((t, i) => {
+      const sel = s.labChoice === i
+      return { letter: String.fromCharCode(65 + i), text: t, select: () => this.setState({ labChoice: i, labChecked: false }), style: 'display:flex;align-items:center;gap:11px;width:100%;padding:13px 14px;border-radius:12px;cursor:pointer;background:' + (sel ? 'var(--primary-subtle)' : 'var(--card)') + ';border:1px solid ' + (sel ? 'var(--primary)' : 'var(--border-strong)') + ';font-family:inherit;', letterStyle: 'width:26px;height:26px;flex-shrink:0;border-radius:7px;display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:600;background:var(--muted);color:var(--fg-2);' }
+    })
+
+    // dissect
+    const dissectRows = structs.map((st, i) => ({ label: st, dot: i === 0 ? 'var(--primary)' : i === 2 ? 'var(--border-strong)' : active.color, hidden: i === 2, style: 'display:flex;align-items:center;gap:10px;width:100%;height:44px;padding:0 12px;border:none;border-radius:11px;cursor:pointer;font-family:inherit;' + (i === 0 ? 'background:var(--primary-subtle);color:var(--primary);font-weight:600;' : 'background:var(--muted-2);color:var(--fg-2);'), text: i === 2 ? 'text-decoration:line-through;color:var(--muted-fg)' : '' }))
+    const toolBtn = 'display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 0;border:1px solid var(--border);border-radius:13px;background:var(--card);color:var(--fg-2);font-size:11.5px;font-weight:600;cursor:pointer;'
+    const svg = (d, fill) => React.createElement('svg', { width: 17, height: 17, viewBox: '0 0 24 24', fill: fill || 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('path', { d }))
+    const dissectTools = [
+      { label: 'Hide', style: toolBtn, iconBg: 'var(--muted)', iconColor: 'var(--fg-2)', icon: React.createElement('svg', { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('path', { d: 'M9.88 9.88a3 3 0 1 0 4.24 4.24' }), React.createElement('path', { d: 'M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68' }), React.createElement('path', { d: 'M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61' }), React.createElement('path', { d: 'm2 2 20 20' })) },
+      { label: 'Fade', style: toolBtn, iconBg: 'var(--muted)', iconColor: 'var(--fg-2)', icon: React.createElement('svg', { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7 }, React.createElement('circle', { cx: 12, cy: 12, r: 10 }), React.createElement('path', { d: 'M12 2a10 10 0 0 1 0 20z', fill: 'currentColor', stroke: 'none' })) },
+      { label: 'Isolate', style: toolBtn, iconBg: 'var(--primary-subtle)', iconColor: 'var(--primary)', icon: React.createElement('svg', { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('circle', { cx: 12, cy: 12, r: 3 }), React.createElement('path', { d: 'M12 2v3M12 19v3M2 12h3M19 12h3' })) },
+      { label: 'Label', style: toolBtn, iconBg: 'var(--muted)', iconColor: 'var(--fg-2)', icon: React.createElement('svg', { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('path', { d: 'M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z' }), React.createElement('circle', { cx: 7.5, cy: 7.5, r: 1.5, fill: 'currentColor' })) },
+    ]
+
+    // specimen chips + pins for explore
+    const specimenChips = CAT.map((m) => ({ name: m.name, color: m.color, style: chip(m.id === s.active), pick: () => this.setState({ active: m.id, cx: { x: 0, y: 0, s: 1 } }) }))
+    const pinPos = [{ top: '-6%', left: '50%' }, { top: '22%', left: '104%' }, { top: '78%', left: '104%' }, { top: '106%', left: '50%' }, { top: '78%', left: '-4%' }, { top: '22%', left: '-4%' }]
+    const pins = structs.slice(0, 6).map((st, i) => ({ label: st, color: i === 0 ? active.color : 'var(--fg-2)', style: 'position:absolute;top:' + pinPos[i].top + ';left:' + pinPos[i].left + ';transform:translate(-50%,-50%);display:flex;align-items:center;gap:7px;background:color-mix(in srgb,var(--card) 92%,transparent);border:1px solid var(--border);border-radius:999px;padding:5px 11px 5px 8px;box-shadow:var(--shadow-card);color:var(--fg)' }))
+
+    // mentor
+    const screenKey = s.stack || s.tab
+    const mentorSets = {
+      explore: [{ m: true, t: 'Pinch to zoom the ' + active.name.toLowerCase() + ', drag to pan, or open Dissect to hide, fade and isolate parts.' }, { m: false, t: 'What does the ' + (structs[1] || structs[0]).toLowerCase() + ' do?' }],
+      flashcard: [{ m: true, t: 'Reveal the answer, then grade your recall. Ask me for a hint on any card for 1 credit.' }],
+      practice: [{ m: true, t: 'I can hint the current question for 1 credit, or unlock full corrections after you submit.' }],
+      notes: [{ m: true, t: 'Highlight any passage and I\u2019ll explain it in study language — grounded in these notes.' }],
+      labrun: [{ m: true, t: 'I explain each checkpoint result. The Lab decides correctness — I never mark it for you.' }],
+      learn: [{ m: true, t: 'Pick a subject and a mode — notes, flashcards or a practice test. I only cost credits when you ask me directly.' }],
+      lab: [{ m: true, t: 'Choose a guided activity and I\u2019ll walk you through each checkpoint.' }],
+      account: [{ m: true, t: 'You can top up credits any time. Studying itself is always free — credits only power AI features.' }],
+    }
+    const mentorMsgs = (mentorSets[screenKey] || mentorSets.learn).map((x) => ({ text: x.t, wrap: 'display:flex;justify-content:' + (x.m ? 'flex-start' : 'flex-end'), bubble: 'max-width:86%;font-size:14px;line-height:1.55;padding:12px 14px;' + (x.m ? 'background:var(--ai-subtle);border:1px solid var(--ai-border);border-radius:16px 16px 16px 5px;color:var(--fg-2);' : 'background:var(--primary-subtle);border:1px solid var(--primary-border);border-radius:16px 16px 5px 16px;color:var(--fg);') }))
+
+    const creditActions = [
+      { label: 'Assessment hint', cost: '1' }, { label: 'Flashcard hint', cost: '1' }, { label: 'Ask Mentor (per reply)', cost: '1' }, { label: 'Detailed corrections', cost: '2' }, { label: 'Voice session (5 min)', cost: '10' },
+    ]
+    const activity = [
+      { action: 'Voice · 5 minutes', meta: 'Digestive System test · today 14:02', amount: '−10', color: 'var(--danger)' },
+      { action: 'Detailed corrections', meta: 'Heart practice test · today 11:20', amount: '−2', color: 'var(--danger)' },
+      { action: 'Generated a 15-card deck', meta: 'Brain · yesterday', amount: '−5', color: 'var(--danger)' },
+      { action: 'Credit pack purchased', meta: 'NGN 500 · 8 Aug', amount: '+100', color: 'var(--success)' },
+      { action: 'Mentor reply', meta: 'Explore · Left ventricle · 7 Aug', amount: '−1', color: 'var(--danger)' },
+    ]
+
+    // top bar / titles
+    const titleMap = { learn: 'Learn', explore: active.name, lab: 'Lab', account: 'Account', flashcard: active.name + ' flashcards', practice: active.name + ' test', notes: active.name + ' notes', labrun: labDef.title }
+    const subMap = { explore: active.system + ' · ' + active.region, flashcard: 'Card ' + (s.fcIndex + 1) + ' of 15', practice: prAnswered + ' of 20 answered', notes: 'Section ' + (s.noteSection + 1) + ' of 3', labrun: 'Step ' + (s.labStep + 1) + ' of ' + labDef.steps.length }
+
+    const themeOn = s.theme === 'dark'
+
+    return {
+      theme: s.theme, isDark: themeOn, isLight: !themeOn, balance: s.balance,
+      toggleTheme: () => this.setTheme(themeOn ? 'light' : 'dark'),
+      themeSwitchTrack: 'width:44px;height:26px;flex-shrink:0;border-radius:999px;border:none;cursor:pointer;position:relative;transition:background .2s;background:' + (themeOn ? 'var(--primary)' : 'var(--border-strong)') + ';',
+      themeSwitchKnob: 'position:absolute;top:3px;left:' + (themeOn ? '21px' : '3px') + ';width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)',
+
+      // nav
+      topTitle: titleMap[screenKey] || 'Stranerd', topSub: subMap[screenKey] || '',
+      topBack: !!s.stack,
+      backToTab: () => this.setState({ stack: null }),
+      goExplore: () => this.setState({ tab: 'explore', stack: null, drawerOpen: false }),
+      goLearn: () => this.setState({ tab: 'learn', stack: null, drawerOpen: false }),
+      goLab: () => this.setState({ tab: 'lab', stack: null, drawerOpen: false }),
+      goAccount: () => this.setState({ tab: 'account', stack: null, drawerOpen: false }),
+      tabExplore: tab(s.tab === 'explore'), tabLearn: tab(s.tab === 'learn'), tabLab: tab(s.tab === 'lab'), tabAccount: tab(s.tab === 'account'),
+      drawerExplore: drawerBtn(s.tab === 'explore'), drawerLearn: drawerBtn(s.tab === 'learn'), drawerLab: drawerBtn(s.tab === 'lab'), drawerAccount: drawerBtn(s.tab === 'account'),
+      openDrawer: () => this.setState({ drawerOpen: true }), closeDrawer: () => this.setState({ drawerOpen: false }), drawerOpen: s.drawerOpen,
+
+      // which screen
+      showLearn: s.tab === 'learn' && !s.stack, showFlash: s.stack === 'flashcard', showPractice: s.stack === 'practice', showNotes: s.stack === 'notes',
+      showExplore: s.tab === 'explore' && !s.stack, showLabList: s.tab === 'lab' && !s.stack, showLabRun: s.stack === 'labrun', showAccount: s.tab === 'account' && !s.stack,
+
+      // catalog
+      models, visibleModels, emptyResults: visibleModels.length === 0,
+      modeIsMedia: isNotesMode || isFlash, modeIsPractice: isPracticeMode, modeIsNotes: isNotesMode, modeIsFlash: isFlash,
+      modeNotes: () => this.setState({ mode: 'notes' }), modeFlash: () => this.setState({ mode: 'flashcards' }), modePractice: () => this.setState({ mode: 'practice' }),
+      notesModeStyle: modeTab(isNotesMode), flashModeStyle: modeTab(isFlash), practiceModeStyle: modeTab(isPracticeMode),
+      q: s.q, onSearch: (e) => this.setState({ q: e.target.value }),
+      searchPlaceholder: isNotesMode ? 'Search subjects' : isFlash ? 'Search flashcard sets' : 'Search practice tests',
+      collectionTitle: isNotesMode ? 'Notes by subject' : isFlash ? 'Flashcard sets' : 'Practice tests',
+      collectionCount: visibleModels.length + ' subjects',
+      allFilter: () => this.setState({ filter: 'all' }), allPillStyle: pill(s.filter === 'all'),
+
+      // flashcards
+      fcNum: s.fcIndex + 1, fcPct: Math.round((active.flashDone / CARDS) * 100),
+      fcQ: fc.heading, fcQBody: fc.body, fcAnswer: fc.answer, fcDetail: fc.detail,
+      fcInnerStyle: 'position:relative;width:100%;height:380px;cursor:pointer;transition:transform .6s cubic-bezier(.4,0,.2,1);transform-style:preserve-3d;transform:' + (s.fcRevealed ? 'rotateY(180deg)' : 'rotateY(0deg)'),
+      fcFrontStyle: cardFace, fcBackStyle: cardFace + 'transform:rotateY(180deg);',
+      fcRevealed: s.fcRevealed, fcReveal: () => this.setState({ fcRevealed: !s.fcRevealed }),
+      fcPrev: () => this.setState({ fcIndex: Math.max(0, s.fcIndex - 1), fcRevealed: false, fcHint: false }),
+      fcNext: () => this.setState({ fcIndex: Math.min(CARDS - 1, s.fcIndex + 1), fcRevealed: false, fcHint: false }),
+      fcShuffle: () => this.setState({ fcIndex: Math.floor(Math.random() * CARDS), fcRevealed: false, fcHint: false }),
+      fcGrade: () => this.setState({ fcIndex: Math.min(CARDS - 1, s.fcIndex + 1), fcRevealed: false, fcHint: false }),
+      fcHint: () => this.trySpend(1, 'A flashcard hint', () => this.setState({ fcHint: true })), fcHintShown: s.fcHint,
+      fcHintStyle: 'display:flex;align-items:center;gap:7px;height:42px;padding:0 15px;border:1px solid ' + (s.fcHint ? 'var(--ai-border)' : 'var(--border-strong)') + ';border-radius:11px;background:' + (s.fcHint ? 'var(--ai-subtle)' : 'var(--card)') + ';color:' + (s.fcHint ? 'var(--ai)' : 'var(--fg-2)') + ';font-size:13.5px;font-weight:600;cursor:pointer;',
+      fcHintLabel: s.fcHint ? 'Hint' : 'Hint · 1',
+      fcHint2: 'Think about where the ' + fc.answer.toLowerCase() + ' sits and what flows through it.',
+
+      // practice
+      prTaking: !s.prSubmitted, prSubmitted: s.prSubmitted,
+      prNum: s.prIndex + 1, prNav, prAnswered, prAnsweredPct: Math.round((prAnswered / QN) * 100),
+      prQuestion: prQ.question, prOptions,
+      prPrev: () => this.setState({ prIndex: Math.max(0, s.prIndex - 1), prHint: false }),
+      prNext: () => this.setState({ prIndex: Math.min(QN - 1, s.prIndex + 1), prHint: false }),
+      prShowNext: !lastQ, prShowSubmit: lastQ && !s.prCorrections,
+      prSubmit: () => this.setState({ prSubmitted: true }),
+      prShowCorrections: () => this.trySpend(2, 'Detailed assessment corrections', () => this.setState({ prSubmitted: false, prCorrections: true, prIndex: 0 })),
+      prRetake: () => this.setState({ prSubmitted: false, prIndex: 0 }),
+      prHint: () => this.trySpend(1, 'An assessment hint', () => this.setState({ prHint: true })), prHintShown: s.prHint && !s.prCorrections,
+      prHintStyle: 'width:46px;flex-shrink:0;display:grid;place-items:center;height:46px;border-radius:12px;cursor:pointer;border:1px solid ' + (s.prHint ? 'var(--ai-border)' : 'var(--border-strong)') + ';background:' + (s.prHint ? 'var(--ai-subtle)' : 'var(--card)') + ';color:' + (s.prHint ? 'var(--ai)' : 'var(--fg-2)') + ';',
+      prHint2: 'Focus on which structure is defined by ' + active.focus.toLowerCase() + '.',
+      prCorrectionShown: s.prCorrections, prCorrectionHead: 'Correct answer: ' + prQ.options[prQ.correct], prCorrectionBody: prQ.explain,
+      openNav: () => this.setState({ navOpen: true }), closeNav: () => this.setState({ navOpen: false }), navOpen: s.navOpen,
+
+      // notes
+      noteChips, noteTitle: note.title, notePages: note.pages, noteP1: note.p1, noteHighlight: note.highlight, noteP2: note.p2, noteP3: note.p3,
+      noteMnemonicTitle: (active.mnemonic && active.mnemonic.title) || 'Study tip', noteMnemonicBody: (active.mnemonic && active.mnemonic.body) || ('Rehearse ' + structs.slice(0, 3).join(', ') + ' in order — position predicts function.'),
+
+      // explore canvas
+      activeName: active.name, activeSystem: active.system, activeRegion: active.region, activeScale: active.scale, activeColor: active.color, activeStructuresCount: structs.length,
+      setCanvasEl: this.setCanvasEl,
+      canvasTransform: 'translate(' + s.cx.x.toFixed(1) + 'px,' + s.cx.y.toFixed(1) + 'px) scale(' + s.cx.s.toFixed(3) + ')',
+      zoomLabel: Math.round(s.cx.s * 100) + '%',
+      zoomIn: () => this.zoomStep(1.25), zoomOut: () => this.zoomStep(0.8), resetCanvas: () => this.setState({ cx: { x: 0, y: 0, s: 1 } }),
+      pins, specimenChips,
+      dissectPill: s.dissectOpen ? 'Dissect Mode' : 'Explore mode',
+      dissectPillColor: s.dissectOpen ? 'var(--primary)' : 'var(--muted-fg)', dissectPillBg: s.dissectOpen ? 'var(--primary-subtle)' : 'color-mix(in srgb,var(--card) 82%,transparent)', dissectPillBorder: s.dissectOpen ? 'var(--primary-border)' : 'var(--border)',
+      dissectFabStyle: 'position:absolute;left:16px;bottom:74px;z-index:5;display:flex;align-items:center;gap:8px;height:44px;padding:0 17px;border-radius:14px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-pop);border:1px solid ' + (s.dissectOpen ? 'var(--primary)' : 'var(--border)') + ';background:' + (s.dissectOpen ? 'var(--primary)' : 'color-mix(in srgb,var(--card) 90%,transparent)') + ';color:' + (s.dissectOpen ? 'var(--primary-fg)' : 'var(--fg-2)') + ';backdrop-filter:blur(10px);',
+      openDissect: () => this.setState({ dissectOpen: true }), closeDissect: () => this.setState({ dissectOpen: false }), dissectOpen: s.dissectOpen,
+      dissectRows, dissectTools,
+      exploreDissectStyle: 'width:40px;height:40px;border-radius:10px;border:none;display:grid;place-items:center;cursor:pointer;' + (s.dissectOpen ? 'background:var(--primary);color:#fff;' : 'background:transparent;color:var(--fg-2);'),
+      labToolsOpen: s.labToolsOpen, labToolsClosed: !s.labToolsOpen,
+      toggleLabTools: () => this.setState({ labToolsOpen: !s.labToolsOpen }),
+      labOpenDissect: () => this.setState({ dissectOpen: true, labToolsOpen: false }),
+      labToolsFabStyle: 'width:42px;height:42px;border-radius:12px;display:grid;place-items:center;cursor:pointer;box-shadow:var(--shadow-pop);backdrop-filter:blur(10px);' + (s.labToolsOpen ? 'background:var(--primary);color:var(--primary-fg);border:1px solid var(--primary);' : 'background:color-mix(in srgb,var(--card) 88%,transparent);color:var(--fg-2);border:1px solid var(--border);'),
+
+      // lab
+      activities, labColor: labDef.color, labSteps,
+      labStepKicker: labKind === 'question' ? 'Knowledge check · step ' + (s.labStep + 1) + ' of ' + labDef.steps.length : labKind === 'done' ? 'Lab complete' : 'Model action · step ' + (s.labStep + 1) + ' of ' + labDef.steps.length,
+      labStepPrompt: labKind === 'done' ? 'Learning sequence completed' : labDef.steps[s.labStep],
+      labIsQuestion: labKind === 'question', labIsAction: labKind === 'action', labOptions, labFeedback: labKind === 'question' && s.labChecked,
+      labExplain: 'Pancreatic enzymes and bile enter the duodenum — the first part of the small intestine.',
+      labNextLabel: labKind === 'question' ? (s.labChecked ? 'Continue' : 'Check answer') : labKind === 'done' ? 'Finish' : 'Mark step done',
+      labNext: () => {
+        if (labKind === 'done') { this.setState({ stack: null }); return }
+        if (labKind === 'question' && !s.labChecked) { this.setState({ labChecked: true }); return }
+        this.setState({ labStep: Math.min(labDef.steps.length, s.labStep + 1), labChoice: null, labChecked: false })
+      },
+
+      // mentor
+      mentorOpen: s.mentorOpen, openMentor: () => this.setState({ mentorOpen: true }), closeMentor: () => this.setState({ mentorOpen: false }),
+      mentorMsgs, mentorContext: (titleMap[screenKey] || 'Workspace') + ' · grounded in context',
+      mentorTextTab: () => this.setState({ mentorTab: 'text' }),
+      mentorVoice: () => this.trySpend(10, 'A five-minute Voice session', () => this.setState({ mentorTab: 'voice' })),
+      mentorSend: () => this.trySpend(1, 'An AI Mentor response', () => {}),
+      mentorIsText: s.mentorTab === 'text', mentorIsVoice: s.mentorTab === 'voice',
+      mentorTextStyle: 'height:28px;padding:0 13px;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;' + (s.mentorTab === 'text' ? 'background:var(--card);color:var(--fg);box-shadow:var(--shadow-card);' : 'background:transparent;color:var(--muted-fg);'),
+      mentorVoiceStyle: 'height:28px;padding:0 13px;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;' + (s.mentorTab === 'voice' ? 'background:var(--card);color:var(--fg);box-shadow:var(--shadow-card);' : 'background:transparent;color:var(--muted-fg);'),
+      mentorPlaceholder: screenKey === 'notes' ? 'Ask about this section' : screenKey === 'practice' ? 'Ask about this question' : screenKey === 'explore' ? 'Ask about this specimen' : 'Ask Mentor anything',
+      mentorGround: screenKey === 'notes' ? 'notes' : screenKey === 'practice' ? 'question' : screenKey === 'explore' ? 'specimen' : 'workspace',
+
+      // account
+      creditActions, activity, goBilling: () => { this.setState({ creditPrompt: null }); if (typeof window !== 'undefined') window.location.href = 'Stranerd Account and Pricing.dc.html' },
+
+      // credit modal
+      creditPromptOpen: !!s.creditPrompt,
+      creditPromptDesc: s.creditPrompt ? (s.creditPrompt.action + ' requires ' + s.creditPrompt.required + (s.creditPrompt.required === 1 ? ' credit' : ' credits') + '. Your current balance is ' + s.balance + '.') : '',
+      closeCreditPrompt: () => this.setState({ creditPrompt: null }),
+
+      stopProp: (e) => e.stopPropagation(), noop: () => {},
+    }
+  }
+}
+</script>
+</body>
+</html>

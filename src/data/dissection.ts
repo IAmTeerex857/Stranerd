@@ -27,38 +27,6 @@ export type GuidedDissectionStep = {
   success: string
 }
 
-export const digestivePancreasSequence = {
-  id: 'digestive-pancreas-pathway',
-  title: 'Expose the pancreatic pathway',
-  steps: [
-    {
-      action: 'hide',
-      targetIds: ['anatomy:organs:stomach'],
-      prompt: 'Select and hide the stomach to expose the pancreas.',
-      success: 'The hidden stomach reveals the pancreas posterior to it.',
-    },
-    {
-      action: 'isolate',
-      targetIds: ['anatomy:organs:pancreas'],
-      prompt: 'Select and isolate the pancreas.',
-      success: 'The pancreas is isolated within the upper abdomen.',
-    },
-    {
-      action: 'select',
-      targetIds: ['anatomy:organs:duodenum'],
-      prompt: 'Select the duodenum that receives pancreatic secretions.',
-      success: 'The duodenum receiving pancreatic secretions is identified.',
-    },
-  ] satisfies GuidedDissectionStep[],
-} as const
-
-export const digestiveDissectionQuiz = {
-  question: 'After exposing the pancreas, which structure receives its digestive secretions?',
-  options: ['Stomach', 'Duodenum', 'Transverse colon', 'Gallbladder'],
-  correctIndex: 1,
-  explanation: 'The pancreatic duct empties into the duodenum, where pancreatic enzymes and bicarbonate join chyme from the stomach.',
-} as const
-
 export function guidedStepComplete(step: GuidedDissectionStep, action: DissectionActionType, structureIds: string[]) {
   return step.action === action && step.targetIds.every((id) => structureIds.includes(id))
 }
@@ -73,6 +41,7 @@ export type DissectionAction =
   | { type: 'show-all' }
   | { type: 'toggle-transparent'; ids: string[] }
   | { type: 'toggle-isolate' }
+  | { type: 'set-isolate'; value: boolean }
   | { type: 'begin-move' }
   | { type: 'set-offset'; id: string; offset: [number, number, number] }
   | { type: 'reset' }
@@ -107,6 +76,7 @@ export function dissectionReducer(state: DissectionState, action: DissectionActi
   if (action.type === 'show') return update(state, { ...snapshot(state), hiddenIds: state.hiddenIds.filter((id) => !action.ids.includes(id)) })
   if (action.type === 'show-all') return update(state, { ...snapshot(state), hiddenIds: [] })
   if (action.type === 'toggle-isolate') return update(state, { ...snapshot(state), isolate: !state.isolate })
+  if (action.type === 'set-isolate') return update(state, { ...snapshot(state), isolate: action.value })
   const allTransparent = action.ids.length > 0 && action.ids.every((id) => state.transparentIds.includes(id))
   return update(state, {
     ...snapshot(state),
@@ -114,6 +84,29 @@ export function dissectionReducer(state: DissectionState, action: DissectionActi
       ? state.transparentIds.filter((id) => !action.ids.includes(id))
       : [...new Set([...state.transparentIds, ...action.ids])],
   })
+}
+
+type StructureReference = { id: string; label: string; nodeId?: string }
+
+export function normalizedStructureName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+export function resolveDissectionStructures<T extends StructureReference>(requested: string[], sources: readonly (readonly T[])[]): { structures: T[] } | { error: string } {
+  const resolved: T[] = []
+  for (const request of requested) {
+    const normalized = normalizedStructureName(request)
+    const matches = sources.map((source) => [...new Map(source.map((entry) => [entry.id, entry])).values()].filter((entry) => [entry.id, entry.nodeId, entry.label].some((value) => value !== undefined && normalizedStructureName(value) === normalized))).find((entries) => entries.length > 0) ?? []
+    if (matches.length !== 1) return { error: matches.length === 0 ? `Structure not found: ${request}` : `Structure is ambiguous: ${request}` }
+    if (!resolved.some((entry) => entry.id === matches[0].id)) resolved.push(matches[0])
+  }
+  return { structures: resolved }
+}
+
+export function separateStructureOffsets(ids: string[], distance = 0.45): Record<string, [number, number, number]> {
+  if (ids.length < 2) return {}
+  const span = distance * 2
+  return Object.fromEntries(ids.map((id, index) => [id, [-distance + span * index / (ids.length - 1), 0, 0]]))
 }
 
 export function digestiveStructureGroup(label: string) {

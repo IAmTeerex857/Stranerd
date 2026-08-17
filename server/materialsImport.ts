@@ -5,11 +5,15 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import 'dotenv/config'
+import sharp from 'sharp'
 import { curateImportedFlashcards, curateImportedQuestions, MATERIALS_EDITORIAL_VERSION } from './materialsEditorial.js'
 
 const REQUIRED_FILES = ['notes.md', 'sections.jsonl', 'figures.json', 'mnemonics.json', 'flashcards.json', 'tests.generated.json'] as const
 const SUBJECT_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const LOCAL_IMAGE_RE = /(?<!\\)(!\[(?:\\.|[^\]\\])*\]\(\s*)(\.\/assets\/([^\s)'"<>]+))(?=(?:\s+(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\((?:\\.|[^)\\])*\)))?\s*\))/g
+const MAX_IMAGE_PIXELS = 40_000_000
+const RESPONSIVE_WIDTHS = [480, 768, 1200, 1600] as const
+const IMAGE_PIPELINE_VERSION = 'responsive-webp-v1'
 
 type JsonObject = Record<string, unknown>
 type QuestionStatus = 'pending' | 'approved' | 'rejected'
@@ -24,6 +28,23 @@ export interface MaterialAsset {
   sha256: string
   byteSize: number
   mimeType: 'image/png' | 'image/jpeg'
+  width: number
+  height: number
+  derivatives: MaterialAssetDerivative[]
+}
+
+export interface MaterialAssetDerivative {
+  storagePath: string
+  publicUrl: string
+  width: number
+  height: number
+  byteSize: number
+  sha256: string
+  bytes: Uint8Array
+}
+
+function derivativeMetadata(derivative: MaterialAssetDerivative) {
+  return { storagePath: derivative.storagePath, publicUrl: derivative.publicUrl, width: derivative.width, height: derivative.height, byteSize: derivative.byteSize, sha256: derivative.sha256 }
 }
 
 export interface SubjectManifest {
@@ -200,8 +221,23 @@ function mimeFor(name: string, bytes: Uint8Array): 'image/png' | 'image/jpeg' {
   fail(`${name} is not a PNG/JPEG matching its extension`)
 }
 
+async function inspectImage(name: string, bytes: Buffer): Promise<{ width: number; height: number }> {
+  try {
+    const image = sharp(bytes, { failOn: 'error', limitInputPixels: MAX_IMAGE_PIXELS })
+    const metadata = await image.metadata()
+    if (!metadata.width || !metadata.height || !['png', 'jpeg'].includes(metadata.format ?? '')) fail(`${name} has invalid image dimensions or encoding`)
+    await image.stats()
+    const rotated = metadata.orientation && metadata.orientation >= 5 ? { width: metadata.height, height: metadata.width } : { width: metadata.width, height: metadata.height }
+    if (rotated.width * rotated.height > MAX_IMAGE_PIXELS) fail(`${name} exceeds the ${MAX_IMAGE_PIXELS.toLocaleString('en-US')} pixel limit`)
+    return rotated
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Materials import:')) throw error
+    fail(`${name} could not be decoded: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
 async function sourceSubject(subjectDir: string, subject: string): Promise<{
-  raw: Record<string, string>; sections: JsonObject[]; figures: JsonObject[]; mnemonics: JsonObject[]; flashcards: JsonObject[]; questions: JsonObject[]; assets: Omit<MaterialAsset, 'id' | 'storagePath' | 'publicUrl'>[]; contentHash: string
+  raw: Record<string, string>; sections: JsonObject[]; figures: JsonObject[]; mnemonics: JsonObject[]; flashcards: JsonObject[]; questions: JsonObject[]; assets: Omit<MaterialAsset, 'id' | 'storagePath' | 'publicUrl' | 'derivatives'>[]; contentHash: string
 }> {
   for (const file of REQUIRED_FILES) {
     try { await fs.access(path.join(subjectDir, file)) } catch { fail(`${subject} is missing ${file}`) }
@@ -269,7 +305,9 @@ async function sourceSubject(subjectDir: string, subject: string): Promise<{
     const absolutePath = path.resolve(subjectDir, 'assets', fileName)
     if (path.dirname(absolutePath) !== path.resolve(subjectDir, 'assets')) fail(`${originalPath} escapes assets directory`)
     const bytes = await fs.readFile(absolutePath)
-    return { originalPath, fileName, absolutePath, sha256: sha256(bytes), byteSize: bytes.byteLength, mimeType: mimeFor(fileName, bytes) }
+    const mimeType = mimeFor(fileName, bytes)
+    const dimensions = await inspectImage(fileName, bytes)
+    return { originalPath, fileName, absolutePath, sha256: sha256(bytes), byteSize: bytes.byteLength, mimeType, ...dimensions }
   }))
   const contentHash = sha256(canonical({ files: Object.fromEntries(REQUIRED_FILES.map((file) => [file, sha256(raw[file])])), assets: assets.map((asset) => [asset.originalPath, asset.sha256]) }))
   return { raw, sections, figures, mnemonics, flashcards, questions, assets, contentHash }
@@ -292,7 +330,7 @@ export async function buildMaterialsManifest(options: BuildManifestOptions): Pro
   const curatedQuestions = sources.map((source) => curateImportedQuestions(source.questions))
   const flashcardHashes = curatedFlashcards.map((cards) => sha256(canonical(cards)))
   const questionHashes = curatedQuestions.map((questions) => sha256(canonical(questions)))
-  const corpusHash = sha256(canonical({ editorialVersion: MATERIALS_EDITORIAL_VERSION, subjects: subjects.map((subject, index) => [subject, sources[index].contentHash, flashcardHashes[index], questionHashes[index]]) }))
+  const corpusHash = sha256(canonical({ editorialVersion: MATERIALS_EDITORIAL_VERSION, imagePipelineVersion: IMAGE_PIPELINE_VERSION, subjects: subjects.map((subject, index) => [subject, sources[index].contentHash, flashcardHashes[index], questionHashes[index]]) }))
   const publicBase = (options.publicBaseUrl ?? 'https://dry-run.invalid/storage/v1/object/public/materials').replace(/\/$/, '')
   const manifests = sources.map((source, index): SubjectManifest => {
     const subject = subjects[index]
@@ -302,7 +340,7 @@ export async function buildMaterialsManifest(options: BuildManifestOptions): Pro
       const storagePath = `assets/${asset.sha256}/${asset.fileName}`
       const publicUrl = `${publicBase}/assets/${asset.sha256}/${encodeURIComponent(asset.fileName)}`
       urls.set(asset.originalPath, publicUrl)
-      return { ...asset, id: stableUuid('asset', subject, asset.sha256), storagePath, publicUrl }
+      return { ...asset, id: stableUuid('asset', subject, asset.sha256), storagePath, publicUrl, derivatives: [] as MaterialAssetDerivative[] }
     })
     const rewriteRecord = (record: JsonObject, fields: string[]) => Object.fromEntries(Object.entries(record).map(([key, value]) => [key, fields.includes(key) && typeof value === 'string' ? rewriteMarkdownAssetUrls(value, urls) : value]))
     const sections = source.sections.map((record) => rewriteRecord(record, ['content']))
@@ -316,10 +354,20 @@ export async function buildMaterialsManifest(options: BuildManifestOptions): Pro
     const counts = { sections: sections.length, assets: assets.length, figures: figures.length, mnemonics: source.mnemonics.length, flashcards: flashcards.length, questions: questions.length, approvedQuestions: questions.filter((item) => item.status === 'approved' && item.published).length }
     return {
       subject: { id: stableUuid('subject', subject), slug: subject, title: titleFromSlug(subject) },
-      release: { id: stableUuid('release', subject, publicationHash), corpusHash, contentHash: publicationHash, notesMarkdown: rewriteMarkdownAssetUrls(source.raw['notes.md'], urls), sourceMetadata: { source_directory: subject, source_content_hash: source.contentHash, editorial_version: MATERIALS_EDITORIAL_VERSION, flashcards_editorial_hash: flashcardHashes[index], questions_editorial_hash: questionHashes[index], questions_approved_by_import: Boolean(options.approveQuestions), original_asset_paths: Object.fromEntries(assets.map((asset) => [asset.id, asset.originalPath])) } },
+      release: { id: stableUuid('release', subject, publicationHash), corpusHash, contentHash: publicationHash, notesMarkdown: rewriteMarkdownAssetUrls(source.raw['notes.md'], urls), sourceMetadata: { source_directory: subject, source_content_hash: source.contentHash, editorial_version: MATERIALS_EDITORIAL_VERSION, image_pipeline_version: IMAGE_PIPELINE_VERSION, flashcards_editorial_hash: flashcardHashes[index], questions_editorial_hash: questionHashes[index], questions_approved_by_import: Boolean(options.approveQuestions), original_asset_paths: Object.fromEntries(assets.map((asset) => [asset.id, asset.originalPath])) } },
       sections, assets, figures, mnemonics, flashcards, questions, counts,
     }
   })
+  for (const subject of manifests) {
+    await Promise.all(subject.assets.map(async (asset) => {
+      const source = await fs.readFile(asset.absolutePath)
+      asset.derivatives = await Promise.all(RESPONSIVE_WIDTHS.filter((width) => width < asset.width).map(async (width) => {
+        const { data, info } = await sharp(source, { failOn: 'error', limitInputPixels: MAX_IMAGE_PIXELS }).autoOrient().resize({ width, withoutEnlargement: true }).webp({ quality: 82, effort: 6, smartSubsample: true }).toBuffer({ resolveWithObject: true })
+        const storagePath = `assets/${asset.sha256}/responsive/${width}w.webp`
+        return { storagePath, publicUrl: `${publicBase}/${storagePath}`, width: info.width, height: info.height, byteSize: data.byteLength, sha256: sha256(data), bytes: data }
+      }))
+    }))
+  }
   const counts = manifests.reduce<Record<string, number>>((total, item) => { for (const [key, count] of Object.entries(item.counts)) total[key] = (total[key] ?? 0) + count; return total }, { subjects: manifests.length })
   return { corpusHash, subjects: manifests, counts }
 }
@@ -328,7 +376,7 @@ export function subjectRpcPayload(manifest: SubjectManifest, runId: string, expe
   return {
     run_id: runId, expected_subjects: expectedSubjects, subject: manifest.subject, release: manifest.release,
     sections: manifest.sections,
-    assets: manifest.assets.map((asset) => ({ id: asset.id, originalPath: asset.originalPath, fileName: asset.fileName, storagePath: asset.storagePath, publicUrl: asset.publicUrl, sha256: asset.sha256, byteSize: asset.byteSize, mimeType: asset.mimeType })),
+    assets: manifest.assets.map((asset) => ({ id: asset.id, originalPath: asset.originalPath, fileName: asset.fileName, storagePath: asset.storagePath, publicUrl: asset.publicUrl, sha256: asset.sha256, byteSize: asset.byteSize, mimeType: asset.mimeType, width: asset.width, height: asset.height, derivatives: asset.derivatives.map(derivativeMetadata) })),
     figures: manifest.figures, mnemonics: manifest.mnemonics, flashcards: manifest.flashcards, questions: manifest.questions,
   }
 }
@@ -341,10 +389,19 @@ async function uploadAssets(client: SupabaseClient, assets: MaterialAsset[]): Pr
       const bytes = await fs.readFile(asset.absolutePath)
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         const { error } = await client.storage.from('materials').upload(asset.storagePath, bytes, { contentType: asset.mimeType, cacheControl: '31536000', upsert: false })
-        if (!error) { uploaded += 1; return }
-        if (/exist|duplicate|conflict/i.test(error.message)) { existing += 1; return }
+        if (!error) { uploaded += 1; break }
+        if (/exist|duplicate|conflict/i.test(error.message)) { existing += 1; break }
         if (attempt === 3) fail(`upload ${asset.storagePath}: ${error.message}`)
         await new Promise((resolve) => setTimeout(resolve, attempt * 750))
+      }
+      for (const derivative of asset.derivatives) {
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          const { error } = await client.storage.from('materials').upload(derivative.storagePath, derivative.bytes, { contentType: 'image/webp', cacheControl: '31536000', upsert: false })
+          if (!error) { uploaded += 1; break }
+          if (/exist|duplicate|conflict/i.test(error.message)) { existing += 1; break }
+          if (attempt === 3) fail(`upload ${derivative.storagePath}: ${error.message}`)
+          await new Promise((resolve) => setTimeout(resolve, attempt * 750))
+        }
       }
     }))
   }
@@ -356,7 +413,7 @@ export async function applyMaterialsManifest(manifest: CorpusManifest, supabaseU
   const runId = stableUuid('run', manifest.corpusHash)
   const { data: priorRun, error: priorRunError } = await client.from('material_import_runs').select('status').eq('id', runId).maybeSingle()
   if (priorRunError) fail(`check import run: ${priorRunError.message}`)
-  if (priorRun?.status === 'completed') return { uploaded: 0, existing: manifest.counts.assets ?? 0, published: manifest.subjects.length }
+  if (priorRun?.status === 'completed') return { uploaded: 0, existing: manifest.subjects.flatMap((subject) => subject.assets).reduce((count, asset) => count + 1 + asset.derivatives.length, 0), published: manifest.subjects.length }
   const result = { uploaded: 0, existing: 0, published: 0 }
   for (const subject of manifest.subjects) {
     const uploads = await uploadAssets(client, subject.assets)
@@ -408,7 +465,13 @@ export async function verifyMaterialsManifest(manifest: CorpusManifest, supabase
     }
     for (const asset of subject.assets) {
       const remoteAsset = remoteAssets.find((item) => item.storage_path === asset.storagePath)
-      if (!remoteAsset || remoteAsset.sha256 !== asset.sha256 || remoteAsset.byte_size !== asset.byteSize || remoteAsset.original_path !== asset.originalPath) fail(`verify asset metadata ${asset.storagePath}: differs`)
+      const metadata = remoteAsset?.metadata as JsonObject | undefined
+      if (!remoteAsset || remoteAsset.sha256 !== asset.sha256 || remoteAsset.byte_size !== asset.byteSize || remoteAsset.original_path !== asset.originalPath || metadata?.width !== asset.width || metadata?.height !== asset.height || canonical(metadata?.derivatives) !== canonical(asset.derivatives.map(derivativeMetadata))) fail(`verify asset metadata ${asset.storagePath}: differs`)
+      for (const derivative of asset.derivatives) {
+        const { data, error: derivativeError } = await client.storage.from('materials').download(derivative.storagePath)
+        if (derivativeError || !data) fail(`verify derivative ${derivative.storagePath}: ${derivativeError?.message ?? 'missing'}`)
+        if (sha256(new Uint8Array(await data.arrayBuffer())) !== derivative.sha256) fail(`verify derivative ${derivative.storagePath}: SHA-256 differs`)
+      }
       verified.assets += 1
     }
     verified.subjects += 1

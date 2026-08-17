@@ -45,6 +45,21 @@
   border-radius: 9px;
   background: var(--support-muted);
 }
+.assistant-panel .mentor-desktop-close,
+.assistant-panel .mentor-mobile-close {
+  position: absolute;
+  z-index: 4;
+  top: 14px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--support-line);
+  border-radius: 9px;
+  background: var(--card);
+}
+@media (min-width: 768px) {
+  .assistant-panel .assistant-tabs-list { right: 58px; }
+}
 .assistant-panel .assistant-tabs-list [data-slot="tabs-trigger"] { min-width: 68px; height: 28px; padding-inline: 10px; font-size: 12px; }
 .assistant-panel .assistant-tabs-list svg { display: none; }
 .assistant-panel .assistant-tab-content { margin: 0; border: 0; border-radius: 0; background: var(--card); }
@@ -231,7 +246,7 @@
   .pricing-page .pricing-grid p { min-height: 0; }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .assistant-panel .mentor-head { min-height: 82px; padding: 18px 214px 10px 16px; }
   .assistant-panel .mentor-avatar { width: 38px; height: 38px; border: 0; border-radius: 12px; color: #fff; background: linear-gradient(135deg, var(--support-ai), var(--ai-hover, #5a2ccb)); }
   .assistant-panel .mentor-head strong { font-size: 16px; }
@@ -241,7 +256,7 @@
   .assistant-panel .mentor-head small { max-width: 100%; font-size: 11.5px; }
   .assistant-panel .assistant-tabs-list { position: absolute; top: 22px; right: 58px; width: 142px; height: 38px; margin: 0; }
   .assistant-panel .assistant-tabs-list [data-slot="tabs-trigger"] { min-width: 0; flex: 1; }
-  .assistant-panel .mentor-mobile-close { position: absolute; z-index: 4; top: 22px; right: 12px; display: inline-flex; width: 38px; height: 38px; border: 1px solid var(--support-line); border-radius: 11px; background: var(--card); }
+  .assistant-panel .mentor-mobile-close { top: 22px; display: inline-flex; width: 38px; height: 38px; border-radius: 11px; }
   .assistant-panel .mentor-input { padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); }
   .assistant-panel .mentor-input .mentor-send { width: 40px; min-width: 40px; height: 40px; padding: 0; }
   .mentor-send > span,
@@ -398,7 +413,7 @@
 .billing-dialog-footer > button.subscription-checkout { color: #fff; background-color: var(--primary, #2e64f0); }
 .billing-dialog-footer > button.subscription-checkout:hover { color: #fff; background-color: color-mix(in srgb, var(--primary, #2e64f0) 88%, black); }
 
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .account-topbar { height: 54px; padding: 0 12px; }
   .account-mobile-title { display: flex; min-width: 0; align-items: center; gap: 10px; }
   .account-mobile-title button { display: grid; width: 38px; height: 38px; place-items: center; padding: 0; border: 0; border-radius: 10px; color: var(--foreground); background: transparent; }
@@ -454,7 +469,7 @@
   .account-activity-tabs { padding: 0 0 10px; border-bottom: 0; }
   .account-activity-tabs button { flex: 1; justify-content: center; border-color: var(--support-line); background: var(--card); }
   .account-redesign .preferences-grid > article { padding: 13px 15px; }
-  .account-mobile-nav { position: fixed; z-index: 110; right: 0; bottom: 0; left: 0; display: grid; height: calc(60px + env(safe-area-inset-bottom)); grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--support-line); background: color-mix(in srgb, var(--card) 96%, transparent); }
+  .account-mobile-nav { position: fixed; z-index: 110; right: 0; bottom: 0; left: 0; display: grid; height: calc(60px + env(safe-area-inset-bottom)); grid-template-columns: repeat(5, 1fr); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--support-line); background: color-mix(in srgb, var(--card) 96%, transparent); }
   .account-mobile-nav a { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 3px; color: var(--muted-foreground); font-size: 10.5px; }
   .account-mobile-nav svg { width: 21px; }
   .account-mobile-nav a.active { color: var(--primary); font-weight: 600; }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { activityActionMatches, anatomyActivities } from './activities'
-import { digestivePancreasSequence } from './dissection'
 import { anatomyModels, modelById } from './models'
 
 describe('anatomy activities', () => {
@@ -39,11 +38,5 @@ describe('anatomy activities', () => {
     expect(activityActionMatches(fade, 'transparent', ['anatomy:organs:left-main-bronchus'])).toBe(false)
     expect(activityActionMatches(fade, 'transparent', ['anatomy:organs:trachea', 'anatomy:organs:left-main-bronchus'])).toBe(false)
     expect(activityActionMatches(fade, 'transparent', ['anatomy:organs:trachea'], false)).toBe(false)
-  })
-
-  it('keeps duplicate digestive action wording synchronized', () => {
-    const activity = anatomyActivities.find((entry) => entry.modelId === 'digestive-system')!
-    const actions = activity.steps.filter((step) => step.kind === 'action')
-    expect(actions.map(({ action, targetIds, prompt, success }) => ({ action, targetIds, prompt, success }))).toEqual(digestivePancreasSequence.steps)
   })
 })

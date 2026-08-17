@@ -1,4 +1,4 @@
-import type { Hotspot, ModelEntry } from '../types'
+import type { Hotspot, ModelEntry } from '../types.js'
 
 const spot = (id: string, label: string, detail: string, position: [number, number, number]): Hotspot => ({ id, label, detail, position })
 const variants = (...files: string[]) => files.map((file, index) => ({

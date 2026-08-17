@@ -1,5 +1,5 @@
 import { Component, forwardRef, Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useReducer, useRef, useState, type ErrorInfo, type ReactNode, type RefObject } from 'react'
-import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
+import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, OrbitControls, useGLTF, useProgress } from '@react-three/drei'
 import { Box3, Mesh, MeshStandardMaterial, Spherical, Vector3 } from 'three'
 import { Box, ChevronDown, ChevronUp, Eye, EyeOff, Grid3X3, Layers3, LoaderCircle, Move3D, RotateCcw, RotateCw, Scissors, Search, SlidersHorizontal, Tags, Undo2, X } from 'lucide-react'
@@ -7,7 +7,7 @@ import type { CanonicalCamera, Hotspot, ModelEntry, PersistedDissectionSession, 
 import { anatomyLayers } from '../data/anatomyGraph'
 import { ProgressiveBodyModel } from './ProgressiveBodyModel'
 import { SegmentedSpecimenModel } from './SegmentedSpecimenModel'
-import { createDissectionState, digestiveStructureGroup, dissectionReducer, type DissectionActionContext, type DissectionActionType, type DissectionSnapshot } from '../data/dissection'
+import { createDissectionState, digestiveStructureGroup, dissectionReducer, resolveDissectionStructures, separateStructureOffsets, type DissectionActionContext, type DissectionActionType, type DissectionSnapshot, type DissectionState } from '../data/dissection'
 import { useTheme } from '../theme-context'
 import type { ResolvedTheme } from '../theme-utils'
 import { usePreferences } from '../preferences-context'
@@ -18,8 +18,20 @@ import type { VoiceAction, VoiceActionResult } from '../lib/voiceActions'
 import { measuredInsets, offsetForInsets } from '../lib/cameraViewOffset'
 import { canonicalCameraPosition, fitDistance, framedDistance } from '../lib/canonicalCamera'
 import { reservedInsets, safePadding, unionInsets } from '../lib/canvasInsets'
+import { useBodyScrollLock } from '../lib/bodyScrollLock'
 
 const EMPTY_STRUCTURES: Hotspot[] = []
+
+function ControlsReady({ controlsRef, onReady }: { controlsRef: RefObject<ViewerControls | null>; onReady: () => void }) {
+  const reported = useRef(false)
+  useFrame(() => {
+    if (!reported.current && controlsRef.current) {
+      reported.current = true
+      onReady()
+    }
+  })
+  return null
+}
 
 type ViewerControls = {
   reset: () => void
@@ -33,15 +45,21 @@ type ViewerControls = {
 
 export type ViewerVoiceState = {
   dissectMode: boolean
+  variantId: string
   structures: { id: string; label: string }[]
   visibleLayerIds: string[]
   hiddenStructureIds: string[]
   fadedStructureIds: string[]
   isolated: boolean
+  isolationSource: 'none' | 'settings' | 'dissection' | 'both'
+  movedStructureIds: string[]
+  camera: { position: number[]; target: number[]; zoom: number }
+  loading: boolean
+  selectedStructureIds: string[]
 }
 
 export type AnatomyViewerController = {
-  executeVoiceAction: (action: Extract<VoiceAction, { type: `viewer.${string}` }>) => VoiceActionResult
+  executeVoiceAction: (action: Extract<VoiceAction, { type: `viewer.${string}` }>) => Promise<VoiceActionResult>
 }
 
 type ViewerProps = {
@@ -138,7 +156,7 @@ function ModelGeometry({ url, settings, hotspots, onSelect, interactive = true }
   return <primitive object={prepared} onClick={selectSurface} onPointerOver={interactive ? () => { document.body.style.cursor = 'pointer' } : undefined} onPointerOut={interactive ? () => { document.body.style.cursor = '' } : undefined} />
 }
 
-function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers, dissection, onStructures, onMoveStart, onMove, onMoveEnd, touchMoveEnabled, theme, reducedMotion }: ViewerProps & { controlsRef: RefObject<ViewerControls | null>; loadedLayers: string[]; visibleLayers: string[]; dissection?: DissectionSnapshot; onStructures: (structures: Hotspot[]) => void; onMoveStart: () => void; onMove: (nodeId: string, offset: [number, number, number]) => void; onMoveEnd: (nodeId: string) => void; touchMoveEnabled: boolean; theme: ResolvedTheme; reducedMotion: boolean }) {
+function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, controlsRef, loadedLayers, visibleLayers, dissection, onStructures, onMoveStart, onMove, onMoveEnd, onCameraChange, touchMoveEnabled, theme, reducedMotion }: ViewerProps & { controlsRef: RefObject<ViewerControls | null>; loadedLayers: string[]; visibleLayers: string[]; dissection?: DissectionSnapshot; onStructures: (structures: Hotspot[]) => void; onMoveStart: () => void; onMove: (nodeId: string, offset: [number, number, number]) => void; onMoveEnd: (nodeId: string) => void; onCameraChange: () => void; touchMoveEnabled: boolean; theme: ResolvedTheme; reducedMotion: boolean }) {
   const variant = model.variants.find((entry) => entry.id === selectedVariantId) ?? model.variants[0]
   const hotspots = variant.hotspots ?? model.hotspots
   const light = theme === 'light'
@@ -185,7 +203,8 @@ function Scene({ model, settings, selectedIds, selectedVariantId, onSelect, cont
           )
         })}
       </group>
-      <OrbitControls ref={controlsRef as never} makeDefault autoRotate={settings.autoRotate && !reducedMotion} autoRotateSpeed={0.8} enableDamping minDistance={model.camera.minDistance} maxDistance={maxDistance} />
+      <OrbitControls ref={controlsRef as never} makeDefault autoRotate={settings.autoRotate && !reducedMotion} autoRotateSpeed={0.8} enableDamping minDistance={model.camera.minDistance} maxDistance={maxDistance} onEnd={onCameraChange} />
+      <ControlsReady controlsRef={controlsRef} onReady={onCameraChange} />
     </>
   )
 }
@@ -268,6 +287,8 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
   const dissectDockRef = useRef<HTMLElement>(null)
   const onDissectionStateRef = useRef(props.onDissectionState)
   const onVoiceStateRef = useRef(props.onVoiceState)
+  const committedVoiceStateRef = useRef<{ voice: ViewerVoiceState; dissection: DissectionState; settingsIsolate: boolean; loadedStructures: Hotspot[] } | undefined>(undefined)
+  const committedStateListeners = useRef(new Set<() => void>())
   const defaults = anatomyLayers.filter((layer) => layer.defaultVisible).map((layer) => layer.id)
   const restoredLayers = props.dissectionSession?.visibleLayerIds.length ? props.dissectionSession.visibleLayerIds : defaults
   const [visibleLayers, setVisibleLayers] = useState<string[]>(restoredLayers)
@@ -286,6 +307,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
   const [touchMoveEnabled, setTouchMoveEnabled] = useState(false)
   const [activityToolsOpen, setActivityToolsOpen] = useState(false)
   const [cameraResetToken, setCameraResetToken] = useState(0)
+  const [cameraRevision, setCameraRevision] = useState(0)
   const toggle = (key: keyof Settings) => props.onSettings({ ...props.settings, [key]: !props.settings[key] })
   const variant = props.model.variants.find((entry) => entry.id === props.selectedVariantId) ?? props.model.variants[0]
   const canDissect = props.model.anatomy && (props.model.viewer === 'segmented-body' || props.model.variants.some((entry) => entry.segmentedSystem))
@@ -322,12 +344,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
     if (cameraResetToken > 0) controlsRef.current?.reset()
   }, [cameraResetToken])
 
-  useEffect(() => {
-    if (!dissectPanelOpen || window.innerWidth > 767) return
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = previous }
-  }, [dissectPanelOpen])
+  useBodyScrollLock(dissectPanelOpen && window.innerWidth <= 767)
 
   useEffect(() => {
     onDissectionStateRef.current?.({
@@ -344,15 +361,45 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
   useEffect(() => {
     const fallbackStructures = variant.hotspots ?? props.model.hotspots
     const availableStructures = structures.length > 0 ? structures : fallbackStructures
-    onVoiceStateRef.current?.({
+    const movedStructureIds = [...new Set(Object.keys(dissection.offsets).map((id) => id.split('::')[0]))].slice(0, 50)
+    const isolationSource = props.settings.isolate ? dissection.isolate ? 'both' : 'settings' : dissection.isolate ? 'dissection' : 'none'
+    const voice: ViewerVoiceState = {
       dissectMode,
+      variantId: variant.id,
       structures: availableStructures.map(({ id, label }) => ({ id, label })),
       visibleLayerIds: visibleLayers,
       hiddenStructureIds: dissection.hiddenIds,
       fadedStructureIds: dissection.transparentIds,
-      isolated: dissection.isolate,
+      isolated: props.settings.isolate || dissection.isolate,
+      isolationSource,
+      movedStructureIds,
+      camera: { position: controlsRef.current?.object.position.toArray() ?? [], target: controlsRef.current?.target.toArray() ?? [], zoom: controlsRef.current ? controlsRef.current.object.position.distanceTo(controlsRef.current.target) : 0 },
+      loading: !controlsRef.current,
+      selectedStructureIds: props.selectedIds.slice(0, 20),
+    }
+    committedVoiceStateRef.current = { voice, dissection, settingsIsolate: props.settings.isolate, loadedStructures: structures }
+    committedStateListeners.current.forEach((listener) => listener())
+    onVoiceStateRef.current?.(voice)
+  }, [cameraRevision, dissectMode, dissection, props.model.hotspots, props.selectedIds, props.settings.isolate, structures, variant, visibleLayers])
+
+  function waitForCommittedState(predicate: (state: NonNullable<typeof committedVoiceStateRef.current>) => boolean, timeoutMs = 2_500) {
+    const current = committedVoiceStateRef.current
+    if (current && predicate(current)) return Promise.resolve(current)
+    return new Promise<NonNullable<typeof committedVoiceStateRef.current>>((resolve, reject) => {
+      const listener = () => {
+        const next = committedVoiceStateRef.current
+        if (!next || !predicate(next)) return
+        window.clearTimeout(timeout)
+        committedStateListeners.current.delete(listener)
+        resolve(next)
+      }
+      const timeout = window.setTimeout(() => {
+        committedStateListeners.current.delete(listener)
+        reject(new Error('The anatomy viewer did not reach the requested state.'))
+      }, timeoutMs)
+      committedStateListeners.current.add(listener)
     })
-  }, [dissectMode, dissection.hiddenIds, dissection.isolate, dissection.transparentIds, props.model.hotspots, structures, variant.hotspots, visibleLayers])
+  }
 
   function toggleLayer(layerId: string) {
     setLoadedLayers((current) => current.includes(layerId) ? current : [...current, layerId])
@@ -422,16 +469,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
   }
 
   function resolveStructures(requestedIds: string[]): { structures: Hotspot[] } | { error: string } {
-    const fallbackStructures = variant.hotspots ?? props.model.hotspots
-    const available = structures.length > 0 ? structures : fallbackStructures
-    const resolved: Hotspot[] = []
-    for (const requested of requestedIds) {
-      const normalized = requested.toLowerCase().replace(/[^a-z0-9]/g, '')
-      const matches = available.filter((entry) => entry.id === requested || entry.nodeId === requested || entry.label.toLowerCase().replace(/[^a-z0-9]/g, '') === normalized)
-      if (matches.length !== 1) return { error: matches.length === 0 ? `Structure not found: ${requested}` : `Structure is ambiguous: ${requested}` }
-      if (!resolved.some((entry) => entry.id === matches[0].id)) resolved.push(matches[0])
-    }
-    return { structures: resolved }
+    return resolveDissectionStructures(requestedIds, [structures, variant.hotspots ?? [], props.model.hotspots, ...props.model.variants.map((entry) => entry.hotspots ?? [])])
   }
 
   function controlCamera(operation: Extract<VoiceAction, { type: 'viewer.camera' }>['operation']): VoiceActionResult {
@@ -457,7 +495,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
   }
 
   useImperativeHandle(ref, () => ({
-    executeVoiceAction(action) {
+    async executeVoiceAction(action) {
       if (action.type === 'viewer.camera') return controlCamera(action.operation)
       if (action.type === 'viewer.settings') {
         props.onSettings({ ...props.settings, ...action.settings })
@@ -475,39 +513,111 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
         if (isVisible !== action.visible) toggleLayer(action.layerId)
         return { ok: true, message: `${action.layerId} layer ${action.visible ? 'shown' : 'hidden'}.` }
       }
-      const resolved = resolveStructures(action.structureIds)
-      if ('error' in resolved) return { ok: false, error: resolved.error }
-      const ids = resolved.structures.map((entry) => entry.id)
       if (action.type === 'viewer.selection') {
+        const resolved = resolveStructures(action.structureIds)
+        if ('error' in resolved) return { ok: false, error: resolved.error }
+        const ids = resolved.structures.map((entry) => entry.id)
         if (ids.length === 0) props.onClearSelection()
         else resolved.structures.forEach((entry, index) => selectStructure(entry, index > 0))
         return { ok: true, message: ids.length === 0 ? 'Selection cleared.' : `${ids.length} structure${ids.length === 1 ? '' : 's'} selected.` }
       }
-      if (!dissectMode) return { ok: false, error: 'Dissect Mode is not active.' }
-      if (!['show_all', 'undo', 'reset'].includes(action.operation) && ids.length === 0) return { ok: false, error: 'Choose at least one structure for this dissection action.' }
+      if (!canDissect) return { ok: false, error: 'This model has no dissectable segmented representation.' }
       if (action.operation === 'reset' && !window.confirm('Reset the current dissection?')) return { ok: false, error: 'The learner did not confirm the dissection reset.' }
-      if (action.operation === 'hide') dispatchDissection({ type: 'hide', ids })
-      else if (action.operation === 'show') dispatchDissection({ type: 'show', ids })
+
+      const segmented = props.model.viewer === 'segmented-body' ? undefined : props.model.variants.find((entry) => entry.segmentedSystem)
+      const expectedVariantId = segmented?.id ?? variant.id
+      if (!dissectMode) {
+        dispatchDissection({ type: 'clear' })
+        setDissectMode(true)
+        setDissectPanelOpen(true)
+        setTouchMoveEnabled(false)
+      }
+      if (segmented && variant.id !== segmented.id) props.onVariant(segmented.id)
+      if (props.settings.isolate) props.onSettings({ ...props.settings, isolate: false })
+
+      const wholeModelOperation = ['show_all', 'undo', 'reset', 'restore'].includes(action.operation)
+      let activated: NonNullable<typeof committedVoiceStateRef.current>
+      try {
+        activated = await waitForCommittedState((state) => state.voice.dissectMode && state.voice.variantId === expectedVariantId && (wholeModelOperation || state.loadedStructures.length > 0))
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : 'The segmented model did not become ready.' }
+      }
+      const resolved = resolveDissectionStructures(action.structureIds, [activated.loadedStructures, props.model.hotspots, ...props.model.variants.map((entry) => entry.hotspots ?? [])])
+      if ('error' in resolved) return { ok: false, error: resolved.error }
+      const ids = resolved.structures.map((entry) => entry.id)
+      if (!wholeModelOperation && ids.length === 0) return { ok: false, error: 'Choose at least one structure for this dissection action.' }
+      if (action.operation === 'separate' && ids.length < 2) return { ok: false, error: 'Separate requires at least two structures.' }
+      let expected = activated.dissection
+
+      if (action.operation === 'hide') {
+        dispatchDissection({ type: 'hide', ids })
+        expected = dissectionReducer(expected, { type: 'hide', ids })
+      } else if (action.operation === 'show') {
+        dispatchDissection({ type: 'show', ids })
+        expected = dissectionReducer(expected, { type: 'show', ids })
+      }
       else if (action.operation === 'transparent') {
-        if (!ids.every((id) => dissection.transparentIds.includes(id))) dispatchDissection({ type: 'toggle-transparent', ids })
+        if (!ids.every((id) => expected.transparentIds.includes(id))) {
+          dispatchDissection({ type: 'toggle-transparent', ids })
+          expected = dissectionReducer(expected, { type: 'toggle-transparent', ids })
+        }
       } else if (action.operation === 'isolate') {
+        props.onClearSelection()
         resolved.structures.forEach((entry, index) => selectStructure(entry, index > 0))
-        if (!dissection.isolate) dispatchDissection({ type: 'toggle-isolate' })
+        dispatchDissection({ type: 'set-isolate', value: true })
+        expected = dissectionReducer(expected, { type: 'set-isolate', value: true })
       } else if (action.operation === 'move') {
         const distance = action.distance ?? 0.45
         const offsets: Record<NonNullable<typeof action.direction>, [number, number, number]> = {
           left: [-distance, 0, 0], right: [distance, 0, 0], up: [0, distance, 0], down: [0, -distance, 0], out: [0, 0, distance],
         }
         dispatchDissection({ type: 'begin-move' })
-        ids.forEach((id) => dispatchDissection({ type: 'set-offset', id, offset: offsets[action.direction ?? 'out'] }))
-      } else if (action.operation === 'show_all') {
-        dispatchDissection({ type: 'show-all' })
-        if (dissection.isolate) dispatchDissection({ type: 'toggle-isolate' })
+        expected = dissectionReducer(expected, { type: 'begin-move' })
+        ids.forEach((id) => {
+          const move = { type: 'set-offset', id, offset: offsets[action.direction ?? 'out'] } as const
+          dispatchDissection(move)
+          expected = dissectionReducer(expected, move)
+        })
+      } else if (action.operation === 'separate') {
+        const offsets = separateStructureOffsets(ids, action.distance ?? 0.45)
+        dispatchDissection({ type: 'begin-move' })
+        expected = dissectionReducer(expected, { type: 'begin-move' })
+        Object.entries(offsets).forEach(([id, offset]) => {
+          const move = { type: 'set-offset', id, offset } as const
+          dispatchDissection(move)
+          expected = dissectionReducer(expected, move)
+        })
+      } else if (action.operation === 'show_all' || action.operation === 'restore') {
+        dispatchDissection({ type: 'reset' })
+        expected = dissectionReducer(expected, { type: 'reset' })
+        if (props.settings.isolate) props.onSettings({ ...props.settings, isolate: false })
       }
-      else if (action.operation === 'undo') dispatchDissection({ type: 'undo' })
-      else resetDissection()
-      if (action.operation !== 'undo' && action.operation !== 'reset') recordAction(action.operation === 'transparent' ? 'transparent' : action.operation === 'show_all' ? 'show' : action.operation, action.operation === 'show_all' ? dissection.hiddenIds : ids)
-      return { ok: true, message: `Dissection action ${action.operation.replace('_', ' ')} completed.` }
+      else if (action.operation === 'undo') {
+        dispatchDissection({ type: 'undo' })
+        expected = dissectionReducer(expected, { type: 'undo' })
+      } else {
+        dispatchDissection({ type: 'reset' })
+        expected = dissectionReducer(expected, { type: 'reset' })
+        if (props.settings.isolate) props.onSettings({ ...props.settings, isolate: false })
+      }
+
+      if (action.operation !== 'undo' && action.operation !== 'reset' && action.operation !== 'restore') {
+        const recordedAction: DissectionActionType = action.operation === 'transparent' ? 'transparent' : action.operation === 'show_all' ? 'reset' : action.operation === 'separate' ? 'move' : action.operation
+        recordAction(recordedAction, action.operation === 'show_all' ? dissection.hiddenIds : ids)
+      }
+      const expectedSnapshot = expected
+      try {
+        const committed = await waitForCommittedState((state) => {
+          const actual = state.dissection
+          const matchesDissection = JSON.stringify({ hiddenIds: actual.hiddenIds, transparentIds: actual.transparentIds, offsets: actual.offsets, isolate: actual.isolate }) === JSON.stringify({ hiddenIds: expectedSnapshot.hiddenIds, transparentIds: expectedSnapshot.transparentIds, offsets: expectedSnapshot.offsets, isolate: expectedSnapshot.isolate })
+          const matchesSelection = action.operation !== 'isolate' || state.voice.selectedStructureIds.length === ids.length && ids.every((id) => state.voice.selectedStructureIds.includes(id))
+          const legacyIsolationCleared = !state.settingsIsolate
+          return state.voice.dissectMode && state.voice.variantId === expectedVariantId && matchesDissection && matchesSelection && legacyIsolationCleared
+        })
+        return { ok: true, message: `Dissection action ${action.operation.replace('_', ' ')} completed.`, context: { ...committed.voice, structures: committed.voice.structures.slice(0, 50), hiddenStructureIds: committed.voice.hiddenStructureIds.slice(0, 50), fadedStructureIds: committed.voice.fadedStructureIds.slice(0, 50), movedStructureIds: committed.voice.movedStructureIds.slice(0, 50), selectedStructureIds: committed.voice.selectedStructureIds.slice(0, 20) } }
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : 'The anatomy viewer did not reach the requested state.' }
+      }
     },
   }))
 
@@ -574,7 +684,7 @@ export const AnatomyViewer = forwardRef<AnatomyViewerController, ViewerProps>(fu
       <div ref={canvasWrapRef} className={`canvas-wrap ${dissectMode && props.activityLayout ? 'dissecting' : ''}`}>
         <Canvas onPointerMissed={props.onClearSelection} frameloop={props.settings.autoRotate && !reducedMotion ? 'always' : 'demand'} dpr={[1, 1.7]} camera={{ position: canonicalCameraPosition(props.model.camera), fov: 42 }} gl={{ antialias: true, alpha: true }}>
           <OpticalCameraCenter canvasWrapRef={canvasWrapRef} dissectDockRef={dissectDockRef} panelState={`${dissectMode}:${dissectPanelOpen}:${props.activityLayout}`} subjectCamera={props.model.camera} controlsRef={controlsRef} />
-          <Scene {...props} theme={resolvedTheme} reducedMotion={reducedMotion} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={receiveStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} touchMoveEnabled={touchMoveEnabled} />
+          <Scene {...props} theme={resolvedTheme} reducedMotion={reducedMotion} onSelect={selectStructure} controlsRef={controlsRef} loadedLayers={loadedLayers} visibleLayers={visibleLayers} dissection={dissectMode ? dissection : undefined} onStructures={receiveStructures} onMoveStart={() => dispatchDissection({ type: 'begin-move' })} onMove={moveStructure} onMoveEnd={(nodeId) => recordAction('move', [nodeId])} onCameraChange={() => setCameraRevision((revision) => revision + 1)} touchMoveEnabled={touchMoveEnabled} />
         </Canvas>
         {props.model.viewer === 'segmented-body' && <div className="body-layer-dock"><header><span>Body systems</span><b>{visibleLayers.length} active</b></header>{anatomyLayers.map((layer) => <button key={layer.id} className={visibleLayers.includes(layer.id) ? 'active' : ''} onClick={() => toggleLayer(layer.id)}><i style={{ background: layer.color }} />{layer.label}{visibleLayers.includes(layer.id) ? <Eye size={13} /> : <EyeOff size={13} />}</button>)}</div>}
         <div className="axis"><span>Y</span><i /><b>X</b></div>
