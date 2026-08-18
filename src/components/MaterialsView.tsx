@@ -1,6 +1,6 @@
-import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { ArrowLeft, ArrowRight, Book, Check, ClipboardList, Eye, GalleryVerticalEnd, LayoutGrid, Lightbulb, RotateCcw, ScanLine, Search, Shuffle, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Book, Check, ClipboardList, Eye, GalleryVerticalEnd, LayoutGrid, Lightbulb, RotateCcw, ScanLine, Search, Shuffle, Zap } from 'lucide-react'
 import type { FlashcardDeckProgress, FlashcardGrade, MaterialReleaseProgress } from '../types'
 import type { ActiveNoteContext, LibraryContentMode, MaterialCatalogRegistration, MaterialFlashcard, MaterialFlashcardVoiceState, MaterialImageMetadata, MaterialLearningController, MaterialLearningState, MaterialMnemonic, MaterialQuestion, MaterialSection, MaterialSectionSummary, MaterialSubject } from '../types/materials'
 import { getMaterialSection, isHeadingOnlyMaterialSection, listMaterialAssetMetadata, listMaterialFlashcards, listMaterialMnemonics, listMaterialQuestions, listMaterialSections, listMaterialSubjects, materialFlashcardFace, submitMaterialQuestions } from '../lib/materials'
@@ -194,14 +194,14 @@ export default function MaterialsView(props: Props) {
   }, [reload, signedIn])
   const ordered = useMemo(() => subjects ? [...subjects].sort((a, b) => Object.keys(subjectThemes).indexOf(subjectKey(a)) - Object.keys(subjectThemes).indexOf(subjectKey(b))) : [], [subjects])
   const catalogState = useMemo(() => ({ decks: materialCatalogDecks(ordered), activeReleaseId: subject?.releaseId }), [ordered, subject?.releaseId])
-  function reportLearningState(state?: MaterialLearningState) {
+  const reportLearningState = useCallback((state?: MaterialLearningState) => {
     learningStateHandler.current(state)
     if (state?.target !== 'material-flashcards') return
     const releaseId = state.deckId.replace(/^materials:/, '')
     const completed = pendingCatalogOpens.current.filter((entry) => entry.releaseId === releaseId)
     pendingCatalogOpens.current = pendingCatalogOpens.current.filter((entry) => entry.releaseId !== releaseId)
     completed.forEach(({ timeout, resolve }) => { window.clearTimeout(timeout); resolve(true) })
-  }
+  }, [])
   useLayoutEffect(() => {
     notifyCatalog({
       state: catalogState,
@@ -799,8 +799,8 @@ function MaterialCards({
       hint: hints[card.id],
     }
     onLearningState(state)
-    return () => onLearningState(undefined)
   }, [card, graded, hints, index, onLearningState, order.length, revealed, subject.releaseId, subject.title])
+  useEffect(() => () => onLearningState(undefined), [onLearningState])
   useEffect(() => {
     if (!card) return
     const stage = document.querySelector<HTMLElement>('.subject-materials-flashcards .material-card-stage')
@@ -1165,8 +1165,8 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
       correctAnswer: submitted && reviewing ? question.options[question.answerIndex] : undefined,
       explanation: submitted && reviewing ? corrections?.[index] ?? question.explanation : undefined,
     })
-    return () => onLearningState(undefined)
   }, [answers, corrections, hints, index, onLearningState, question, questions, reviewing, subject.title, submitted])
+  useEffect(() => () => onLearningState(undefined), [onLearningState])
   if (error)
     return (
       <Failure
@@ -1200,7 +1200,7 @@ function MaterialPractice({ subject, progress, onProgress, signedIn, onBalance, 
             <p>You answered {score} of {questions.length} questions correctly.</p>
             <div>
               <Button variant="ai" onClick={() => void requestCorrections()} disabled={loadingCorrections}>
-                <Sparkles />{loadingCorrections ? 'Preparing corrections...' : 'Unlock corrections · 2 credits'}
+                <Zap />{loadingCorrections ? 'Preparing corrections...' : 'Unlock corrections · 2 credits'}
               </Button>
               <Button variant="outline" onClick={() => { setIndex(0); setReviewing(true) }}>Review answers</Button>
               <Button className="assessment-back-button" onClick={onBack}>Back to tests</Button>

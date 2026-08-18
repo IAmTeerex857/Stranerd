@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 import { AIActionError, type CreditBalance } from './ai'
 import { createLatestValueQueue, createRealtimeFunctionHandler, type VoiceAction, type VoiceActionResult, type VoiceMode } from './voiceActions'
 
-export type VoiceStatus = 'connecting' | 'listening' | 'speaking' | 'muted' | 'ended' | 'error'
+export type VoiceStatus = 'connecting' | 'listening' | 'thinking' | 'speaking' | 'muted' | 'ended' | 'error'
 
 export const VOICE_EXTENSION_LEAD_MS = 30_000
 
@@ -12,6 +12,12 @@ export function voiceRenewalDelay(endsAt: number, now = Date.now()) {
 
 export async function confirmVoiceExtension(confirm: () => boolean | Promise<boolean>) {
   return (await confirm()) === true
+}
+
+export function voiceStatusForRealtimeEvent(type?: string): VoiceStatus | undefined {
+  if (type === 'input_audio_buffer.speech_started') return 'listening'
+  if (type === 'input_audio_buffer.speech_stopped' || type === 'response.created') return 'thinking'
+  if (type === 'response.audio.delta' || type === 'response.output_audio.delta' || type === 'output_audio_buffer.started') return 'speaking'
 }
 
 export function realtimeToolOutputEvents(callId: string, result: VoiceActionResult, eventId: () => string = () => crypto.randomUUID(), requestResponse = true) {
@@ -50,8 +56,8 @@ export async function startRealtimeSession(input: { mode: VoiceMode; modelId: st
     try {
       const message = JSON.parse(event.data) as { type?: string; transcript?: string; error?: { message?: string }; response?: { status?: string; status_details?: { error?: { message?: string } } } }
       void handleFunctionCall(message)
-      if (message.type === 'input_audio_buffer.speech_started') input.onStatus('listening')
-      if (message.type === 'response.audio.delta' || message.type === 'response.output_audio.delta' || message.type === 'output_audio_buffer.started') input.onStatus('speaking')
+      const nextStatus = voiceStatusForRealtimeEvent(message.type)
+      if (nextStatus) input.onStatus(nextStatus)
       if ((message.type === 'response.audio_transcript.done' || message.type === 'response.output_audio_transcript.done') && message.transcript) input.onCaption('mentor', message.transcript)
       if (message.type === 'conversation.item.input_audio_transcription.completed' && message.transcript) input.onCaption('student', message.transcript)
       if (message.type === 'response.done' && message.response?.status === 'failed') fail(message.response.status_details?.error?.message || 'The Voice session failed. Start a new session to continue.', 'provider_response_failed')

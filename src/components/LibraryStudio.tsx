@@ -3,7 +3,7 @@ import {
   AlertTriangle, ArrowLeft, ArrowRight, Check, ClipboardCheck,
   CirclePlay, File, FileCode2, FileText, Globe2, Layers3, Link as LinkIcon, LoaderCircle,
   LayoutGrid, Mic, MoreVertical, Pencil, Plus, RotateCcw, Save, ScanLine, Share2, Shuffle, Sparkles,
-  Trash2, Type, Upload, X,
+  Trash2, Type, Upload, X, Zap,
 } from 'lucide-react'
 import { useAuth } from '../auth-context'
 import { AIActionError } from '../lib/ai'
@@ -535,7 +535,7 @@ export function LibraryStudio({ onVoiceState, onController }: { onVoiceState?: (
         <div className="lr-controls" inert={!user ? true : undefined}>
           <div className="lr-control-group"><label>Create</label><div className="lr-segment"><button className={outputType === 'flashcards' ? 'active' : ''} onClick={() => changeOutput('flashcards')}><Layers3 />Flashcards</button><button className={outputType === 'practice' ? 'active' : ''} onClick={() => changeOutput('practice')}><ClipboardCheck />Practice test</button></div></div>
           <div className="lr-control-group"><label>{outputType === 'flashcards' ? 'Cards' : 'Questions'}</label><div className="lr-counts">{countOptions.map((option) => <button key={option} className={count === option ? 'active' : ''} onClick={() => setCount(option)}>{option}</button>)}</div></div>
-          <button className="lr-generate" disabled={generating || authLoading || !hasSource} onClick={() => void generate()}>{generating ? <><LoaderCircle className="spin" />Preparing sources...</> : <><Sparkles />{user ? `Generate ${outputType === 'flashcards' ? 'flashcards' : 'practice test'}` : 'Sign in to generate'}<b>{cost}</b></>}</button>
+          <button className="lr-generate" disabled={generating || authLoading || !hasSource} onClick={() => void generate()}>{generating ? <><LoaderCircle className="spin" />Preparing sources...</> : <><Zap />{user ? `Generate ${outputType === 'flashcards' ? 'flashcards' : 'practice test'}` : 'Sign in to generate'}<b>{cost}</b></>}</button>
         </div>
         {!authLoading && !user && <button type="button" className="lr-auth-gate" onClick={signIn}><Layers3 /><strong>Sign in to create study material</strong><span>Your Library and generations stay connected to your account.</span></button>}
       </section>

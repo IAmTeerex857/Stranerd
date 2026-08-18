@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { confirmVoiceExtension, realtimeToolOutputEvents, VOICE_EXTENSION_LEAD_MS, voiceRenewalDelay } from './realtime'
+import { confirmVoiceExtension, realtimeToolOutputEvents, VOICE_EXTENSION_LEAD_MS, voiceRenewalDelay, voiceStatusForRealtimeEvent } from './realtime'
 import { createLatestValueQueue, createRealtimeFunctionHandler, realtimeFunctionCall, sanitizeVoiceContext, validVoiceContext, voiceActionFromCall, voiceToolsForMode, type VoiceAction } from './voiceActions'
 
 describe('Voice renewal timing', () => {
@@ -18,6 +18,13 @@ describe('Voice renewal timing', () => {
 })
 
 describe('Realtime voice tools', () => {
+  it('maps listening, thinking, and speaking provider events', () => {
+    expect(voiceStatusForRealtimeEvent('input_audio_buffer.speech_started')).toBe('listening')
+    expect(voiceStatusForRealtimeEvent('input_audio_buffer.speech_stopped')).toBe('thinking')
+    expect(voiceStatusForRealtimeEvent('response.created')).toBe('thinking')
+    expect(voiceStatusForRealtimeEvent('response.output_audio.delta')).toBe('speaking')
+  })
+
   it('registers the same universal safe tools for every mode', () => {
     const names = voiceToolsForMode('mentor').map((tool) => tool.name)
     expect(names).toContain('navigation_open')

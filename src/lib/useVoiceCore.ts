@@ -100,7 +100,7 @@ export function useVoiceCore(input: { mode: VoiceMode; modelId: string; context:
         stream,
         signal: abort.signal,
         onAction: (action) => latest.current.onAction(action),
-        onStatus: (nextStatus) => { setStatus(mutedRef.current && (nextStatus === 'listening' || nextStatus === 'speaking') ? 'muted' : nextStatus); if (nextStatus === 'ended' || nextStatus === 'error') { controller.current = undefined; mutedRef.current = false; setMuted(false); setEndsAt(undefined) } },
+        onStatus: (nextStatus) => { setStatus(mutedRef.current && (nextStatus === 'listening' || nextStatus === 'thinking' || nextStatus === 'speaking') ? 'muted' : nextStatus); if (nextStatus === 'ended' || nextStatus === 'error') { controller.current = undefined; mutedRef.current = false; setMuted(false); setEndsAt(undefined) } },
         onError: setError,
         onExtended: (nextEndsAt, balance) => { setEndsAt(nextEndsAt); setBalance(balance); setError(undefined) },
         onExtensionFailed: (message, insufficientCredits) => { setError(message); if (insufficientCredits) latest.current.onInsufficientCredits() },

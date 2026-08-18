@@ -1,5 +1,5 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { ArrowRight, BookOpenCheck, Bot, ChevronDown, CornerDownRight, GalleryVerticalEnd, GitCompareArrows, Mic, PanelRightClose, Send, Sparkles } from 'lucide-react'
+import { ArrowRight, BookOpenCheck, Bot, ChevronDown, CornerDownRight, GalleryVerticalEnd, GitCompareArrows, Mic, PanelRightClose, Send, Sparkles, Zap } from 'lucide-react'
 import type { ChatItem, DissectionHistoryItem, Hotspot, ModelEntry } from '../types'
 import { askMentor } from '../lib/mentor'
 import { anatomyGraph, anatomyLayers } from '../data/anatomyGraph'
@@ -147,7 +147,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
           </div>
           {actionError && !actionError.needsCredits && <div className="mentor-action-error"><span>{actionError.message}</span></div>}
           <form className="mentor-input" onSubmit={submit}>
-            <div><Textarea ref={inputRef} id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${noteContext?.section || selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button variant="ai" className="mentor-send" aria-label={user ? 'Ask Nerd Bot for 1 credit' : 'Sign in to ask Nerd Bot'} disabled={!input.trim() || typing}><span>Send</span><b><Sparkles size={11} />1</b><Send className="mentor-send-mobile" size={16} /></Button></div>
+            <div><Textarea ref={inputRef} id="mentor-question" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleInputKeyDown} placeholder={`Ask about ${noteContext?.section || selectedHotspot?.label || model.name}...`} maxLength={500} rows={2} /><Button variant="ai" className="mentor-send" aria-label={user ? 'Ask Nerd Bot for 1 credit' : 'Sign in to ask Nerd Bot'} disabled={!input.trim() || typing}><span>Send</span><b><Zap size={11} />1</b><Send className="mentor-send-mobile" size={16} /></Button></div>
           </form>
         </TabsContent>
         <TabsContent value="voice" className="assistant-tab-content assistant-voice-tab"><VoiceDock embedded voice={voice} /></TabsContent>
