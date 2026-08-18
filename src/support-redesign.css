@@ -105,7 +105,7 @@
 .voice-entry.embedded .voice-orb,
 .voice-dock.embedded .voice-orb { width: 96px; height: 96px; flex: 0 0 96px; }
 .voice-orb { position: relative; display: grid; place-items: center; }
-.voice-orb canvas { width: 64px !important; height: 64px !important; filter: brightness(0) saturate(100%) invert(31%) sepia(94%) saturate(2110%) hue-rotate(247deg) brightness(89%) contrast(91%); }
+.voice-orb canvas { width: 64px !important; height: 64px !important; filter: brightness(0) saturate(100%) invert(26%) sepia(99%) saturate(4066%) hue-rotate(253deg) brightness(92%) contrast(96%); }
 .voice-orb.muted canvas { filter: grayscale(1); opacity: .5; }
 .voice-orb.error canvas { filter: brightness(0) saturate(100%) invert(39%) sepia(42%) saturate(1597%) hue-rotate(304deg) brightness(91%) contrast(91%); }
 .voice-kicker,

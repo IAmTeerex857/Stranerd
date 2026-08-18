@@ -1286,7 +1286,7 @@
   font-weight: 600;
 }
 
-.voice-entry > span {
+.voice-entry > .voice-error {
   max-width: 320px;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--red) 45%, transparent);
