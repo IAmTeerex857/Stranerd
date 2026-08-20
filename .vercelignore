@@ -7,5 +7,7 @@ node_modules/
 coverage/
 Materials/
 docs/private/
+design/
+model-evaluation/
 *.log
 *.tsbuildinfo

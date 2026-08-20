@@ -18,6 +18,10 @@
     "assets:heart:download": "node scripts/import-hubmap-heart.mjs --download",
     "validate:assets": "node scripts/import-hubmap-heart.mjs --validate-only",
     "assets:manifest": "node scripts/generate-anatomy-manifest.mjs",
+    "assets:evaluation": "node scripts/import-evaluation-models.mjs",
+    "assets:evaluation:download": "node scripts/import-evaluation-models.mjs --download",
+    "build:evaluation": "vite build model-evaluation --outDir ../.model-evaluation-dist --emptyOutDir",
+    "check:evaluation": "tsc -p tsconfig.evaluation.json",
     "materials:dry-run": "node scripts/import-materials.mjs --dry-run",
     "materials:import": "node scripts/import-materials.mjs --apply",
     "materials:verify": "node scripts/verify-materials-import.mjs"
