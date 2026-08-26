@@ -1,3 +1,5 @@
+import { supplementalModels } from '../src/data/catalogModels.js'
+
 export type ServerAnatomyModel = {
   id: string
   name: string
@@ -8,7 +10,7 @@ export type ServerAnatomyModel = {
   structures: { id: string; label: string; detail: string }[]
 }
 
-export const serverAnatomyCatalog: ServerAnatomyModel[] = [
+const coreAnatomyCatalog: ServerAnatomyModel[] = [
   { id: 'heart', name: 'Heart', system: 'Cardiovascular', description: 'Four-chambered muscular pump for pulmonary and systemic circulation.', facts: ['The left ventricle drives systemic circulation.', 'Coronary perfusion is greatest during diastole.'], diagramVariantId: 'primary', structures: [{ id: 'aorta', label: 'Ascending aorta', detail: 'Main arterial outflow from the left ventricle.' }, { id: 'left-ventricle', label: 'Left ventricle', detail: 'Thick-walled systemic pumping chamber.' }, { id: 'right-ventricle', label: 'Right ventricle', detail: 'Pumps blood toward the lungs.' }] },
   { id: 'brain', name: 'Brain', system: 'Nervous', description: 'Central organ for sensation, movement, cognition, and homeostasis.', facts: ['The cerebellum refines movement.', 'Cerebrospinal fluid supports buoyancy.'], diagramVariantId: 'primary', structures: [{ id: 'frontal-lobe', label: 'Frontal lobe', detail: 'Supports executive and motor functions.' }, { id: 'cerebellum', label: 'Cerebellum', detail: 'Coordinates movement and motor learning.' }, { id: 'temporal-lobe', label: 'Temporal lobe', detail: 'Supports auditory processing and memory.' }] },
   { id: 'lungs', name: 'Lungs', system: 'Respiratory', description: 'Paired organs for gas exchange.', facts: ['Type II pneumocytes produce surfactant.', 'Ventilation and perfusion must be matched.'], diagramVariantId: 'primary', structures: [{ id: 'right-upper-lobe', label: 'Right upper lobe', detail: 'Superior lobe of the right lung.' }, { id: 'left-lower-lobe', label: 'Left lower lobe', detail: 'Inferior lobe of the left lung.' }, { id: 'trachea', label: 'Trachea', detail: 'Cartilage-supported conducting airway.' }] },
@@ -19,4 +21,17 @@ export const serverAnatomyCatalog: ServerAnatomyModel[] = [
   { id: 'skin', name: 'Skin', system: 'Integumentary', description: 'Layered barrier for protection, sensation, and thermoregulation.', facts: ['The epidermis is avascular.', 'The dermis contains vessels and nerves.'], diagramVariantId: 'primary', structures: [{ id: 'epidermis', label: 'Epidermis', detail: 'Keratinized surface barrier.' }, { id: 'dermis', label: 'Dermis', detail: 'Vascular connective-tissue support.' }, { id: 'hypodermis', label: 'Hypodermis', detail: 'Subcutaneous anchoring tissue.' }] },
   { id: 'anatomy', name: 'Human Anatomy', system: 'Whole Body', description: 'Layered whole-body atlas of system relationships.', facts: ['Anatomical position standardizes terminology.', 'Regional anatomy emphasizes spatial relationships.'], diagramVariantId: 'v1', structures: [{ id: 'thorax', label: 'Thorax', detail: 'Region containing heart, lungs, and mediastinum.' }, { id: 'abdomen', label: 'Abdomen', detail: 'Region containing most digestive organs and kidneys.' }] },
   { id: 'digestive-system', name: 'Digestive System', system: 'Digestive', description: 'Integrated tract and organs for digestion, absorption, and elimination.', facts: ['Portal circulation sends absorbed nutrients to the liver.', 'Pancreatic enzymes enter the duodenum.'], diagramVariantId: 'primary', structures: [{ id: 'esophagus', label: 'Esophagus', detail: 'Muscular conduit to the stomach.' }, { id: 'stomach', label: 'Stomach', detail: 'Reservoir mixing food with gastric secretions.' }, { id: 'small-intestine', label: 'Small intestine', detail: 'Primary site of digestion and absorption.' }] },
+]
+
+export const serverAnatomyCatalog: ServerAnatomyModel[] = [
+  ...coreAnatomyCatalog,
+  ...supplementalModels.map((model) => ({
+    id: model.id,
+    name: model.name,
+    system: model.system,
+    description: model.description,
+    facts: model.facts,
+    diagramVariantId: model.variants[0].id,
+    structures: [],
+  })),
 ]

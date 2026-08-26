@@ -80,7 +80,7 @@ function StranerdOffers() {
   return <section className="landing-offers" aria-labelledby="landing-offers-title">
     <header className="offers-heading"><div><span>What Stranerd offers</span><h2 id="landing-offers-title">One workspace.<br />Every way you learn anatomy.</h2><p>A source-grounded library, interactive 3D models, and virtual dissection labs, tied together by progress and search that follow you everywhere.</p></div><aside><span>22 medical subjects</span><span>Source-grounded learning</span><span>Synced &amp; searchable</span></aside></header>
     <div className="offers-grid">
-      <article className="offer-card offer-models"><header><span>Interactive 3D</span><b>Flagship</b></header><div><strong>10</strong><h3>interactive 3D<br />anatomy models</h3></div><p>Structure selection, isolation, transparency, movement and exploration, layered over a whole-body anatomy atlas.</p></article>
+      <article className="offer-card offer-models"><header><span>Interactive 3D</span><b>Flagship</b></header><div><strong>58</strong><h3>interactive 3D<br />anatomy models</h3></div><p>Structure selection, isolation, transparency, movement and exploration, layered over a whole-body anatomy atlas.</p></article>
       <article className="offer-card offer-flashcards"><span>Flashcards</span><div><strong>16,000+</strong><p>source-grounded<br />flashcards</p></div></article>
       {cards.map(([label, count, copy, kind]) => <article className={`offer-card offer-stat offer-${kind}`} key={kind}><span>{label}</span><div><strong>{count}</strong><p>{copy}</p></div></article>)}
       <article className="offer-card offer-ai"><span>AI mentor</span><div><strong>Help when you ask</strong><p>Context-aware guidance, never in the way.</p></div></article>

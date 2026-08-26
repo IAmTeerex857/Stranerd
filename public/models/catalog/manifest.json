@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-26T08:48:42.906Z",
+  "assets": [
+    {
+      "file": "/models/catalog/bodyparts3d-respiratory.glb",
+      "bytes": 6749448,
+      "sha256": "2e98f2389ec9383873e0e3d493aa4b93a8a8aa86005232c2e6ca9d5b3cbf7484"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-axillary-nerve.glb",
+      "bytes": 1131348,
+      "sha256": "890979cd1ea7c9276225af55233b35bf28514bb1b115a9683200c51301e2b222"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-brachial-plexus-and-branches.glb",
+      "bytes": 2287484,
+      "sha256": "a4ad1603e620993cc178e9677620d033d47710e7917a39334a7e6207dccb100c"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-colored-skull-base.glb",
+      "bytes": 2356572,
+      "sha256": "2c3cb4032ce39b281c06b8bbd509aeed0244682e77bb5858464b9e2768dcc8ac"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-exploded-skull.glb",
+      "bytes": 2296540,
+      "sha256": "8a782154acd07e4107d687e889f3ee2e58e719efa155c5785059ec15e2ecd9be"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-hand-and-wrist-bones-and-cartilages.glb",
+      "bytes": 688760,
+      "sha256": "9dafa59dc76813cac94f7199a1f58678a797f20531d7a3045eb41bc5488054a4"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-hand-and-wrist-joints.glb",
+      "bytes": 1884716,
+      "sha256": "e139f7ea4c3b5cd2d767b406c41009a04ddfcf25b66255324d234551c1023ddd"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-hand.glb",
+      "bytes": 5588392,
+      "sha256": "5d61fee7c796a3e063c1828677b235e3933113061a053b1c1bb00604a5891366"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-inguinal-and-femoral-canal-hernia-surgery.glb",
+      "bytes": 2385664,
+      "sha256": "d1e885d10081bb088afae4f81433378d14a3c33d9544b93a78fd2d8fb0e2b124"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-inguinal-canal.glb",
+      "bytes": 7648640,
+      "sha256": "b01392e697e693c2ef2004b73f500273fa7f131c232ddbab5021c0165f62635c"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-inguinal-ligament.glb",
+      "bytes": 1209772,
+      "sha256": "1a36550776d03ef0fe5ac5e401fd328af67c404d498e58018b20ede92073526f"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-insertions-and-origins.glb",
+      "bytes": 8515260,
+      "sha256": "7d2d3c18220f39ed5d325d23b1e354d5abf05071e4d40734e04c9d4c8e6daa18"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-lower-limb.glb",
+      "bytes": 11104352,
+      "sha256": "3cdc7d500e3e73c1f10641b4c46454bcfcdf40637d61a6a8603f4a6e038481d8"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-median-nerve.glb",
+      "bytes": 1012712,
+      "sha256": "27243f1c10b0fa49dccf6eda93ba721d2231f9ed9b8647f4254d201cb3370e3f"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-muscles-thorax-abdomen.glb",
+      "bytes": 10861796,
+      "sha256": "c34a3ea037cbc65c96502fabaf83e656e73eee1fa5e19e3033cd05e95f40b597"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-musculocutaneous-nerve.glb",
+      "bytes": 1649612,
+      "sha256": "36c023147b60965fd3eeaa0559e74948c418509d9ee9ec61e29dae03555e79d8"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-overview-colored-skull.glb",
+      "bytes": 2114216,
+      "sha256": "9f9e3ae1ec4406ee5004f20dce3632d98ae22eb36eb51154d03a67267cc93601"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-overview-skull.glb",
+      "bytes": 1826620,
+      "sha256": "470b57b6f5e801ccc13e1cdd67af3ab1823864ab9d8a4471d3d4021748c855d6"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-pelvicfloor.glb",
+      "bytes": 5217852,
+      "sha256": "cf4f692b16cd953ec5d69ddca2036d656f43ddfe99a7b9a407469b2816f7efff"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-radial-nerve.glb",
+      "bytes": 1463468,
+      "sha256": "e9ff6dcbb0a393c5fd814edb483ef37af5d333ed6baadf5ded172c0caceb182c"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-rotator-cuff.glb",
+      "bytes": 1162388,
+      "sha256": "179bc7bcdb981948f6338caa692210820c2cb43f87bf4947ddfc7bc1f52b32bd"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-shoulder-and-pectoral-girdle-joints.glb",
+      "bytes": 820008,
+      "sha256": "09de8984ff7c6cc75d7350e6047677a3325a6b4526193998a68e3d71d99f2021"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-ulnar-nerve.glb",
+      "bytes": 1091264,
+      "sha256": "cebff0915e0277864de72ef24d06c83af92a47074376e1a15d30456b8bac57dc"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-upper-limb-arm-muscles.glb",
+      "bytes": 1647840,
+      "sha256": "f3fc78eac0f13ce9183540aefe3ed0f11e953f0367bdff56260a39586346e2af"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-upper-limb-axio-appendicular-muscles.glb",
+      "bytes": 5078632,
+      "sha256": "b530388121ab1e4a6b020283233fb12839412840beb608474c713984f3f1d10c"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-upper-limb-forearm-anterior-compartment-muscles.glb",
+      "bytes": 3194112,
+      "sha256": "fca3441f3bf89a842148b9571dd6ed49d9e22ecbd53baaf2a4de118f80667548"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-upper-limb-scapulohumeral-muscles.glb",
+      "bytes": 3525056,
+      "sha256": "858a0d39a7f3850709340a9774798a7cbe1c8496dd09a752b93f4181cc20f83e"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-upper-limb.glb",
+      "bytes": 12948240,
+      "sha256": "8ff415e264df0429e8582eda8bddc6243346c7184b6329214254cef40dcf6190"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-zone-ankle.glb",
+      "bytes": 5486252,
+      "sha256": "95065e2f861717700622a7478b174e656da736dbb1d5a5a501e95a3ac3a173bd"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-zone-elbow.glb",
+      "bytes": 1879664,
+      "sha256": "a83eeb381917fffe9524c419e43fd4fe9b25d36129a2ccf3f953e7eb1cbe27cc"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-zone-hip.glb",
+      "bytes": 3665468,
+      "sha256": "e79e1a4e5088ba3d32e973b6350bf0404808cb9c2f5b6f737b972a39c70c2be8"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-zone-knee.glb",
+      "bytes": 2437272,
+      "sha256": "4d7a9ec82a6a1da9e143c19ec89603490361732b8ee84065b0c83d2008e25512"
+    },
+    {
+      "file": "/models/catalog/open3dmodel-zone-shoulder.glb",
+      "bytes": 9740376,
+      "sha256": "e38a334800b78d3e50e81e9aab92534909def337b301450e074c6b60ea4e0df6"
+    },
+    {
+      "file": "/models/catalog/openanatomy-abdomen.glb",
+      "bytes": 7833744,
+      "sha256": "77d638cdab93f8292f2fbe314258766a72d5022ce8ea7eacadc41690054665f9"
+    },
+    {
+      "file": "/models/catalog/openanatomy-brain.glb",
+      "bytes": 19869128,
+      "sha256": "36e5e8de4728aa317efa1fbc120a91605f26b4af604f1d5a4fd4b3a394b2a913"
+    },
+    {
+      "file": "/models/catalog/openanatomy-head-neck.glb",
+      "bytes": 6468324,
+      "sha256": "56463173d5789e69e7c134f969ba47f7efac6b9f24f333d48711666500ec1e6a"
+    },
+    {
+      "file": "/models/catalog/openanatomy-inner-ear.glb",
+      "bytes": 862920,
+      "sha256": "b699ff84181a87282612dc843c3ada133a7b15517f8400ca5e6727399212165d"
+    },
+    {
+      "file": "/models/catalog/openanatomy-knee.glb",
+      "bytes": 13765368,
+      "sha256": "d8505cd17a0ae04e94e471afa000b37c056bfc2d2c37f3ea99316e596bafe303"
+    },
+    {
+      "file": "/models/catalog/openanatomy-liver.glb",
+      "bytes": 5229108,
+      "sha256": "18f98c3b3a4924ed0096fb203dcdb015409c3bb7695bc2ffc72fb88b81cc4144"
+    },
+    {
+      "file": "/models/catalog/openanatomy-thorax.glb",
+      "bytes": 3575220,
+      "sha256": "e9d1ee809142a4d1641c035050e5f6af3d627c0dbb98ef1c3155eaa708f1827a"
+    },
+    {
+      "file": "/models/catalog/z-anatomy-body-regions.glb",
+      "bytes": 4687868,
+      "sha256": "b9825acb1a2ede577c714a7bdcbe539b59bfbef8a98fcc0bc98eebfc1d016d1e"
+    },
+    {
+      "file": "/models/catalog/z-anatomy-joints.glb",
+      "bytes": 11218640,
+      "sha256": "7f299ffd1c44a8ba4c87e5cd6b74538c424519b51cd5732653b56a0c56f65e17"
+    },
+    {
+      "file": "/models/catalog/z-anatomy-lymphoid-organs.glb",
+      "bytes": 3889004,
+      "sha256": "83074f5d137204c92ee2b9940ebdce6f76b993b6608339d27b33166bc6f1b740"
+    }
+  ]
+}

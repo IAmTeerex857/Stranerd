@@ -20,9 +20,11 @@ function structureName(object: Object3D, root: Object3D) {
 }
 
 function structureId(object: Object3D, systemId: AnatomySystemId, name: string) {
-  return typeof object.userData.ontologyid === 'string' && object.userData.ontologyid.trim()
-    ? object.userData.ontologyid.trim()
-    : anatomyNodeId(systemId, name)
+  for (const key of ['ontologyid', 'conceptId', 'sourceId'] as const) {
+    const value = object.userData[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return anatomyNodeId(systemId, name)
 }
 
 type Props = {

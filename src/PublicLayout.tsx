@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { useAuth } from './auth-context'
 import { useTheme } from './theme-context'
 import { Button } from '@/components/ui/button'
-import { anatomyModels } from './data/models'
+import { modelCategories } from './data/models'
 import { userAvatar, userFirstName } from './lib/userProfile'
 
 const logoUrl = '/branding/stranerd-wordmark.png'
@@ -22,11 +22,12 @@ function AccountHeader() {
   const { user, balance } = useAuth()
   const { resolvedTheme, setPreference } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [expandedCategoryId, setExpandedCategoryId] = useState(modelCategories[1].id)
   const name = userFirstName(user)
   const avatar = userAvatar(user)
   const initials = name[0]?.toUpperCase()
   const credits = balance ? balance.freeBalance + balance.subscriptionBalance + balance.purchasedBalance : 0
-  return <><header className="account-topbar"><div className="account-mobile-title"><button onClick={() => setMenuOpen(true)} aria-label="Open navigation"><Menu /></button><strong>Account</strong></div><div className="account-topbar-path"><a href="/app"><ArrowLeft />Back to Explore</a><i /><span>Account</span><ChevronRight /><strong>Credits &amp; plan</strong></div><div className="account-topbar-user"><a className="account-mobile-credits" href="/account"><Zap /><b>{credits}</b></a><Button variant="outline" size="icon" aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`} title="Toggle theme" onClick={() => setPreference(resolvedTheme === 'dark' ? 'light' : 'dark')}>{resolvedTheme === 'dark' ? <Sun /> : <Moon />}</Button>{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : <span>{initials}</span>}</div></header>{menuOpen && <aside className="account-mobile-drawer"><header><a href="/app"><img src={logoUrl} alt="Stranerd" /></a><button onClick={() => setMenuOpen(false)} aria-label="Close navigation"><X /></button></header><nav><a href="/app"><Compass />Explore</a><a href="/app?view=library"><BookOpen />Learn</a><a href="/app?view=studio"><Layers3 />Library</a><a href="/app?view=lab"><Microscope />Lab</a><a className="active" href="/account"><CircleUserRound />Account</a></nav><div><header><span>Subjects</span><b>{anatomyModels.length}</b></header>{anatomyModels.map((model) => <a key={model.id} href={`/app?model=${model.id}`}><i />{model.name}<small>{model.system}</small></a>)}</div></aside>}</>
+  return <><header className="account-topbar"><div className="account-mobile-title"><button onClick={() => setMenuOpen(true)} aria-label="Open navigation"><Menu /></button><strong>Account</strong></div><div className="account-topbar-path"><a href="/app"><ArrowLeft />Back to Explore</a><i /><span>Account</span><ChevronRight /><strong>Credits &amp; plan</strong></div><div className="account-topbar-user"><a className="account-mobile-credits" href="/account"><Zap /><b>{credits}</b></a><Button variant="outline" size="icon" aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`} title="Toggle theme" onClick={() => setPreference(resolvedTheme === 'dark' ? 'light' : 'dark')}>{resolvedTheme === 'dark' ? <Sun /> : <Moon />}</Button>{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : <span>{initials}</span>}</div></header>{menuOpen && <aside className="account-mobile-drawer"><header><a href="/app"><img src={logoUrl} alt="Stranerd" /></a><button onClick={() => setMenuOpen(false)} aria-label="Close navigation"><X /></button></header><nav><a href="/app"><Compass />Explore</a><a href="/app?view=library"><BookOpen />Learn</a><a href="/app?view=studio"><Layers3 />Library</a><a href="/app?view=lab"><Microscope />Lab</a><a className="active" href="/account"><CircleUserRound />Account</a></nav><div><header><span>Anatomy</span><b>{modelCategories.reduce((total, category) => total + category.models.length, 0)}</b></header>{modelCategories.map((category) => { const expanded = category.id === expandedCategoryId; return <section className={expanded ? 'open' : ''} key={category.id}><button onClick={() => setExpandedCategoryId(category.id)} aria-expanded={expanded}><ChevronRight />{category.label}<small>{category.models.length}</small></button><div>{category.models.map((model) => <a key={model.id} href={`/app?model=${model.id}`}><i />{model.name}<small>{model.system}</small></a>)}</div></section> })}</div></aside>}</>
 }
 
 function AccountMobileNav() {

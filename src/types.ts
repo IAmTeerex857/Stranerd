@@ -13,6 +13,8 @@ export type Hotspot = {
 
 export type AnatomySystemId = 'skin' | 'muscular' | 'skeleton' | 'cardiovascular' | 'nervous' | 'organs'
 
+export type ModelCategoryId = 'whole-body' | 'organs' | 'body-systems' | 'head-neck' | 'thorax-abdomen' | 'pelvis-perineum' | 'upper-limb' | 'lower-limb'
+
 export type ConditionRecord = {
   id: string
   label: string
@@ -46,6 +48,7 @@ export type CanonicalCamera = {
 
 export type ModelEntry = {
   id: string
+  categoryId: ModelCategoryId
   name: string
   scientificName: string
   system: string

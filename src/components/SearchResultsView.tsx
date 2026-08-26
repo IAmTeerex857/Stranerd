@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, BookOpen, ClipboardList, Compass, GalleryVerticalEnd, Search } from 'lucide-react'
-import { anatomyModels } from '../data/models'
+import { anatomyModels, modelCategoryForModel } from '../data/models'
 import { listMaterialSubjects } from '../lib/materials'
 import type { FlashcardDeckProgress, MaterialReleaseProgress } from '../types'
 import type { MaterialSubject } from '../types/materials'
@@ -57,10 +57,10 @@ export function SearchResultsView({ query, materialProgressByRelease, progressBy
     return () => { current = false }
   }, [])
 
-  const matchedModels = anatomyModels.filter((model) => `${model.name} ${model.scientificName} ${model.system} ${model.metadata.region}`.toLowerCase().includes(normalized))
+  const matchedModels = anatomyModels.filter((model) => `${model.name} ${model.scientificName} ${model.system} ${model.metadata.region} ${modelCategoryForModel(model.id).label}`.toLowerCase().includes(normalized))
   const matchedMaterials = (subjects ?? []).filter((subject) => materialMatches(subject, normalized))
   const subjectResults: SearchResult[] = [
-    ...matchedModels.map((model) => ({ id: `model:${model.id}`, kind: 'subjects' as const, title: model.name, subtitle: `${model.scientificName} · ${model.metadata.region}`, href: `/app?model=${encodeURIComponent(model.id)}` })),
+    ...matchedModels.map((model) => ({ id: `model:${model.id}`, kind: 'subjects' as const, title: model.name, subtitle: `${modelCategoryForModel(model.id).label} · ${model.metadata.region}`, href: `/app?model=${encodeURIComponent(model.id)}` })),
     ...matchedMaterials.filter((subject) => !matchedModels.some((model) => materialAliases[subject.slug]?.includes(model.id))).map((subject) => ({ id: `subject:${subject.id}`, kind: 'subjects' as const, title: subject.title, subtitle: `${subject.counts.sections} note sections · ${subject.counts.flashcards} flashcards`, href: `/app?subject=${encodeURIComponent(subject.slug)}&content=notes` })),
   ]
   const resources = matchedMaterials.flatMap((subject) => materialResults(subject, materialProgressByRelease, progressByDeck))

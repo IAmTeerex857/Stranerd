@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { activityActionMatches, anatomyActivities } from './activities'
-import { anatomyModels, modelById } from './models'
+import { modelById, models } from './models'
 
 describe('anatomy activities', () => {
-  it('provides one launchable dissection activity for every anatomy model', () => {
-    expect(new Set(anatomyActivities.map((activity) => activity.modelId))).toEqual(new Set(anatomyModels.map((model) => model.id)))
+  it('provides one launchable dissection activity for every authored learning model', () => {
+    expect(new Set(anatomyActivities.map((activity) => activity.modelId))).toEqual(new Set(models.map((model) => model.id)))
     for (const activity of anatomyActivities) {
       const model = modelById(activity.modelId)
       expect(model.viewer === 'segmented-body' || model.variants.some((variant) => variant.segmentedSystem)).toBe(true)

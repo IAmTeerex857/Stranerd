@@ -488,6 +488,15 @@
   .account-mobile-drawer > div > a { display: flex; min-height: 42px; align-items: center; gap: 10px; padding: 0 8px; border-radius: 9px; color: var(--foreground); font-size: 13.5px; }
   .account-mobile-drawer > div > a i { width: 9px; height: 9px; border-radius: 3px; background: var(--primary); }
   .account-mobile-drawer > div > a small { margin-left: auto; color: var(--muted-foreground); }
+  .account-mobile-drawer > div > section > button { display: flex; width: 100%; min-height: 42px; align-items: center; gap: 8px; padding: 0 8px; border: 0; border-radius: 9px; color: var(--foreground); background: transparent; font-size: 13px; font-weight: 650; text-align: left; }
+  .account-mobile-drawer > div > section > button svg { width: 14px; transition: transform 180ms ease; }
+  .account-mobile-drawer > div > section.open > button svg { transform: rotate(90deg); }
+  .account-mobile-drawer > div > section > button small { margin-left: auto; color: var(--muted-foreground); }
+  .account-mobile-drawer > div > section > div { display: none; }
+  .account-mobile-drawer > div > section.open > div { display: block; }
+  .account-mobile-drawer > div > section > div > a { display: flex; min-height: 42px; align-items: center; gap: 10px; padding: 0 8px 0 30px; border-radius: 9px; color: var(--foreground); font-size: 13.5px; }
+  .account-mobile-drawer > div > section > div > a i { width: 9px; height: 9px; border-radius: 3px; background: var(--primary); }
+  .account-mobile-drawer > div > section > div > a small { margin-left: auto; color: var(--muted-foreground); }
   .billing-confirmation [data-slot="dialog-header"],
   .payg-picker,
   .billing-dialog-footer { padding-right: 20px; padding-left: 20px; }

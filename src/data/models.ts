@@ -1,4 +1,5 @@
 import type { Hotspot, ModelEntry } from '../types.js'
+import { modelCategoryDefinitions, supplementalModels } from './catalogModels.js'
 
 const spot = (id: string, label: string, detail: string, position: [number, number, number]): Hotspot => ({ id, label, detail, position })
 const variants = (...files: string[]) => files.map((file, index) => ({
@@ -91,7 +92,7 @@ const canonicalCameras: Record<string, ModelEntry['camera']> = {
   'digestive-system': { azimuth: 0, elevation: 6, distance: 4.9, minDistance: 1.6, maxDistance: 7.5, view: 'Anterior, oesophagus to colon' },
 }
 
-const modelEntries: Omit<ModelEntry, 'camera'>[] = [
+const modelEntries: Omit<ModelEntry, 'camera' | 'categoryId'>[] = [
   {
     id: 'heart', name: 'Heart', scientificName: 'Cor', system: 'Cardiovascular', file: 'heart-realistic.glb', variants: specimenVariants('heart', 'cardiovascular', 'Named chambers, valves, vessels, and coronary structures.', true, 'heart.glb', 'heart-v2.glb', 'heart-v3.glb'), anatomy: true,
     description: 'A four-chambered muscular pump that maintains pulmonary and systemic circulation.',
@@ -172,8 +173,15 @@ const modelEntries: Omit<ModelEntry, 'camera'>[] = [
   },
 ]
 
-export const models: ModelEntry[] = modelEntries.map((entry) => ({ ...entry, camera: canonicalCameras[entry.id] }))
+const coreCategoryById: Record<string, ModelEntry['categoryId']> = {
+  anatomy: 'whole-body', heart: 'organs', brain: 'organs', lungs: 'organs', kidney: 'organs', eye: 'organs', liver: 'organs', 'digestive-system': 'organs', 'nervous-system': 'body-systems', skin: 'body-systems',
+}
 
-export const anatomyModels = models
-export const modelById = (id: string) => models.find((model) => model.id === id) ?? models[0]
+export const models: ModelEntry[] = modelEntries.map((entry) => ({ ...entry, categoryId: coreCategoryById[entry.id], camera: canonicalCameras[entry.id] }))
+const catalogById = new Map([...models, ...supplementalModels].map((model) => [model.id, model]))
+export const modelCategories = modelCategoryDefinitions.map((category) => ({ ...category, models: category.modelIds.map((id) => catalogById.get(id)).filter((model): model is ModelEntry => Boolean(model)) }))
+export const anatomyModels = modelCategories.flatMap((category) => category.models)
+export const modelCategoryById = (id: string) => modelCategories.find((category) => category.id === id) ?? modelCategories[0]
+export const modelCategoryForModel = (modelId: string) => modelCategories.find((category) => category.modelIds.includes(modelId)) ?? modelCategories[0]
+export const modelById = (id: string) => anatomyModels.find((model) => model.id === id) ?? models[0]
 export const systems = [...new Set(anatomyModels.map((model) => model.system))]

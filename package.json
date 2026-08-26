@@ -20,6 +20,7 @@
     "assets:manifest": "node scripts/generate-anatomy-manifest.mjs",
     "assets:evaluation": "node scripts/import-evaluation-models.mjs",
     "assets:evaluation:download": "node scripts/import-evaluation-models.mjs --download",
+    "assets:catalog": "node scripts/promote-anatomy-catalog.mjs",
     "build:evaluation": "vite build model-evaluation --outDir ../.model-evaluation-dist --emptyOutDir",
     "check:evaluation": "tsc -p tsconfig.evaluation.json",
     "materials:dry-run": "node scripts/import-materials.mjs --dry-run",

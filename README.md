@@ -2,7 +2,7 @@
 
 An anatomy learning platform, live at https://learn.stranerd.com. Real-time 3D exploration is paired with deterministic activity evaluation; the AI mentor explains engine results but never determines correctness.
 
-The library contains 10 anatomy subjects: Heart, Brain, Lungs, Kidney, Eye, Liver, Nervous System, Skin, Human Anatomy, and Digestive System. Each provides a realistic primary specimen alongside exact-mesh interactive variants and preserved visual alternatives. Human Anatomy provides a progressively loaded six-system atlas. Digestive System includes intestinal anatomy rather than exposing a duplicate standalone Intestine subject.
+The Explore catalog contains 58 interactive anatomy models organized across whole-body, organ, system, head and neck, thoracoabdominal, pelvic, upper-limb, and lower-limb categories. The ten authored learning subjects retain their assessments, flashcards, and guided Labs, while every catalog model supports named-structure exploration and virtual dissection.
 
 The workspace has three areas. Explore is free model inspection and dissection. Library holds flashcard decks and 20-question practice tests. Lab holds guided anatomy activities.
 

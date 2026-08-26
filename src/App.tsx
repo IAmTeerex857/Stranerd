@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useEffectEvent, useRef, useState, type FormE
 import { ArrowLeft, BookOpen, Bot, ChevronRight, CircleUserRound, Compass, Layers3, Menu, Microscope, Moon, PanelLeftClose, PanelLeftOpen, Search, Star, Sun, X, Zap } from 'lucide-react'
 import { MentorPanel } from './components/MentorPanel'
 import { VoiceSessionCuff } from './components/VoiceDock'
-import { anatomyModels, modelById, models } from './data/models'
+import { anatomyModels, modelById, modelCategories, modelCategoryById, modelCategoryForModel } from './data/models'
 import { loadState, saveState } from './lib/storage'
 import type { ChatItem, FlashcardDeck, FlashcardGrade, GeneratedDeckSummary, Hotspot, MaterialReleaseProgress, ModelEntry, PersistedState, Quiz, ViewId } from './types'
 import type { DissectionActionContext } from './data/dissection'
@@ -76,7 +76,7 @@ const greeting: ChatItem = {
 function loadInitialState() {
   const state = loadState()
   const requestedModel = new URLSearchParams(window.location.search).get('model')
-  return requestedModel && models.some((entry) => entry.id === requestedModel) ? { ...state, selectedModelId: requestedModel } : state
+  return requestedModel && anatomyModels.some((entry) => entry.id === requestedModel) ? { ...state, selectedModelId: requestedModel } : state
 }
 
 function loadAssessmentSeed() {
@@ -115,6 +115,7 @@ export default function App() {
   const requestedLibraryMode = new URLSearchParams(window.location.search).get('mode')
   const [persisted, setPersisted] = useState<PersistedState>(loadInitialState)
   const initialModel = modelById(persisted.selectedModelId)
+  const [expandedCategoryId, setExpandedCategoryId] = useState(initialModel.categoryId)
   const initialHotspot = initialModel.hotspots.find((hotspot) => hotspot.id === persisted.selectedHotspotIds[initialModel.id])
   const initialDissection = persisted.dissectionByModel[initialModel.id]
   const [view, setView] = useState<ViewId>(() => {
@@ -161,6 +162,7 @@ export default function App() {
   const initialSearch = new URLSearchParams(window.location.search).get('search') ?? ''
   const [workspaceSearch, setWorkspaceSearch] = useState(initialSearch)
   const [activeSearch, setActiveSearch] = useState(initialSearch.trim())
+  const [modelFilter, setModelFilter] = useState('')
   const [mentorOpen, setMentorOpen] = useState(false)
   const [desktopMentorOpen, setDesktopMentorOpen] = useState(loadDesktopMentorOpen)
   const [creditPrompt, setCreditPrompt] = useState<CreditPrompt>()
@@ -178,6 +180,7 @@ export default function App() {
   const materialLearningController = useRef<MaterialLearningController | undefined>(undefined)
   const materialCatalogController = useRef<MaterialCatalogController | undefined>(undefined)
   const studioController = useRef<StudioController | undefined>(undefined)
+  const mobileModelRail = useRef<HTMLDivElement>(null)
   const generatedDecksRef = useRef<GeneratedDeckSummary[]>([])
   const flashcardHydratedUser = useRef<string | undefined>(undefined)
   const materialHydratedUser = useRef<string | undefined>(undefined)
@@ -204,7 +207,7 @@ export default function App() {
   const savedVariantId = persisted.selectedVariantIds[model.id]
   const selectedVariantId = model.variants.some((variant) => variant.id === savedVariantId) ? savedVariantId! : model.variants[0].id
   const favorite = persisted.favoriteModelIds.includes(model.id)
-  const sideModels = anatomyModels
+  const sideModels = modelCategoryById(expandedCategoryId).models
   const assistantAvailable = true
   const pendingFlashcardReviewKey = persisted.pendingFlashcardReviews.map((review) => review.id).join(':')
   const materialDirtyKey = persisted.materialProgressDirtyReleaseIds.map((releaseId) => `${releaseId}:${JSON.stringify(persisted.materialProgressByRelease[releaseId])}`).join(':')
@@ -214,6 +217,10 @@ export default function App() {
     return params.has('subject') || params.has('deck') || params.get('mode') === 'assessment' || params.has('activity')
   })()
   useEffect(() => { generatedDecksRef.current = generatedDecks }, [generatedDecks])
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => mobileModelRail.current?.querySelector<HTMLElement>('.active')?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'center' }))
+    return () => cancelAnimationFrame(frame)
+  }, [expandedCategoryId, model.id, reducedMotion])
   useEffect(() => saveSidebarCollapsed(sidebarCollapsed), [sidebarCollapsed])
   useEffect(() => saveDesktopMentorOpen(desktopMentorOpen), [desktopMentorOpen])
 
@@ -251,8 +258,9 @@ export default function App() {
       setAssessmentCorrections(undefined)
       setAssessmentReviewing(false)
       const modelId = params.get('model')
-      if (modelId && models.some((entry) => entry.id === modelId)) {
+      if (modelId && anatomyModels.some((entry) => entry.id === modelId)) {
         setPersisted((current) => ({ ...current, selectedModelId: modelId }))
+        setExpandedCategoryId(modelById(modelId).categoryId)
         setSelectedIds([])
         setSelectedHotspot(undefined)
       }
@@ -495,6 +503,8 @@ export default function App() {
     setMaterialLearningState(undefined)
     materialLearningController.current = undefined
     setView('explore')
+    setExpandedCategoryId(next.categoryId)
+    setModelFilter('')
     setMenuOpen(false)
     if (updateHistory) window.history.pushState({}, '', workspaceUrl('explore', { model: next.id }))
   }
@@ -737,6 +747,7 @@ export default function App() {
     }
     const nextModel = modelById(activity.modelId)
     const segmented = nextModel.variants.find((variant) => variant.segmentedSystem)
+    setExpandedCategoryId(nextModel.categoryId)
     setPersisted((current) => ({
       ...current,
       selectedModelId: nextModel.id,
@@ -958,7 +969,7 @@ export default function App() {
       }
       if (action.modelId) {
         if (action.destination !== 'explore') return { ok: false, error: 'An anatomy model can only be opened in Explore.' }
-        const nextModel = models.find((entry) => entry.id === action.modelId)
+        const nextModel = anatomyModels.find((entry) => entry.id === action.modelId)
         if (!nextModel) return { ok: false, error: `Unknown anatomy model: ${action.modelId}` }
         selectModel(nextModel)
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
@@ -1052,7 +1063,7 @@ export default function App() {
     const common = {
       screen: voiceMode,
       revision: workspaceRevision,
-      model: { id: model.id, name: model.name, variantId: selectedVariantId, variants: model.variants.map(({ id, label }) => ({ id, label })), system: model.system, facts: model.facts.slice(0, 5) },
+      model: { id: model.id, name: model.name, category: modelCategoryForModel(model.id).label, variantId: selectedVariantId, variants: model.variants.map(({ id, label }) => ({ id, label })), system: model.system, facts: model.facts.slice(0, 5) },
       selectedStructure: selectedHotspot ? { id: selectedHotspot.id, label: selectedHotspot.label, detail: selectedHotspot.detail } : null,
       recentActions: (persisted.dissectionActionsByModel[model.id] ?? []).slice(-10).map(({ action, structureIds, structures }) => ({ action, structureIds, structures })),
     }
@@ -1076,7 +1087,7 @@ export default function App() {
       if (activityError) return <div className="materials-state error" role="alert"><p>{activityError}</p><Button variant="outline" onClick={() => { setActivityError(undefined); returnToLabCatalog() }}>Back to Lab</Button></div>
       return labMode === 'catalog' ? lab : <div className="lesson-workspace activity-workspace lab-guided-workspace">{viewer}<div className="activity-pane">{lab}</div></div>
     }
-    return <div className="explore-view"><div className="mobile-model-chips" aria-label="Choose anatomy model">{sideModels.map((entry) => <button key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i />{entry.name}</button>)}</div>{viewer}</div>
+    return <div className="explore-view"><div ref={mobileModelRail} className="mobile-model-chips" aria-label={`${modelCategoryById(expandedCategoryId).label} models`}>{sideModels.map((entry) => <button key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i />{entry.name}</button>)}</div>{viewer}</div>
   }
 
   const materialScreen = materialLearningState?.target
@@ -1129,7 +1140,7 @@ export default function App() {
       <div className="side-brand"><Brand onExplore={() => chooseView('explore')} /><button onClick={() => setSidebarCollapsed((value) => !value)} aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}>{sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div>
       <div className="mobile-drawer-brand"><a href="/app" onClick={(event) => { event.preventDefault(); chooseView('explore') }}><img src={logoUrl} alt="Stranerd" /></a><button className="mobile-sidebar-close" onClick={() => setMenuOpen(false)} aria-label="Close navigation"><X size={20} /></button></div>
       <nav>{navItems.map((item) => <Button variant="ghost" key={item.id} className={`${item.id === 'studio' ? 'studio-nav ' : ''}${!activeSearch && view === item.id ? 'active' : ''}`} onClick={() => chooseView(item.id)} aria-current={!activeSearch && view === item.id ? 'page' : undefined}><item.icon size={18} /><span>{item.label}</span></Button>)}</nav>
-      <div className="side-section"><header><span>Subjects</span><b>{sideModels.length}</b></header><div className="model-list">{sideModels.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span><small>{entry.system}</small>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}</Button>)}</div></div>
+      <div className="side-section"><header><span>Anatomy</span><b>{anatomyModels.length}</b></header><label className="model-filter"><Search /><input value={modelFilter} onChange={(event) => setModelFilter(event.target.value)} placeholder="Search models" aria-label="Search anatomy models" /></label><div className="model-list">{modelFilter.trim() ? <div className="model-search-results">{anatomyModels.filter((entry) => `${entry.name} ${entry.system} ${entry.metadata.region} ${modelCategoryForModel(entry.id).label}`.toLowerCase().includes(modelFilter.trim().toLowerCase())).map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span><small>{modelCategoryForModel(entry.id).label}</small></Button>)}</div> : modelCategories.map((category) => { const expanded = category.id === expandedCategoryId; return <section className={`model-category ${expanded ? 'open' : ''}`} key={category.id}><button className="model-category-toggle" onClick={() => setExpandedCategoryId(category.id)} aria-expanded={expanded}><ChevronRight /><span>{category.label}</span><b>{category.models.length}</b></button><div className="model-category-content"><div>{category.models.map((entry) => <Button variant="ghost" key={entry.id} className={entry.id === model.id ? 'active' : ''} onClick={() => selectModel(entry)}><i /><span>{entry.name}</span>{persisted.favoriteModelIds.includes(entry.id) && <Star size={11} fill="currentColor" />}</Button>)}</div></div></section> })}</div></div>
       <Button variant="ghost" className="sidebar-account" asChild><a href="/account">{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" /> : <span className="sidebar-account-avatar">{firstName[0]?.toUpperCase()}</span>}<span><b>{firstName}</b><small>{creditBalance} credits</small></span><ChevronRight size={14} /></a></Button>
     </aside>
     {menuOpen && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label="Close navigation" />}
