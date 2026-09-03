@@ -1,4 +1,4 @@
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { FormEvent, KeyboardEvent, useEffect, useEffectEvent, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { ArrowRight, BookOpenCheck, Bot, ChevronDown, CornerDownRight, GalleryVerticalEnd, GitCompareArrows, Mic, PanelRightClose, Send, Sparkles, Zap } from 'lucide-react'
 import type { ChatItem, DissectionHistoryItem, Hotspot, ModelEntry } from '../types'
 import { askMentor } from '../lib/mentor'
@@ -26,7 +26,7 @@ type Props = {
   onDesktopClose?: () => void
   onInsufficientCredits?: () => void
   noteContext?: ActiveNoteContext
-  draftRequest?: NoteSelectionRequest
+  noteRequest?: NoteSelectionRequest
   voice: VoiceCore
 }
 
@@ -41,7 +41,7 @@ function MentorText({ text }: { text: string }) {
   })}</div>
 }
 
-export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose, onDesktopClose, onInsufficientCredits, noteContext, draftRequest, voice }: Props) {
+export function MentorPanel({ model, selectedHotspot, actionHistory, messages, typing, onMessages, onTyping, mobileOpen, onMobileClose, onDesktopClose, onInsufficientCredits, noteContext, noteRequest, voice }: Props) {
   const { user, setBalance } = useAuth()
   const [input, setInput] = useState('')
   const [actionError, setActionError] = useState<{ message: string; needsCredits: boolean }>()
@@ -50,6 +50,7 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
   const transcript = useRef<HTMLDivElement>(null)
   const stickToBottom = useRef(true)
   const wasMobileOpen = useRef(false)
+  const handledNoteRequest = useRef<string | undefined>(undefined)
   const visibleMessages = messages.filter((message) => message.role !== 'engine' && !message.text.startsWith('Authored context') && !message.text.startsWith('SELECTED'))
   const showSuggestions = visibleMessages.length <= 1 && !selectedHotspot && !noteContext
   const suggestions = [
@@ -71,19 +72,8 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
     wasMobileOpen.current = Boolean(mobileOpen)
   }, [mobileOpen])
   useBodyScrollLock(Boolean(mobileOpen) && window.innerWidth < 1200)
-  useEffect(() => {
-    if (!draftRequest) return
-    const frame = window.requestAnimationFrame(() => {
-      setInput(draftRequest.prompt)
-      setAssistantTab('text')
-      window.requestAnimationFrame(() => inputRef.current?.focus())
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [draftRequest])
-
-  async function submit(event: FormEvent) {
-    event.preventDefault()
-    const question = input.trim()
+  async function sendQuestion(value: string) {
+    const question = value.trim()
     if (!question || typing) return
     if (!user) {
       window.location.assign(`/login?next=${encodeURIComponent(`/app?model=${model.id}`)}`)
@@ -122,6 +112,22 @@ export function MentorPanel({ model, selectedHotspot, actionHistory, messages, t
     } finally {
       onTyping(false)
     }
+  }
+
+  const handleNoteRequest = useEffectEvent((request: NoteSelectionRequest) => {
+    setAssistantTab('text')
+    void sendQuestion(request.prompt)
+  })
+  useEffect(() => {
+    if (!noteRequest || handledNoteRequest.current === noteRequest.id) return
+    handledNoteRequest.current = noteRequest.id
+    const frame = window.requestAnimationFrame(() => handleNoteRequest(noteRequest))
+    return () => window.cancelAnimationFrame(frame)
+  }, [noteRequest])
+
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    void sendQuestion(input)
   }
 
   function handleInputKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {

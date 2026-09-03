@@ -38,6 +38,16 @@ type Props = {
   prioritizeFirstImage?: boolean
 }
 
+const NOTE_SELECTION_HIGHLIGHT = 'stranerd-note-selection'
+
+function updateSelectionHighlight(range?: Range) {
+  const registry = (CSS as typeof CSS & { highlights?: { delete: (name: string) => void; set: (name: string, highlight: unknown) => void } }).highlights
+  const HighlightConstructor = (window as typeof window & { Highlight?: new (...ranges: Range[]) => unknown }).Highlight
+  if (!registry) return
+  registry.delete(NOTE_SELECTION_HIGHLIGHT)
+  if (range && HighlightConstructor) registry.set(NOTE_SELECTION_HIGHLIGHT, new HighlightConstructor(range))
+}
+
 export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection, onRequest, imageMetadata, prioritizeFirstImage = true }: Props) {
   const root = useRef<HTMLDivElement>(null)
   const toolbar = useRef<HTMLDivElement>(null)
@@ -65,6 +75,7 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
       setGuidance('')
       setCopied(false)
       savedRange.current = undefined
+      updateSelectionHighlight()
       publishSelection('')
       if (clearBrowserSelection) window.getSelection()?.removeAllRanges()
     }
@@ -82,6 +93,7 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
       const rect = range.getBoundingClientRect()
       if (!rect.width && !rect.height) { dismiss(); return }
       savedRange.current = range.cloneRange()
+      updateSelectionHighlight(savedRange.current)
       const workspace = root.current?.closest('.center-pane')?.getBoundingClientRect()
       const mentor = document.getElementById('stranerd-mentor')?.getBoundingClientRect()
       const workspaceRight = mentor && mentor.width > 0 && mentor.left > (workspace?.left ?? 0) ? Math.min(workspace?.right ?? window.innerWidth, mentor.left) : workspace?.right ?? window.innerWidth
@@ -132,6 +144,13 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
   function request(action: 'explain' | 'ask') {
     if (!noteContext || !selection) return
     onRequest?.(noteSelectionPrompt(action, { ...noteContext, selectedText: selection.text }, guidance))
+    selectionActive.current = false
+    setSelection(undefined)
+    setGuidance('')
+    setCopied(false)
+    savedRange.current = undefined
+    updateSelectionHighlight()
+    window.getSelection()?.removeAllRanges()
   }
 
   async function copySelection() {
@@ -141,8 +160,8 @@ export function MaterialMarkdown({ markdown, mnemonics, noteContext, onSelection
   }
 
   const selectionToolbar = selection && <div className="learn-redesign note-selection-portal"><div ref={toolbar} className="note-selection-toolbar" role="dialog" aria-label="Selected note actions" style={selection.style} onPointerDownCapture={() => { toolbarInteraction.current = true; window.setTimeout(() => { toolbarInteraction.current = false }, 0) }}>
-    <div className="note-selection-actions"><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => request('explain')} aria-label="Prepare an explanation of selected text"><Sparkles />Explain</Button><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => void copySelection()} aria-label="Copy selected text"><Copy />{copied ? 'Copied' : 'Copy'}</Button><span aria-live="polite">{copied ? 'Copied' : 'Selected'}</span></div>
-    <form onSubmit={(event) => { event.preventDefault(); if (guidance.trim()) request('ask') }}><label><span className="sr-only">Ask Nerd Bot about selected text</span><Input value={guidance} onChange={(event) => setGuidance(event.target.value)} placeholder="Ask Nerd Bot..." maxLength={240} /></label><Button type="submit" size="icon-sm" variant="ai" disabled={!guidance.trim()} aria-label="Prepare question for Nerd Bot"><Send /></Button></form>
+    <div className="note-selection-actions"><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => request('explain')} aria-label="Send selected text to Nerd Bot for explanation"><Sparkles />Explain</Button><Button size="sm" variant="ghost" onPointerDown={preserveSelection} onClick={() => void copySelection()} aria-label="Copy selected text"><Copy />{copied ? 'Copied' : 'Copy'}</Button><span aria-live="polite">{copied ? 'Copied' : 'Selected'}</span></div>
+    <form onSubmit={(event) => { event.preventDefault(); if (guidance.trim()) request('ask') }}><label><span className="sr-only">Ask Nerd Bot about selected text</span><Input value={guidance} onChange={(event) => setGuidance(event.target.value)} placeholder="Ask Nerd Bot..." maxLength={240} /></label><Button type="submit" size="icon-sm" variant="ai" disabled={!guidance.trim()} aria-label="Send question to Nerd Bot"><Send /></Button></form>
   </div></div>
 
   let imageIndex = 0

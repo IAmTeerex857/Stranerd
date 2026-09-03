@@ -505,6 +505,8 @@
   --learn-fg-2: var(--muted-foreground);
 }
 
+::highlight(stranerd-note-selection) { color: inherit; background: color-mix(in srgb, var(--ai) 34%, transparent); }
+
 .learn-redesign .note-selection-toolbar {
   width: min(344px, calc(100vw - 24px));
   padding: 8px;
